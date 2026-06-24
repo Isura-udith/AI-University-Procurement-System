@@ -1,0 +1,204 @@
+
+> api@1.0.0 test
+> jest --passWithNoTests
+
+PASS tests/auth.test.js
+  ● Console
+
+    console.log
+      ◇ injected env (25) from .env // tip: ⌘ override existing { override: true }
+
+      at _log (../../node_modules/dotenv/lib/main.js:131:11)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.721Z","level":"AUDIT","message":"USER_REGISTER by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"USER_REGISTER","email":"admin@uwu.ac.lk","role":"super_admin"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+    console.error
+      {"timestamp":"2026-06-10T19:43:09.745Z","level":"ERROR","message":"Email already registered","ip":"::ffff:127.0.0.1","statusCode":400,"stack":"Error: Email already registered\n    at AuthService.register (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\services\\auth.service.js:13:43)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at register (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\controllers\\auth.controller.js:14:20)","path":"/api/v1/auth/register","method":"POST"}
+
+    [0m [90m 27 |[39m [36mconst[39m logger [33m=[39m {
+     [90m 28 |[39m   error[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 29 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mERROR[39m) console[33m.[39merror(formatLog([32m'ERROR'[39m[33m,[39m message[33m,[39m meta))[33m;[39m
+     [90m    |[39m                                                   [31m[1m^[22m[39m
+     [90m 30 |[39m   }[33m,[39m
+     [90m 31 |[39m   warn[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+     [90m 32 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mWARN[39m) console[33m.[39mwarn(formatLog([32m'WARN'[39m[33m,[39m message[33m,[39m meta))[33m;[39m[0m
+
+      at Object.error (src/config/logger.js:29:51)
+      at error (src/middlewares/error.middleware.js:31:10)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:116:17)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:111:12)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at next (../../node_modules/router/lib/route.js:132:14)
+      at next (src/controllers/auth.controller.js:17:19)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.753Z","level":"AUDIT","message":"USER_LOGIN by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"USER_LOGIN","ip":"::ffff:127.0.0.1","email":"admin@uwu.ac.lk"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+    console.error
+      {"timestamp":"2026-06-10T19:43:09.761Z","level":"ERROR","message":"Invalid credentials","ip":"::ffff:127.0.0.1","statusCode":401,"stack":"Error: Invalid credentials\n    at AuthService.login (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\services\\auth.service.js:102:27)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at login (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\controllers\\auth.controller.js:23:20)","path":"/api/v1/auth/login","method":"POST"}
+
+    [0m [90m 27 |[39m [36mconst[39m logger [33m=[39m {
+     [90m 28 |[39m   error[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 29 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mERROR[39m) console[33m.[39merror(formatLog([32m'ERROR'[39m[33m,[39m message[33m,[39m meta))[33m;[39m
+     [90m    |[39m                                                   [31m[1m^[22m[39m
+     [90m 30 |[39m   }[33m,[39m
+     [90m 31 |[39m   warn[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+     [90m 32 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mWARN[39m) console[33m.[39mwarn(formatLog([32m'WARN'[39m[33m,[39m message[33m,[39m meta))[33m;[39m[0m
+
+      at Object.error (src/config/logger.js:29:51)
+      at error (src/middlewares/error.middleware.js:31:10)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:116:17)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:111:12)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at next (../../node_modules/router/lib/route.js:132:14)
+      at next (src/controllers/auth.controller.js:26:19)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.782Z","level":"AUDIT","message":"USER_LOGOUT by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"USER_LOGOUT"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+PASS tests/procurement.test.js
+  ● Console
+
+    console.log
+      ◇ injected env (25) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+      at _log (../../node_modules/dotenv/lib/main.js:131:11)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.758Z","level":"AUDIT","message":"PROCUREMENT_CREATED by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"PROCUREMENT_CREATED","procurementId":"60c72b2f9b1d8b2d88888899"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+    console.error
+      {"timestamp":"2026-06-10T19:43:09.800Z","level":"ERROR","message":"Procurement not found","userId":"60c72b2f9b1d8b2d88888888","ip":"::ffff:127.0.0.1","statusCode":404,"stack":"Error: Procurement not found\n    at ProcurementService.getById (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\services\\procurement.service.js:115:43)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at getProcurement (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\controllers\\procurement.controller.js:28:20)","path":"/api/v1/procurements/60c72b2f9b1d8b2d88888000","method":"GET"}
+
+    [0m [90m 27 |[39m [36mconst[39m logger [33m=[39m {
+     [90m 28 |[39m   error[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 29 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mERROR[39m) console[33m.[39merror(formatLog([32m'ERROR'[39m[33m,[39m message[33m,[39m meta))[33m;[39m
+     [90m    |[39m                                                   [31m[1m^[22m[39m
+     [90m 30 |[39m   }[33m,[39m
+     [90m 31 |[39m   warn[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+     [90m 32 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mWARN[39m) console[33m.[39mwarn(formatLog([32m'WARN'[39m[33m,[39m message[33m,[39m meta))[33m;[39m[0m
+
+      at Object.error (src/config/logger.js:29:51)
+      at error (src/middlewares/error.middleware.js:31:10)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:116:17)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:111:12)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at next (../../node_modules/router/lib/route.js:132:14)
+      at next (src/controllers/procurement.controller.js:30:19)
+
+    console.warn
+      {"timestamp":"2026-06-10T19:43:09.811Z","level":"WARN","message":"HOD notification failed","error":"Cannot read properties of undefined (reading 'select')"}
+
+    [0m [90m 30 |[39m   }[33m,[39m
+     [90m 31 |[39m   warn[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 32 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mWARN[39m) console[33m.[39mwarn(formatLog([32m'WARN'[39m[33m,[39m message[33m,[39m meta))[33m;[39m
+     [90m    |[39m                                                  [31m[1m^[22m[39m
+     [90m 33 |[39m   }[33m,[39m
+     [90m 34 |[39m   info[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+     [90m 35 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mINFO[39m) console[33m.[39mlog(formatLog([32m'INFO'[39m[33m,[39m message[33m,[39m meta))[33m;[39m[0m
+
+      at Object.warn (src/config/logger.js:32:50)
+      at ProcurementService.warn [as submit] (src/services/procurement.service.js:209:28)
+      at submitProcurement (src/controllers/procurement.controller.js:42:20)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.811Z","level":"AUDIT","message":"PROCUREMENT_SUBMITTED by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"PROCUREMENT_SUBMITTED","procurementId":"60c72b2f9b1d8b2d88888899"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+PASS tests/vendor.test.js
+  ● Console
+
+    console.log
+      ◇ injected env (25) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+      at _log (../../node_modules/dotenv/lib/main.js:131:11)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.808Z","level":"AUDIT","message":"VENDOR_REGISTERED by self","userId":"self","action":"VENDOR_REGISTERED","vendorId":"60c72b2f9b1d8b2d888888aa"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+    console.error
+      {"timestamp":"2026-06-10T19:43:09.845Z","level":"ERROR","message":"Vendor not found","userId":"60c72b2f9b1d8b2d88888888","ip":"::ffff:127.0.0.1","statusCode":404,"stack":"Error: Vendor not found\n    at VendorService.getById (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\services\\vendor.service.js:31:38)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at getVendor (C:\\Users\\User\\Desktop\\smart-procurement-system\\apps\\api\\src\\controllers\\vendor.controller.js:14:29)","path":"/api/v1/vendors/60c72b2f9b1d8b2d88888000","method":"GET"}
+
+    [0m [90m 27 |[39m [36mconst[39m logger [33m=[39m {
+     [90m 28 |[39m   error[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+    [31m[1m>[22m[39m[90m 29 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mERROR[39m) console[33m.[39merror(formatLog([32m'ERROR'[39m[33m,[39m message[33m,[39m meta))[33m;[39m
+     [90m    |[39m                                                   [31m[1m^[22m[39m
+     [90m 30 |[39m   }[33m,[39m
+     [90m 31 |[39m   warn[33m:[39m (message[33m,[39m meta) [33m=>[39m {
+     [90m 32 |[39m     [36mif[39m (currentLevel [33m>=[39m [33mLOG_LEVELS[39m[33m.[39m[33mWARN[39m) console[33m.[39mwarn(formatLog([32m'WARN'[39m[33m,[39m message[33m,[39m meta))[33m;[39m[0m
+
+      at Object.error (src/config/logger.js:29:51)
+      at error (src/middlewares/error.middleware.js:31:10)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:116:17)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at Layer.handleError (../../node_modules/router/lib/layer.js:111:12)
+      at trimPrefix (../../node_modules/router/index.js:340:13)
+      at ../../node_modules/router/index.js:297:9
+      at processParams (../../node_modules/router/index.js:582:12)
+      at next (../../node_modules/router/index.js:291:5)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at ../../node_modules/router/index.js:688:15
+      at next (../../node_modules/router/index.js:276:14)
+      at next (../../node_modules/router/lib/route.js:132:14)
+      at next (src/controllers/vendor.controller.js:14:104)
+
+    console.log
+      {"timestamp":"2026-06-10T19:43:09.852Z","level":"AUDIT","message":"VENDOR_VERIFIED by 60c72b2f9b1d8b2d88888888","userId":"60c72b2f9b1d8b2d88888888","action":"VENDOR_VERIFIED","vendorId":"60c72b2f9b1d8b2d888888aa"}
+
+      at Object.log [as audit] (src/config/logger.js:41:13)
+
+
+Test Suites: 3 passed, 3 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        2.319 s
+Ran all test suites.

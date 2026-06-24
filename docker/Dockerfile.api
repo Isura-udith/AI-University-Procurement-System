@@ -1,0 +1,30 @@
+# Build and run Dockerfile for UWU Smart Procurement API
+FROM node:20-alpine AS runner
+
+# Install dependencies needed for node-gyp or other native modules
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy workspace root configuration
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+
+# Install production dependencies for the API workspace
+RUN npm ci --workspace=apps/api --omit=dev
+
+# Copy the API code and shared packages
+COPY apps/api ./apps/api
+COPY packages ./packages
+
+# Set runtime environment
+ENV NODE_ENV=production
+ENV PORT=5000
+
+# Expose API port
+EXPOSE 5000
+
+WORKDIR /app/apps/api
+
+# Run the API server
+CMD ["node", "src/server.js"]

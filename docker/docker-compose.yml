@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0-jammy
+    container_name: uwu-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - uwu-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: uwu-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - uwu-network
+    restart: always
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: uwu-api-server
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+      - redis
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/uwu_procurement
+      - REDIS_URL=redis://redis:6379
+      - CLIENT_URL=http://localhost:5173
+    networks:
+      - uwu-network
+    restart: always
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        - VITE_API_URL=http://localhost:5000/api/v1
+    container_name: uwu-web-client
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - uwu-network
+    restart: always
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  uwu-network:
+    driver: bridge

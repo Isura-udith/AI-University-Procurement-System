@@ -1,0 +1,49 @@
+# Build stage for UWU Smart Procurement Web Client
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy workspace configuration
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies including devDependencies for build
+RUN npm ci --workspace=apps/web
+
+# Copy Web client source code and shared packages
+COPY apps/web ./apps/web
+COPY packages ./packages
+
+# Build-time environment variables
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api/v1}
+
+WORKDIR /app/apps/web
+
+# Build Vite application
+RUN npm run build
+
+# Nginx production stage to serve built files
+FROM nginx:1.25-alpine AS runner
+
+# Copy built assets
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+
+# SPA Router support (redirect all requests to index.html)
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+    error_page 500 502 503 504 /50x.html; \
+    location = /50x.html { \
+        root /usr/share/nginx/html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# Expose Nginx port
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,156 @@
+/**
+ * ─────────────────────────────────────────────────────────────
+ * RBAC Permissions Configuration for UWU Smart Procurement System
+ * Maps each role to its specific UI access areas and actions.
+ *
+ * This file mirrors the shared `packages/types/rbac.config.js`
+ * definitions for use in frontend ESM imports.
+ * ─────────────────────────────────────────────────────────────
+ */
+import { ROLES } from './roles';
+
+// ─── Permission Keys (expanded to cover all lifecycle actions) ──
+export const PERMISSIONS = {
+  // Requisitions
+  CREATE_REQUISITION:   'create_requisition',
+  APPROVE_REQUISITION:  'approve_requisition',
+  REJECT_REQUISITION:   'reject_requisition',
+
+  // Budget & Finance
+  VERIFY_BUDGET:        'verify_budget',
+  MANAGE_BUDGET:        'manage_budget',
+  THREE_WAY_MATCH:      'three_way_match',
+  PROCESS_PAYMENT:      'process_payment',
+
+  // Tendering
+  CREATE_TENDER:        'create_tender',
+  PUBLISH_TENDER:       'publish_tender',
+  OPEN_BID_BOX:         'open_bid_box',
+  SUBMIT_BID:           'submit_bid',
+  EVALUATE_BID:         'evaluate_bid',
+
+  // Awards & Contracts
+  AWARD_CONTRACT:       'award_contract',
+  SIGN_CONTRACT:        'sign_contract',
+  SIGN_LOA:             'sign_loa',
+  SUBMIT_APPEAL:        'submit_appeal',
+  REQUEST_DEBRIEFING:   'request_debriefing',
+
+  // Inventory & GRN
+  RECORD_GRN:           'record_grn',
+  MANAGE_INVENTORY:     'manage_inventory',
+
+  // Vendors
+  MANAGE_VENDORS:       'manage_vendors',
+
+  // Reports & AI
+  VIEW_REPORTS:         'view_reports',
+  AI_ANALYSIS:          'ai_analysis',
+
+  // Administration
+  MANAGE_USERS:         'manage_users',
+  MANAGE_MPP:           'manage_mpp',
+  MANAGE_DAPP:          'manage_dapp',
+  DELEGATE_AUTHORITY:   'delegate_authority',
+
+  // Public
+  VIEW_PUBLIC_NOTICES:  'view_public_notices',
+};
+
+// ─── Role → Permissions Map ────────────────────────────────────
+export const ROLE_PERMISSIONS = {
+  [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
+
+  [ROLES.ADMIN]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.CREATE_TENDER, PERMISSIONS.PUBLISH_TENDER, PERMISSIONS.EVALUATE_BID,
+    PERMISSIONS.OPEN_BID_BOX, PERMISSIONS.AWARD_CONTRACT, PERMISSIONS.MANAGE_VENDORS,
+    PERMISSIONS.VIEW_REPORTS, PERMISSIONS.MANAGE_USERS, PERMISSIONS.MANAGE_BUDGET,
+    PERMISSIONS.MANAGE_MPP, PERMISSIONS.MANAGE_DAPP, PERMISSIONS.AI_ANALYSIS,
+    PERMISSIONS.VERIFY_BUDGET, PERMISSIONS.THREE_WAY_MATCH,
+  ],
+
+  [ROLES.VC]: [
+    PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.AWARD_CONTRACT, PERMISSIONS.SIGN_CONTRACT, PERMISSIONS.SIGN_LOA,
+    PERMISSIONS.VIEW_REPORTS, PERMISSIONS.DELEGATE_AUTHORITY,
+  ],
+
+  [ROLES.DEAN]: [
+    PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.BURSAR]: [
+    PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.MANAGE_BUDGET, PERMISSIONS.VERIFY_BUDGET,
+    PERMISSIONS.THREE_WAY_MATCH, PERMISSIONS.PROCESS_PAYMENT,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.FINANCE_COMMITTEE]: [
+    PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.FINANCE_OFFICER]: [
+    PERMISSIONS.VERIFY_BUDGET, PERMISSIONS.MANAGE_BUDGET,
+    PERMISSIONS.PROCESS_PAYMENT, PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.PROCUREMENT_OFFICER]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.CREATE_TENDER, PERMISSIONS.PUBLISH_TENDER,
+    PERMISSIONS.OPEN_BID_BOX, PERMISSIONS.EVALUATE_BID, PERMISSIONS.AWARD_CONTRACT,
+    PERMISSIONS.MANAGE_VENDORS, PERMISSIONS.VIEW_REPORTS, PERMISSIONS.AI_ANALYSIS,
+  ],
+
+  [ROLES.CONTRACT_MANAGER]: [
+    PERMISSIONS.AWARD_CONTRACT, PERMISSIONS.VIEW_REPORTS, PERMISSIONS.MANAGE_VENDORS,
+  ],
+
+  [ROLES.TEC_MEMBER]: [
+    PERMISSIONS.EVALUATE_BID, PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.DEPARTMENT_HEAD]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION,
+    PERMISSIONS.REJECT_REQUISITION, PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.DEPARTMENT_USER]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.AI_ANALYSIS,
+  ],
+
+  [ROLES.STORE_MANAGER]: [
+    PERMISSIONS.RECORD_GRN, PERMISSIONS.MANAGE_INVENTORY, PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.SUPPLIER]: [
+    PERMISSIONS.SUBMIT_BID, PERMISSIONS.SUBMIT_APPEAL, PERMISSIONS.REQUEST_DEBRIEFING,
+  ],
+
+  [ROLES.AUDITOR]: [
+    PERMISSIONS.VIEW_REPORTS,  // Read-only across all modules
+  ],
+
+  [ROLES.GUEST]: [
+    PERMISSIONS.VIEW_PUBLIC_NOTICES,
+  ],
+};
+
+// ─── Helper: Check if user has specific permission ─────────────
+export function hasPermission(userRole, permission) {
+  if (userRole === ROLES.SUPER_ADMIN) return true;
+  const perms = ROLE_PERMISSIONS[userRole] || [];
+  return perms.includes(permission);
+}
+
+// ─── Helper: Check if user has any of the given permissions ────
+export function hasAnyPermission(userRole, permissions = []) {
+  if (userRole === ROLES.SUPER_ADMIN) return true;
+  const perms = ROLE_PERMISSIONS[userRole] || [];
+  return permissions.some(p => perms.includes(p));
+}
+
+export default PERMISSIONS;
