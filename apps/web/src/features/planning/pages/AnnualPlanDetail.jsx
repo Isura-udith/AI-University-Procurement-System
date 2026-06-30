@@ -1,0 +1,370 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
+import {
+  FaArrowLeft, FaCheck, FaTimes, FaGlobeAsia, FaCheckCircle, FaMoneyBillWave, FaEdit,
+} from 'react-icons/fa';
+import planningService from '../../../services/planning.service';
+
+// Internal approval chain (Phase 3 — internal leg)
+const INTERNAL_CHAIN = [
+  { stage: 'dean', label: 'Faculty Dean', color: 'blue' },
+  { stage: 'bursar', label: 'Chief Bursar', color: 'indigo' },
+  { stage: 'finance_committee', label: 'Finance Committee', color: 'purple' },
+  { stage: 'vice_chancellor', label: 'Vice Chancellor', color: 'violet' },
+  { stage: 'council', label: 'University Council', color: 'emerald' },
+];
+
+// External approval chain (Phase 3 — national leg)
+const EXTERNAL_CHAIN = [
+  { body: 'ugc', label: 'University Grants Commission (UGC)', icon: '🏛️', color: 'blue' },
+  { body: 'treasury', label: 'Ministry of Finance / Treasury', icon: '🏦', color: 'indigo' },
+  { body: 'parliament', label: 'Parliament (Budget Approval)', icon: '🏫', color: 'purple' },
+];
+
+const ROLE_TO_INTERNAL_STAGE = {
+  dean: 'dean', bursar: 'bursar',
+  finance_committee: 'finance_committee', finance_officer: 'finance_committee', vc: 'vice_chancellor',
+  admin: 'council', super_admin: 'council',
+};
+
+const INTERNAL_PENDING = {
+  dean_review: 'dean', bursar_review: 'bursar',
+  finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
+  council_review: 'council',
+};
+
+const EXTERNAL_STATUS_LABELS = {
+  not_submitted: 'Not Submitted',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  revision_requested: 'Revision Requested',
+};
+
+function ExternalStepCard({ step, approval, canRecord, onRecord }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ status: 'submitted', referenceNumber: '', allocatedAmount: '', notes: '' });
+
+  const statusColors = {
+    not_submitted: 'bg-slate-100 text-slate-500',
+    submitted: 'bg-amber-100 text-amber-700',
+    approved: 'bg-emerald-100 text-emerald-700',
+    rejected: 'bg-red-100 text-red-700',
+    revision_requested: 'bg-orange-100 text-orange-700',
+  };
+
+  const handleSave = () => {
+    onRecord(step.body, { ...form, allocatedAmount: form.allocatedAmount ? Number(form.allocatedAmount) : undefined });
+    setEditing(false);
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 space-y-3 ${approval?.status === 'approved' ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{step.icon}</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">{step.label}</p>
+            {approval?.referenceNumber && <p className="text-xs text-slate-400">Ref: {approval.referenceNumber}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColors[approval?.status || 'not_submitted']}`}>
+            {EXTERNAL_STATUS_LABELS[approval?.status || 'not_submitted']}
+          </span>
+          {canRecord && !editing && (
+            <button onClick={() => setEditing(true)} className="text-slate-400 hover:text-slate-700 transition-colors">
+              <FaEdit size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {approval?.allocatedAmount && (
+        <p className="text-sm font-bold text-emerald-700">Allocated: LKR {Number(approval.allocatedAmount).toLocaleString()}</p>
+      )}
+      {approval?.notes && <p className="text-xs text-slate-500 italic">"{approval.notes}"</p>}
+
+      {editing && (
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            {Object.entries(EXTERNAL_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <input placeholder="Reference number" value={form.referenceNumber} onChange={e => setForm(f => ({ ...f, referenceNumber: e.target.value }))}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          {form.status === 'approved' && (
+            <input type="number" placeholder="Allocated amount (LKR)" value={form.allocatedAmount} onChange={e => setForm(f => ({ ...f, allocatedAmount: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          )}
+          <input placeholder="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <div className="flex gap-2">
+            <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500">Save</button>
+            <button onClick={() => setEditing(false)} className="flex-1 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AnnualPlanDetail() {
+  const { id } = useParams();
+  const { user } = useSelector(s => s.auth);
+  const [plan, setPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [comment, setComment] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    planningService.getAnnualPlan(id)
+      .then(res => setPlan(res.data?.data || res.data))
+      .catch(() => {
+        setPlan({
+          _id: id, referenceNumber: 'UWU/DAPP/2026/001',
+          title: 'Annual Procurement Plan 2026', planYear: 2026, cycleYearNumber: 1,
+          status: 'ugc_submitted', totalBudgetRequest: 280000000, totalAllocatedBudget: null,
+          masterPlanRef: 'UWU/MPP/2025-2028/001',
+          items: [
+            { _id: '1', description: 'Laboratory Spectrophotometers', category: 'Goods', faculty: 'Faculty of Applied Sciences', estimatedTotalCost: 12500000, quarter: 1, priority: 'high' },
+            { _id: '2', description: 'Student Hostel Complex Phase II', category: 'Works', faculty: 'Works Division', estimatedTotalCost: 85000000, quarter: 2, priority: 'critical' },
+            { _id: '3', description: 'ERP System Integration', category: 'Services', faculty: 'ICT Centre', estimatedTotalCost: 45000000, quarter: 1, priority: 'high' },
+          ],
+          internalApprovals: [
+            { stage: 'dean', status: 'approved', comments: 'Plan verified', actionDate: new Date() },
+            { stage: 'bursar', status: 'approved', comments: 'Budget reviewed', actionDate: new Date() },
+            { stage: 'finance_committee', status: 'approved', actionDate: new Date() },
+            { stage: 'vice_chancellor', status: 'approved', actionDate: new Date() },
+            { stage: 'council', status: 'approved', actionDate: new Date() },
+          ],
+          externalApprovals: [
+            { body: 'ugc', status: 'submitted', referenceNumber: 'UGC/2026/REF/0042', submittedAt: new Date() },
+          ],
+          createdBy: { name: 'Mr. S. Rathnayake' },
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const myStage = ROLE_TO_INTERNAL_STAGE[user?.role];
+  const pendingInternal = plan ? INTERNAL_PENDING[plan.status] : null;
+  const canActInternal = myStage && pendingInternal === myStage;
+  const canRecordExternal = ['bursar', 'vc', 'admin', 'super_admin'].includes(user?.role);
+  const canConfirmBudget = ['vc', 'bursar', 'admin', 'super_admin'].includes(user?.role);
+  const showExternal = !INTERNAL_PENDING[plan?.status] || plan?.status?.includes('ugc') || plan?.status?.includes('treasury') || plan?.status?.includes('parliament') || plan?.status === 'budget_received';
+
+  const handleInternalAction = async (action) => {
+    setActionLoading(true);
+    try {
+      const res = await planningService.approveAnnualPlan(id, { action, comments: comment });
+      setPlan(res.data?.data || res.data);
+      toast.success(action === 'approve' ? 'Approved!' : 'Rejected.');
+      setComment('');
+    } catch (err) { toast.error(err?.response?.data?.message || 'Failed'); }
+    finally { setActionLoading(false); }
+  };
+
+  const handleExternalRecord = async (body, data) => {
+    try {
+      const res = await planningService.recordExternalApproval(id, { body, ...data });
+      setPlan(res.data?.data || res.data);
+      toast.success(`${body.toUpperCase()} status updated`);
+    } catch (err) { console.error(err); toast.error('Failed to update'); }
+  };
+
+  const handleConfirmBudget = async () => {
+    setConfirming(true);
+    try {
+      const res = await planningService.confirmBudgetReceived(id, {});
+      setPlan(res.data?.data || res.data);
+      toast.success('Budget confirmed! Proceed to distribution.');
+    } catch (err) { toast.error(err?.response?.data?.message || 'Failed'); }
+    finally { setConfirming(false); }
+  };
+
+  const fmtCurrency = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
+  const fmtStatus = (s) => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
+  const statusStyle = (s) => {
+    if (['distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700';
+    if (s === 'rejected') return 'bg-red-100 text-red-700';
+    if (s === 'draft') return 'bg-slate-100 text-slate-600';
+    return 'bg-amber-100 text-amber-700';
+  };
+  const priorityColor = { low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700', high: 'bg-amber-100 text-amber-700', critical: 'bg-red-100 text-red-700' };
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
+  if (!plan) return <div className="text-center py-16 text-slate-400">Plan not found.</div>;
+
+  const getInternalApproval = (stage) => plan.internalApprovals?.find(a => a.stage === stage);
+  const getExternalApproval = (body) => plan.externalApprovals?.find(a => a.body === body);
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Link to="/planning/annual-plans" className="mt-1 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <FaArrowLeft size={14} />
+          </Link>
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="font-mono text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-lg">{plan.referenceNumber}</span>
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusStyle(plan.status)}`}>{fmtStatus(plan.status)}</span>
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Year {plan.cycleYearNumber} of Cycle</span>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">{plan.title}</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Plan Year: {plan.planYear} · Budget Request: <strong>{fmtCurrency(plan.totalBudgetRequest)}</strong>
+              {plan.totalAllocatedBudget && <> · Allocated: <strong className="text-emerald-700">{fmtCurrency(plan.totalAllocatedBudget)}</strong></>}
+            </p>
+          </div>
+        </div>
+        {plan.status === 'budget_received' && canConfirmBudget && (
+          <Link to="/planning/budget-distribution" className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all">
+            <FaMoneyBillWave size={12} /> Distribute Budget
+          </Link>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Items */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Quarter breakdown */}
+          <div className="grid grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(q => {
+              const qItems = plan.items?.filter(i => i.quarter === q) || [];
+              const qTotal = qItems.reduce((s, i) => s + (i.estimatedTotalCost || 0), 0);
+              return (
+                <div key={q} className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                  <p className="text-xs font-semibold text-slate-500">Q{q}</p>
+                  <p className="text-lg font-bold text-slate-800 mt-1">{qItems.length}</p>
+                  <p className="text-xs text-slate-400">{qTotal > 0 ? `LKR ${(qTotal/1000000).toFixed(1)}M` : '—'}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Items table */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <h2 className="font-semibold text-slate-800">Procurement Items ({plan.items?.length || 0})</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500">Description</th>
+                    <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Category</th>
+                    <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Faculty</th>
+                    <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500">Q</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500">Est. Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {plan.items?.map((item, i) => (
+                    <tr key={item._id || i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-slate-800">{item.description}</p>
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
+                      <td className="px-3 py-3 text-xs text-slate-500">{item.faculty}</td>
+                      <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter}</td>
+                      <td className="px-6 py-3 text-right font-semibold text-slate-700">{fmtCurrency(item.estimatedTotalCost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50">
+                    <td colSpan={4} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
+                    <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Internal Approval Chain */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <h2 className="font-semibold text-slate-800 mb-3 text-sm">Internal Approvals</h2>
+            <div className="space-y-2">
+              {INTERNAL_CHAIN.map(step => {
+                const approval = getInternalApproval(step.stage);
+                const isCurrent = pendingInternal === step.stage;
+                return (
+                  <div key={step.stage} className={`flex items-center gap-2.5 p-2 rounded-lg ${isCurrent ? 'bg-blue-50' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0
+                      ${approval?.status === 'approved' ? 'bg-emerald-500' : approval?.status === 'rejected' ? 'bg-red-500' : isCurrent ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                      {approval?.status === 'approved' ? <FaCheck className="text-white" size={10} /> :
+                       approval?.status === 'rejected' ? <FaTimes className="text-white" size={10} /> :
+                       <span className="text-xs text-white font-bold">{INTERNAL_CHAIN.findIndex(s => s.stage === step.stage) + 1}</span>}
+                    </div>
+                    <div>
+                      <p className={`text-xs font-semibold ${isCurrent ? 'text-blue-700' : approval?.status === 'approved' ? 'text-emerald-700' : 'text-slate-500'}`}>{step.label}</p>
+                      {approval?.comments && <p className="text-xs text-slate-400 truncate max-w-32">{approval.comments}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action: Internal */}
+          {canActInternal && (
+            <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
+              <h2 className="font-semibold text-blue-800 text-sm">Your Approval Required</h2>
+              <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                placeholder="Comments…" />
+              <div className="flex gap-2">
+                <button onClick={() => handleInternalAction('approve')} disabled={actionLoading}
+                  className="flex-1 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 disabled:opacity-60">
+                  <FaCheck size={10} className="inline mr-1" /> Approve
+                </button>
+                <button onClick={() => handleInternalAction('reject')} disabled={actionLoading}
+                  className="flex-1 py-2 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-400 disabled:opacity-60">
+                  <FaTimes size={10} className="inline mr-1" /> Reject
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* External Approval Chain */}
+          {showExternal && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+              <h2 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <FaGlobeAsia className="text-blue-600" /> External Approvals (Phase 3)
+              </h2>
+              {EXTERNAL_CHAIN.map(step => (
+                <ExternalStepCard key={step.body} step={step}
+                  approval={getExternalApproval(step.body)}
+                  canRecord={canRecordExternal}
+                  onRecord={handleExternalRecord} />
+              ))}
+            </div>
+          )}
+
+          {/* Confirm Budget Received */}
+          {plan.status === 'parliament_approved' && canConfirmBudget && (
+            <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 space-y-3">
+              <h2 className="font-semibold text-emerald-800 text-sm">Confirm Budget Receipt</h2>
+              <p className="text-xs text-emerald-600">Parliament has approved the budget. Confirm that the university has received the allocation to trigger Phase 4 distribution.</p>
+              <button onClick={handleConfirmBudget} disabled={confirming}
+                className="w-full py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 disabled:opacity-60">
+                <FaCheckCircle className="inline mr-2" size={12} />
+                {confirming ? 'Confirming…' : 'Confirm Budget Received'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

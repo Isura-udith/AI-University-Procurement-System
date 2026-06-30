@@ -9,18 +9,7 @@ import Pagination from '../../../components/Pagination';
 import ExportButton from '../../../components/ExportButton';
 import StatusBadge from '../../../components/StatusBadge';
 
-const MOCK_DATA = [
-  { _id: '1', id: 'UWU/G/NCB/2026/001', title: 'Laboratory Spectrophotometers for Faculty of Applied Sciences', faculty: 'Faculty of Applied Sciences', tce: 12500000, method: 'NCB', status: 'pending-approval', stage: 3, officer: 'Dr. A. Perera', date: '2026-05-08', priority: 'normal' },
-  { _id: '2', id: 'UWU/W/NCB/2026/003', title: 'Construction of New Student Hostel Complex Phase II', faculty: 'Works Division', tce: 85000000, method: 'NCB', status: 'budget-locked', stage: 4, officer: 'Eng. M. Fernando', date: '2026-05-06', priority: 'urgent' },
-  { _id: '3', id: 'UWU/S/ICB/2026/002', title: 'Enterprise Resource Planning (ERP) System Integration', faculty: 'ICT Center', tce: 125000000, method: 'ICB', status: 'tendering', stage: 7, officer: 'Mr. S. Rathnayake', date: '2026-04-28', priority: 'normal' },
-  { _id: '4', id: 'UWU/G/NCB/2026/005', title: 'IT Infrastructure Network Upgrade — Fiber Backbone', faculty: 'ICT Center', tce: 8500000, method: 'NCB', status: 'rejected', stage: 4, officer: 'Mr. S. Rathnayake', date: '2026-05-01', priority: 'normal' },
-  { _id: '5', id: 'UWU/G/SH/2026/010', title: 'Office Furniture for Faculty of Management', faculty: 'Faculty of Management', tce: 2400000, method: 'Shopping', status: 'draft', stage: 1, officer: 'Dr. K. Jayasuriya', date: '2026-05-10', priority: 'normal' },
-  { _id: '6', id: 'UWU/G/NCB/2026/012', title: 'Medical Imaging Equipment — Ultrasound Scanner', faculty: 'Faculty of Medicine', tce: 35000000, method: 'NCB', status: 'pending-approval', stage: 2, officer: 'Dr. N. Wickramasinghe', date: '2026-05-11', priority: 'urgent' },
-  { _id: '7', id: 'UWU/G/NCB/2025/088', title: 'Laboratory Chemicals and Reagents — Annual Supply', faculty: 'Faculty of Applied Sciences', tce: 4800000, method: 'NCB', status: 'completed', stage: 15, officer: 'Dr. A. Perera', date: '2025-12-15', priority: 'normal' },
-  { _id: '8', id: 'UWU/G/NCB/2026/015', title: 'Solar Panel Installation for Admin Building', faculty: 'Works Division', tce: 18500000, method: 'NCB', status: 'draft', stage: 1, officer: 'Eng. M. Fernando', date: '2026-05-15', priority: 'normal' },
-  { _id: '9', id: 'UWU/S/NCB/2026/020', title: 'Library Management System Upgrade', faculty: 'Library', tce: 5600000, method: 'NCB', status: 'pending-approval', stage: 3, officer: 'Ms. D. Kumari', date: '2026-05-12', priority: 'normal' },
-  { _id: '10', id: 'UWU/G/SH/2026/025', title: 'Printing Supplies — Annual Contract', faculty: 'Supplies Division', tce: 1200000, method: 'Shopping', status: 'budget-locked', stage: 4, officer: 'Mr. R. Fernando', date: '2026-05-03', priority: 'normal' },
-];
+
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Status' },
@@ -66,14 +55,15 @@ export default function ProcurementList() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [publishTarget, setPublishTarget] = useState(null);
 
-  // Fetch from API with mock fallback
+  // Fetch from API
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await procurementService.getAll({ page, limit: perPage, status: statusFilter !== 'all' ? statusFilter : undefined, search: search || undefined });
       setData(res.data || []);
     } catch {
-      setData(MOCK_DATA);
+      setData([]);
+      toast.error('Failed to load procurement requisitions');
     } finally {
       setLoading(false);
     }
@@ -91,9 +81,7 @@ export default function ProcurementList() {
       toast.success(`Requisition ${deleteTarget.referenceNumber || deleteTarget.id} deleted successfully`);
       setData(prev => prev.filter(d => (d._id || d.id) !== (deleteTarget._id || deleteTarget.id)));
     } catch {
-      // Mock mode: remove from local state
-      setData(prev => prev.filter(d => (d._id || d.id) !== (deleteTarget._id || deleteTarget.id)));
-      toast.success(`Requisition ${deleteTarget.referenceNumber || deleteTarget.id} deleted`);
+      toast.error('Failed to delete requisition');
     }
     setDeleteTarget(null);
   };
@@ -120,7 +108,7 @@ export default function ProcurementList() {
     }
   };
 
-  // Filter + Sort + Paginate locally (for mock mode)
+  // Filter + Sort + Paginate locally
   const filtered = data
     .filter(item => {
       const matchesSearch = !search || 

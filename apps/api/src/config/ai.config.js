@@ -7,8 +7,8 @@ const env = require('./env');
 const aiConfig = {
   gemini: {
     apiKey: env.GEMINI_API_KEY,
-    model: 'gemini-2.0-flash',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: env.GEMINI_MODEL,
+    baseUrl: env.GEMINI_API_BASE_URL,
     maxTokens: 8192,
     temperature: 0.3,
   },

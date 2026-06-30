@@ -1,17 +1,5 @@
-/**
- * Demand Forecasting Engine
- * AI-powered prediction of procurement demand by faculty and category.
- *
- * Feature 5 (demand side) + Feature 9 backend architecture.
- *
- * Models:
- *   - University historical consumption patterns
- *   - Academic calendar awareness (semester cycles)
- *   - Category-based seasonality
- *
- * Governance: Every output includes an explainabilityLog object.
- */
 const logger = require('../config/logger');
+const aiConfig = require('../config/ai.config');
 
 class DemandForecastingEngine {
   /**
@@ -103,7 +91,7 @@ Return JSON:
         faculty,
         category,
         historicalRecords: historicalData?.length || 0,
-        model: 'gemini-2.0-flash',
+        model: aiConfig.gemini.model,
         processingTimeMs: Date.now() - startTime,
         dataSources: ['university-procurement-history', 'academic-calendar', 'gemini-prediction'],
         disclaimer: 'Forecasts are AI-generated estimates. Actual demand may vary based on policy changes, budget allocations, and unforeseen events.',

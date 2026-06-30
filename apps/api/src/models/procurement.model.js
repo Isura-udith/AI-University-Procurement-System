@@ -1,8 +1,3 @@
-/**
- * Procurement Model
- * Comprehensive requisition model covering the full procurement lifecycle.
- * Implements MPP/DAPP compliance, multi-item support, and budget validation.
- */
 const mongoose = require('mongoose');
 
 const procurementItemSchema = new mongoose.Schema({
@@ -75,6 +70,42 @@ const procurementSchema = new mongoose.Schema({
   budgetValidated: { type: Boolean, default: false },
   budgetLockedAt: Date,
 
+  // ── Automated Budget Compliance Check (populated on submit) ────
+  budgetComplianceCheck: {
+    checkedAt: Date,
+    annualPlanPassed: { type: Boolean },
+    budgetPassed: { type: Boolean },
+    passed: { type: Boolean },
+    annualPlanStatus: String,
+    annualPlanRef: String,
+    annualItemDesc: String,
+    remainingBudget: Number,
+    requiredBudget: Number,
+    failureReason: {
+      type: String,
+      enum: [
+        'no_annual_plan_linked',
+        'plan_not_approved',
+        'item_not_found',
+        'insufficient_budget',
+        'no_budget_allocated',
+        null,
+      ],
+    },
+    requiresSpecialApproval: { type: Boolean, default: false },
+    overBudgetPercent: { type: Number, default: 0 },
+  },
+
+  // ── Workflow Linkage (45-Step Lifecycle) ──────────────────────
+  annualPlanId: { type: mongoose.Schema.Types.ObjectId, ref: 'AnnualPlan' },
+  annualPlanItemId: mongoose.Schema.Types.ObjectId,      // Specific item within the annual plan
+  budgetAllocationId: { type: mongoose.Schema.Types.ObjectId, ref: 'BudgetAllocation' },
+  workflowStep: { type: Number, min: 1, max: 45, default: 27 }, // Current position in 45-step lifecycle
+  approvalAuthority: {                                   // Value-based routing (Step 29)
+    type: String,
+    enum: ['dean', 'vice_chancellor', 'procurement_committee'],
+  },
+
   // Procurement Method (determined by TCE)
   procurementMethod: {
     type: String,
@@ -106,6 +137,7 @@ const procurementSchema = new mongoose.Schema({
       'contract_signing', 'in_progress', 'delivery',
       'three_way_match', 'payment_pending', 'completed',
       'rejected', 'cancelled', 'on_hold',
+      'flagged_special_approval',  // Over-budget within 10% grace — needs special approval
     ],
     default: 'draft',
   },
@@ -267,10 +299,20 @@ procurementSchema.pre('save', async function () {
   // Determine committee based on TCE thresholds
   if (this.totalEstimatedCost) {
     const tce = this.totalEstimatedCost;
-    if (tce <= 50000000) this.assignedCommittee = 'DPC';
-    else if (tce <= 400000000) this.assignedCommittee = 'MPC';
-    else if (tce <= 2000000000) this.assignedCommittee = 'RPC';
-    else this.assignedCommittee = 'CAB_COM';
+    if (tce > 1000000) {
+      // Above 1,000,000 requires Procurement Committee. We use the existing sub-tiers or default to DPC
+      if (tce <= 50000000) this.assignedCommittee = 'DPC';
+      else if (tce <= 400000000) this.assignedCommittee = 'MPC';
+      else if (tce <= 2000000000) this.assignedCommittee = 'RPC';
+      else this.assignedCommittee = 'CAB_COM';
+    } else {
+      this.assignedCommittee = undefined; // No committee needed, VC or Dean is final authority
+    }
+
+    // Step 29: Determine approval authority based on procurement value
+    if (tce <= 500000) this.approvalAuthority = 'dean';
+    else if (tce <= 1000000) this.approvalAuthority = 'vice_chancellor';
+    else this.approvalAuthority = 'procurement_committee';
   }
 });
 

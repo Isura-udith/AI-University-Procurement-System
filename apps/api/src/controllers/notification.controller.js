@@ -2,7 +2,7 @@
  * Notification Controller
  */
 const notificationService = require('../services/notification.service');
-const { success } = require('../utils/response');
+const { success, notFound } = require('../utils/response');
 
 const getMyNotifications = async (req, res, next) => {
   try { return success(res, await notificationService.getForUser(req.user._id, req.tenantId, req.query)); } catch (err) { next(err); }
@@ -16,5 +16,15 @@ const markAllRead = async (req, res, next) => {
 const getUnreadCount = async (req, res, next) => {
   try { return success(res, { count: await notificationService.getUnreadCount(req.user._id, req.tenantId) }); } catch (err) { next(err); }
 };
+const deleteNotification = async (req, res, next) => {
+  try {
+    const result = await notificationService.deleteNotification(req.params.id, req.user._id);
+    if (!result) return notFound(res, 'Notification not found or not authorized.');
+    return success(res, null, 'Notification deleted.');
+  } catch (err) { next(err); }
+};
+const deleteAllRead = async (req, res, next) => {
+  try { return success(res, await notificationService.deleteAllRead(req.user._id, req.tenantId)); } catch (err) { next(err); }
+};
 
-module.exports = { getMyNotifications, markRead, markAllRead, getUnreadCount };
+module.exports = { getMyNotifications, markRead, markAllRead, getUnreadCount, deleteNotification, deleteAllRead };

@@ -4,21 +4,7 @@ import { FaLock, FaLockOpen, FaExclamationTriangle, FaCheckCircle, FaChartLine, 
 import procurementService from '../../../services/procurement.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 
-const MOCK_ITEMS = [
-  { _id: '1', id: 'UWU/G/NCB/2026/001', title: 'Laboratory Spectrophotometers', faculty: 'Applied Sciences', tce: 12500000, dappBalance: 45000000, dappAllocated: 32000000, status: 'pending' },
-  { _id: '2', id: 'UWU/W/NCB/2026/003', title: 'Student Hostel Phase II', faculty: 'Works Division', tce: 85000000, dappBalance: 120000000, dappAllocated: 35000000, status: 'locked', lockedAt: '2026-05-07' },
-  { _id: '3', id: 'UWU/G/NCB/2026/005', title: 'IT Infrastructure Upgrade', faculty: 'ICT Center', tce: 8500000, dappBalance: 5000000, dappAllocated: 4500000, status: 'rejected' },
-  { _id: '4', id: 'UWU/G/NCB/2026/012', title: 'Medical Imaging Equipment', faculty: 'Faculty of Medicine', tce: 35000000, dappBalance: 50000000, dappAllocated: 15000000, status: 'pending' },
-  { _id: '5', id: 'UWU/G/SH/2026/025', title: 'Printing Supplies — Annual Contract', faculty: 'Supplies Division', tce: 1200000, dappBalance: 3000000, dappAllocated: 800000, status: 'locked', lockedAt: '2026-05-04' },
-];
 
-const FACULTY_BUDGETS = [
-  { name: 'Applied Sciences', allocated: 45000000, utilized: 32000000 },
-  { name: 'Works Division', allocated: 120000000, utilized: 85000000 },
-  { name: 'ICT Center', allocated: 15000000, utilized: 13500000 },
-  { name: 'Faculty of Medicine', allocated: 50000000, utilized: 15000000 },
-  { name: 'Supplies Division', allocated: 3000000, utilized: 2000000 },
-];
 
 export default function BudgetLockPage() {
   const [items, setItems] = useState([]);
@@ -31,9 +17,10 @@ export default function BudgetLockPage() {
       setLoading(true);
       try {
         const res = await procurementService.getBudgetStatus();
-        setItems(res.data || MOCK_ITEMS);
+        setItems(res.data || []);
       } catch {
-        setItems(MOCK_ITEMS);
+        setItems([]);
+        toast.error('Failed to load budget items');
       } finally {
         setLoading(false);
       }
@@ -45,7 +32,7 @@ export default function BudgetLockPage() {
     if (!lockTarget) return;
     try {
       await procurementService.lockBudget(lockTarget._id || lockTarget.id);
-    } catch { /* mock mode */ }
+    } catch { toast.error('Failed to lock budget'); }
     
     const tceVal = lockTarget.totalEstimatedCost || lockTarget.tce || 0;
     setItems(prev => prev.map(item =>
@@ -61,7 +48,7 @@ export default function BudgetLockPage() {
     if (!unlockTarget) return;
     try {
       await procurementService.unlockBudget(unlockTarget._id || unlockTarget.id);
-    } catch { /* mock mode */ }
+    } catch { toast.error('Failed to unlock budget'); }
     setItems(prev => prev.map(item =>
       (item._id || item.id) === (unlockTarget._id || unlockTarget.id)
         ? { ...item, status: 'pmd_review', budgetLockedAt: null }
@@ -122,13 +109,27 @@ export default function BudgetLockPage() {
       </div>
 
       {/* Faculty Budget Utilization */}
+      {(() => {
+        // Derive faculty budget data from items
+        const facultyMap = {};
+        items.forEach(item => {
+          const fac = item.faculty || 'Unknown';
+          if (!facultyMap[fac]) facultyMap[fac] = { name: fac, allocated: 0, utilized: 0 };
+          const balance = item.budgetRemaining !== undefined ? item.budgetRemaining : (item.dappBalance || 0);
+          const tce = item.totalEstimatedCost || item.tce || 0;
+          facultyMap[fac].allocated += balance;
+          if (['locked', 'budget_locked'].includes(item.status)) facultyMap[fac].utilized += tce;
+        });
+        const facultyBudgets = Object.values(facultyMap);
+        if (facultyBudgets.length === 0) return null;
+        return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200">
-          <h3 className="text-sm font-bold text-slate-800">Faculty Budget Utilization (FY2026)</h3>
+          <h3 className="text-sm font-bold text-slate-800">Faculty Budget Utilization (FY{new Date().getFullYear()})</h3>
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FACULTY_BUDGETS.map((fb, i) => {
-            const pct = (fb.utilized / fb.allocated * 100);
+          {facultyBudgets.map((fb, i) => {
+            const pct = fb.allocated > 0 ? (fb.utilized / fb.allocated * 100) : 0;
             const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
             return (
               <div key={i} className="p-3 bg-slate-50 rounded-lg">
@@ -150,6 +151,8 @@ export default function BudgetLockPage() {
           })}
         </div>
       </div>
+        );
+      })()}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

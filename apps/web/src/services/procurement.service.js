@@ -15,8 +15,11 @@ export const procurementService = {
   getPendingApprovals: () => api.get('/procurements/pending-approvals'),
   getAuditLog: (id) => api.get(`/procurements/${id}/audit-log`),
   getBudgetStatus: (params) => api.get('/procurements/budget-status', { params }),
+  /** Run pre-submission budget compliance check (DAPP item + remaining budget) */
+  checkBudget: (id) => api.get(`/procurements/${id}/budget-check`),
   publish: (id) => api.post(`/procurements/${id}/publish`),
   getPublic: () => api.get('/procurements/public'),
+  getPublicAnalytics: () => api.get('/reports/public-analytics'),
 };
 
 export default procurementService;

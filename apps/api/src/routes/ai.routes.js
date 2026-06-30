@@ -1,14 +1,3 @@
-/**
- * AI Routes — RBAC-enforced endpoints for all AI features.
- *
- * Access:
- *   - procurement_officer, admin: Full access to all AI features
- *   - tec_member: Bid verification, comparative analysis, recommendations
- *   - bursar, finance_officer: Market monitoring, risk scores, demand forecast
- *   - dean, vc: Read access to recommendations and risk scores
- *   - auditor: Read-only access to explainability logs
- *   - super_admin: Unrestricted
- */
 const express = require('express');
 const router = express.Router();
 const {
@@ -16,7 +5,7 @@ const {
   parseRequisition, getMarketAlerts, getRiskScore,
   getComparativeAnalysis, getHistoricalMatch, getDemandForecast,
   getExplainabilityLogs, getExplainabilityStats, getExplainabilityLog,
-  acknowledgeAlert,
+  acknowledgeAlert, getAIStatus,
 } = require('../controllers/ai.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
@@ -85,16 +74,19 @@ router.get('/demand-forecast',
 
 // Governance: Explainability Audit Trail
 router.get('/explainability-logs',
-  authorize('auditor', 'admin', 'vc', 'super_admin'),
+  authorize('auditor', 'procurement_officer', 'admin', 'vc', 'super_admin'),
   getExplainabilityLogs
 );
 router.get('/explainability-logs/stats',
-  authorize('auditor', 'admin', 'super_admin'),
+  authorize('auditor', 'procurement_officer', 'admin', 'vc', 'super_admin'),
   getExplainabilityStats
 );
 router.get('/explainability-logs/:id',
-  authorize('auditor', 'admin', 'vc', 'super_admin'),
+  authorize('auditor', 'procurement_officer', 'admin', 'vc', 'super_admin'),
   getExplainabilityLog
 );
+
+// AI system status check (all authenticated users)
+router.get('/status', getAIStatus);
 
 module.exports = router;

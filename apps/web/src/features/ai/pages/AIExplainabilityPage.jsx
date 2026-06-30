@@ -8,27 +8,37 @@ import aiService from '../../../services/ai.service';
 import Pagination from '../../../components/Pagination';
 
 const FEATURE_LABELS = {
-  'market_price': 'Market Price',
-  'nlp_parsing': 'NLP Parsing',
-  'bid_verification': 'Bid Verification',
-  'smart_recommendations': 'Smart Recommendations',
-  'market_alerts': 'Market Monitoring',
-  'risk_scoring': 'Risk Scoring',
-  'comparative_analysis': 'Comparative Analysis',
-  'historical_match': 'Historical Match',
-  'demand_forecasting': 'Demand Forecast',
+  NLP_REQUISITION_PARSING: 'NLP Parsing',
+  MARKET_PRICE_RECOMMENDATION: 'Market Price',
+  SELLER_PRICE_VERIFICATION: 'Bid Verification',
+  SMART_DECISION_SUPPORT: 'Smart Recommendations',
+  DYNAMIC_MARKET_MONITORING: 'Market Monitoring',
+  PROCUREMENT_RISK_SCORING: 'Risk Scoring',
+  COMPARATIVE_QUOTATION_ANALYSIS: 'Comparative Analysis',
+  HISTORICAL_PROCUREMENT_MATCH: 'Historical Match',
+  DEMAND_FORECASTING: 'Demand Forecast',
+  AI_VENDOR_ASSESSMENT: 'Vendor Assessment',
+  SPEC_ANALYSIS: 'Spec Analysis',
+  BID_EVALUATION: 'Bid Evaluation',
+  FRAUD_DETECTION: 'Fraud Detection',
+  BUDGET_FORECAST: 'Budget Forecast',
 };
 
 const FEATURE_COLORS = {
-  'market_price': 'bg-emerald-100 text-emerald-700',
-  'nlp_parsing': 'bg-teal-100 text-teal-700',
-  'bid_verification': 'bg-blue-100 text-blue-700',
-  'smart_recommendations': 'bg-violet-100 text-violet-700',
-  'market_alerts': 'bg-indigo-100 text-indigo-700',
-  'risk_scoring': 'bg-orange-100 text-orange-700',
-  'comparative_analysis': 'bg-pink-100 text-pink-700',
-  'historical_match': 'bg-cyan-100 text-cyan-700',
-  'demand_forecasting': 'bg-purple-100 text-purple-700',
+  NLP_REQUISITION_PARSING: 'bg-teal-100 text-teal-700',
+  MARKET_PRICE_RECOMMENDATION: 'bg-emerald-100 text-emerald-700',
+  SELLER_PRICE_VERIFICATION: 'bg-blue-100 text-blue-700',
+  SMART_DECISION_SUPPORT: 'bg-violet-100 text-violet-700',
+  DYNAMIC_MARKET_MONITORING: 'bg-indigo-100 text-indigo-700',
+  PROCUREMENT_RISK_SCORING: 'bg-orange-100 text-orange-700',
+  COMPARATIVE_QUOTATION_ANALYSIS: 'bg-pink-100 text-pink-700',
+  HISTORICAL_PROCUREMENT_MATCH: 'bg-cyan-100 text-cyan-700',
+  DEMAND_FORECASTING: 'bg-purple-100 text-purple-700',
+  AI_VENDOR_ASSESSMENT: 'bg-slate-100 text-slate-700',
+  SPEC_ANALYSIS: 'bg-emerald-100 text-emerald-700',
+  BID_EVALUATION: 'bg-blue-100 text-blue-700',
+  FRAUD_DETECTION: 'bg-red-100 text-red-700',
+  BUDGET_FORECAST: 'bg-purple-100 text-purple-700',
 };
 
 export default function AIExplainabilityPage() {
@@ -51,9 +61,9 @@ export default function AIExplainabilityPage() {
         aiService.getExplainabilityStats(),
       ]);
       if (logsRes.status === 'fulfilled') {
-        const d = logsRes.value?.data || logsRes.value;
-        setLogs(d?.data || d?.logs || []);
-        setTotal(d?.total || 0);
+        const payload = logsRes.value || {};
+        setLogs(payload.data || payload.logs || []);
+        setTotal(payload.pagination?.total || payload.total || 0);
       }
       if (statsRes.status === 'fulfilled') {
         setStats(statsRes.value?.data || statsRes.value);

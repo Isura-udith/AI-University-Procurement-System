@@ -1,12 +1,16 @@
-/**
- * Environment Configuration
- * Centralized environment variable management for the UWU Smart Procurement System.
- * Validates required variables and provides typed access.
- */
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+[
+  path.resolve(__dirname, '../../../../.env'), // workspace root
+  path.resolve(__dirname, '../../.env'),       // apps/api/.env
+  path.resolve(process.cwd(), '.env'),
+].forEach(envPath => {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath, override: false });
+  }
+});
 
 const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -24,6 +28,8 @@ const env = {
 
   // AI
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  GEMINI_API_BASE_URL: process.env.GEMINI_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
 
   // Email
   SMTP_HOST: process.env.SMTP_HOST,

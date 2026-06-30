@@ -55,7 +55,7 @@ export default function AIMarketPricePage() {
       {/* NLP Input */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-center space-x-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
             <FaSearch size={16} />
           </div>
           <div>
@@ -71,11 +71,14 @@ export default function AIMarketPricePage() {
           className="w-full h-32 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
         />
 
-        <div className="flex justify-end mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+          <div className="flex flex-wrap gap-2">
+          </div>
+
           <button
             onClick={handleAnalyze}
             disabled={loading || !rawText.trim()}
-            className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold rounded-xl hover:from-emerald-500 hover:to-teal-500 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="px-6 py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold rounded-xl hover:from-emerald-500 hover:to-teal-500 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {loading ? <FaSpinner className="animate-spin" /> : <FaRobot />}
             <span>{loading ? 'Analyzing...' : 'Analyze & Get Prices'}</span>
@@ -99,6 +102,18 @@ export default function AIMarketPricePage() {
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
                 <FaLightbulb className="mr-2 text-amber-500" /> AI-Parsed Specifications
               </h3>
+
+              {nlp.processingMode && (
+                <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Processing Mode</p>
+                    <p className="text-sm font-semibold text-slate-800">{nlp.processingMode === 'hybrid' ? 'Hybrid parsing (AI + local extraction)' : 'AI parsing'}</p>
+                  </div>
+                  {nlp.fallbackReason && (
+                    <p className="text-xs text-amber-700">{nlp.fallbackReason}</p>
+                  )}
+                </div>
+              )}
 
               {nlp.suggestedTitle && (
                 <div className="mb-4">
@@ -209,7 +224,7 @@ export default function AIMarketPricePage() {
 
                 {/* Overall TCE */}
                 {price?.overallTCE && (
-                  <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
+                  <div className="bg-linear-to-r from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Total Cost Estimate (TCE)</h4>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="text-center">

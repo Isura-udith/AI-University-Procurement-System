@@ -1,0 +1,67 @@
+3ccf4036c5ada06b894fc53da8c859ea
+/**
+ * User Routes - RBAC-enforced for 15 roles
+ *
+ * All user data is stored in and validated against the database.
+ * Only super_admin and admin can create/modify users.
+ *
+ * Endpoints:
+ *   POST   /users                    — Create new user (admin only)
+ *   GET    /users                    — List all users (admin + oversight)
+ *   GET    /users/stats              — User statistics (admin + oversight)
+ *   GET    /users/:id                — Get single user
+ *   PUT    /users/:id                — Update user (admin only)
+ *   DELETE /users/:id                — Deactivate user (super_admin only)
+ *   PATCH  /users/:id/activate       — Re-activate user (admin only)
+ *   PATCH  /users/:id/reset-password — Reset user password (admin only)
+ *   POST   /users/delegate           — Delegate authority
+ */
+const express = require('express');
+const router = express.Router();
+const {
+  createUser,
+  getAllUsers,
+  getUserStats,
+  getUser,
+  updateUser,
+  deactivateUser,
+  activateUser,
+  resetUserPassword,
+  delegateAuthority
+} = require('../controllers/user.controller');
+const {
+  protect,
+  authorize
+} = require('../middlewares/auth.middleware');
+
+// All user routes require authentication
+router.use(protect);
+
+// ─── Create User (admin-level only) ────────────────────────────
+router.post('/', authorize('super_admin', 'admin'), createUser);
+
+// ─── Stats (admin + oversight) ─────────────────────────────────
+router.get('/stats', authorize('super_admin', 'admin', 'vc', 'auditor'), getUserStats);
+
+// ─── List all users (all authenticated users — needed for compose message recipient dropdown) ───
+router.get('/', getAllUsers);
+
+// ─── Get single user ───────────────────────────────────────────
+router.get('/:id', authorize('super_admin', 'admin', 'vc', 'auditor'), getUser);
+
+// ─── Update user (admin-level only) ────────────────────────────
+router.put('/:id', authorize('super_admin', 'admin'), updateUser);
+
+// ─── Deactivate user (super_admin only) ────────────────────────
+router.delete('/:id', authorize('super_admin'), deactivateUser);
+
+// ─── Activate user (admin-level only) ──────────────────────────
+router.patch('/:id/activate', authorize('super_admin', 'admin'), activateUser);
+
+// ─── Reset user password (admin-level only) ────────────────────
+router.patch('/:id/reset-password', authorize('super_admin', 'admin'), resetUserPassword);
+
+// ─── Delegate authority (VC, dean, department_head, super_admin) ──
+router.post('/delegate', authorize('vc', 'dean', 'department_head', 'super_admin'), delegateAuthority);
+module.exports = router;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJleHByZXNzIiwicmVxdWlyZSIsInJvdXRlciIsIlJvdXRlciIsImNyZWF0ZVVzZXIiLCJnZXRBbGxVc2VycyIsImdldFVzZXJTdGF0cyIsImdldFVzZXIiLCJ1cGRhdGVVc2VyIiwiZGVhY3RpdmF0ZVVzZXIiLCJhY3RpdmF0ZVVzZXIiLCJyZXNldFVzZXJQYXNzd29yZCIsImRlbGVnYXRlQXV0aG9yaXR5IiwicHJvdGVjdCIsImF1dGhvcml6ZSIsInVzZSIsInBvc3QiLCJnZXQiLCJwdXQiLCJkZWxldGUiLCJwYXRjaCIsIm1vZHVsZSIsImV4cG9ydHMiXSwic291cmNlcyI6WyJ1c2VyLnJvdXRlcy5qcyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIFVzZXIgUm91dGVzIC0gUkJBQy1lbmZvcmNlZCBmb3IgMTUgcm9sZXNcbiAqXG4gKiBBbGwgdXNlciBkYXRhIGlzIHN0b3JlZCBpbiBhbmQgdmFsaWRhdGVkIGFnYWluc3QgdGhlIGRhdGFiYXNlLlxuICogT25seSBzdXBlcl9hZG1pbiBhbmQgYWRtaW4gY2FuIGNyZWF0ZS9tb2RpZnkgdXNlcnMuXG4gKlxuICogRW5kcG9pbnRzOlxuICogICBQT1NUICAgL3VzZXJzICAgICAgICAgICAgICAgICAgICDigJQgQ3JlYXRlIG5ldyB1c2VyIChhZG1pbiBvbmx5KVxuICogICBHRVQgICAgL3VzZXJzICAgICAgICAgICAgICAgICAgICDigJQgTGlzdCBhbGwgdXNlcnMgKGFkbWluICsgb3ZlcnNpZ2h0KVxuICogICBHRVQgICAgL3VzZXJzL3N0YXRzICAgICAgICAgICAgICDigJQgVXNlciBzdGF0aXN0aWNzIChhZG1pbiArIG92ZXJzaWdodClcbiAqICAgR0VUICAgIC91c2Vycy86aWQgICAgICAgICAgICAgICAg4oCUIEdldCBzaW5nbGUgdXNlclxuICogICBQVVQgICAgL3VzZXJzLzppZCAgICAgICAgICAgICAgICDigJQgVXBkYXRlIHVzZXIgKGFkbWluIG9ubHkpXG4gKiAgIERFTEVURSAvdXNlcnMvOmlkICAgICAgICAgICAgICAgIOKAlCBEZWFjdGl2YXRlIHVzZXIgKHN1cGVyX2FkbWluIG9ubHkpXG4gKiAgIFBBVENIICAvdXNlcnMvOmlkL2FjdGl2YXRlICAgICAgIOKAlCBSZS1hY3RpdmF0ZSB1c2VyIChhZG1pbiBvbmx5KVxuICogICBQQVRDSCAgL3VzZXJzLzppZC9yZXNldC1wYXNzd29yZCDigJQgUmVzZXQgdXNlciBwYXNzd29yZCAoYWRtaW4gb25seSlcbiAqICAgUE9TVCAgIC91c2Vycy9kZWxlZ2F0ZSAgICAgICAgICAg4oCUIERlbGVnYXRlIGF1dGhvcml0eVxuICovXG5jb25zdCBleHByZXNzID0gcmVxdWlyZSgnZXhwcmVzcycpO1xuY29uc3Qgcm91dGVyID0gZXhwcmVzcy5Sb3V0ZXIoKTtcbmNvbnN0IHtcbiAgY3JlYXRlVXNlcixcbiAgZ2V0QWxsVXNlcnMsXG4gIGdldFVzZXJTdGF0cyxcbiAgZ2V0VXNlcixcbiAgdXBkYXRlVXNlcixcbiAgZGVhY3RpdmF0ZVVzZXIsXG4gIGFjdGl2YXRlVXNlcixcbiAgcmVzZXRVc2VyUGFzc3dvcmQsXG4gIGRlbGVnYXRlQXV0aG9yaXR5LFxufSA9IHJlcXVpcmUoJy4uL2NvbnRyb2xsZXJzL3VzZXIuY29udHJvbGxlcicpO1xuY29uc3QgeyBwcm90ZWN0LCBhdXRob3JpemUgfSA9IHJlcXVpcmUoJy4uL21pZGRsZXdhcmVzL2F1dGgubWlkZGxld2FyZScpO1xuXG4vLyBBbGwgdXNlciByb3V0ZXMgcmVxdWlyZSBhdXRoZW50aWNhdGlvblxucm91dGVyLnVzZShwcm90ZWN0KTtcblxuLy8g4pSA4pSA4pSAIENyZWF0ZSBVc2VyIChhZG1pbi1sZXZlbCBvbmx5KSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbnJvdXRlci5wb3N0KCcvJyxcbiAgYXV0aG9yaXplKCdzdXBlcl9hZG1pbicsICdhZG1pbicpLFxuICBjcmVhdGVVc2VyXG4pO1xuXG4vLyDilIDilIDilIAgU3RhdHMgKGFkbWluICsgb3ZlcnNpZ2h0KSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbnJvdXRlci5nZXQoJy9zdGF0cycsXG4gIGF1dGhvcml6ZSgnc3VwZXJfYWRtaW4nLCAnYWRtaW4nLCAndmMnLCAnYXVkaXRvcicpLFxuICBnZXRVc2VyU3RhdHNcbik7XG5cbi8vIOKUgOKUgOKUgCBMaXN0IGFsbCB1c2VycyAoYWxsIGF1dGhlbnRpY2F0ZWQgdXNlcnMg4oCUIG5lZWRlZCBmb3IgY29tcG9zZSBtZXNzYWdlIHJlY2lwaWVudCBkcm9wZG93bikg4pSA4pSA4pSAXG5yb3V0ZXIuZ2V0KCcvJyxcbiAgZ2V0QWxsVXNlcnNcbik7XG5cbi8vIOKUgOKUgOKUgCBHZXQgc2luZ2xlIHVzZXIg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSAXG5yb3V0ZXIuZ2V0KCcvOmlkJyxcbiAgYXV0aG9yaXplKCdzdXBlcl9hZG1pbicsICdhZG1pbicsICd2YycsICdhdWRpdG9yJyksXG4gIGdldFVzZXJcbik7XG5cbi8vIOKUgOKUgOKUgCBVcGRhdGUgdXNlciAoYWRtaW4tbGV2ZWwgb25seSkg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSAXG5yb3V0ZXIucHV0KCcvOmlkJyxcbiAgYXV0aG9yaXplKCdzdXBlcl9hZG1pbicsICdhZG1pbicpLFxuICB1cGRhdGVVc2VyXG4pO1xuXG4vLyDilIDilIDilIAgRGVhY3RpdmF0ZSB1c2VyIChzdXBlcl9hZG1pbiBvbmx5KSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbnJvdXRlci5kZWxldGUoJy86aWQnLFxuICBhdXRob3JpemUoJ3N1cGVyX2FkbWluJyksXG4gIGRlYWN0aXZhdGVVc2VyXG4pO1xuXG4vLyDilIDilIDilIAgQWN0aXZhdGUgdXNlciAoYWRtaW4tbGV2ZWwgb25seSkg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSAXG5yb3V0ZXIucGF0Y2goJy86aWQvYWN0aXZhdGUnLFxuICBhdXRob3JpemUoJ3N1cGVyX2FkbWluJywgJ2FkbWluJyksXG4gIGFjdGl2YXRlVXNlclxuKTtcblxuLy8g4pSA4pSA4pSAIFJlc2V0IHVzZXIgcGFzc3dvcmQgKGFkbWluLWxldmVsIG9ubHkpIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxucm91dGVyLnBhdGNoKCcvOmlkL3Jlc2V0LXBhc3N3b3JkJyxcbiAgYXV0aG9yaXplKCdzdXBlcl9hZG1pbicsICdhZG1pbicpLFxuICByZXNldFVzZXJQYXNzd29yZFxuKTtcblxuLy8g4pSA4pSA4pSAIERlbGVnYXRlIGF1dGhvcml0eSAoVkMsIGRlYW4sIGRlcGFydG1lbnRfaGVhZCwgc3VwZXJfYWRtaW4pIOKUgOKUgFxucm91dGVyLnBvc3QoJy9kZWxlZ2F0ZScsXG4gIGF1dGhvcml6ZSgndmMnLCAnZGVhbicsICdkZXBhcnRtZW50X2hlYWQnLCAnc3VwZXJfYWRtaW4nKSxcbiAgZGVsZWdhdGVBdXRob3JpdHlcbik7XG5cbm1vZHVsZS5leHBvcnRzID0gcm91dGVyO1xuIl0sIm1hcHBpbmdzIjoiQUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0EsTUFBTUEsT0FBTyxHQUFHQyxPQUFPLENBQUMsU0FBUyxDQUFDO0FBQ2xDLE1BQU1DLE1BQU0sR0FBR0YsT0FBTyxDQUFDRyxNQUFNLENBQUMsQ0FBQztBQUMvQixNQUFNO0VBQ0pDLFVBQVU7RUFDVkMsV0FBVztFQUNYQyxZQUFZO0VBQ1pDLE9BQU87RUFDUEMsVUFBVTtFQUNWQyxjQUFjO0VBQ2RDLFlBQVk7RUFDWkMsaUJBQWlCO0VBQ2pCQztBQUNGLENBQUMsR0FBR1gsT0FBTyxDQUFDLGdDQUFnQyxDQUFDO0FBQzdDLE1BQU07RUFBRVksT0FBTztFQUFFQztBQUFVLENBQUMsR0FBR2IsT0FBTyxDQUFDLGdDQUFnQyxDQUFDOztBQUV4RTtBQUNBQyxNQUFNLENBQUNhLEdBQUcsQ0FBQ0YsT0FBTyxDQUFDOztBQUVuQjtBQUNBWCxNQUFNLENBQUNjLElBQUksQ0FBQyxHQUFHLEVBQ2JGLFNBQVMsQ0FBQyxhQUFhLEVBQUUsT0FBTyxDQUFDLEVBQ2pDVixVQUNGLENBQUM7O0FBRUQ7QUFDQUYsTUFBTSxDQUFDZSxHQUFHLENBQUMsUUFBUSxFQUNqQkgsU0FBUyxDQUFDLGFBQWEsRUFBRSxPQUFPLEVBQUUsSUFBSSxFQUFFLFNBQVMsQ0FBQyxFQUNsRFIsWUFDRixDQUFDOztBQUVEO0FBQ0FKLE1BQU0sQ0FBQ2UsR0FBRyxDQUFDLEdBQUcsRUFDWlosV0FDRixDQUFDOztBQUVEO0FBQ0FILE1BQU0sQ0FBQ2UsR0FBRyxDQUFDLE1BQU0sRUFDZkgsU0FBUyxDQUFDLGFBQWEsRUFBRSxPQUFPLEVBQUUsSUFBSSxFQUFFLFNBQVMsQ0FBQyxFQUNsRFAsT0FDRixDQUFDOztBQUVEO0FBQ0FMLE1BQU0sQ0FBQ2dCLEdBQUcsQ0FBQyxNQUFNLEVBQ2ZKLFNBQVMsQ0FBQyxhQUFhLEVBQUUsT0FBTyxDQUFDLEVBQ2pDTixVQUNGLENBQUM7O0FBRUQ7QUFDQU4sTUFBTSxDQUFDaUIsTUFBTSxDQUFDLE1BQU0sRUFDbEJMLFNBQVMsQ0FBQyxhQUFhLENBQUMsRUFDeEJMLGNBQ0YsQ0FBQzs7QUFFRDtBQUNBUCxNQUFNLENBQUNrQixLQUFLLENBQUMsZUFBZSxFQUMxQk4sU0FBUyxDQUFDLGFBQWEsRUFBRSxPQUFPLENBQUMsRUFDakNKLFlBQ0YsQ0FBQzs7QUFFRDtBQUNBUixNQUFNLENBQUNrQixLQUFLLENBQUMscUJBQXFCLEVBQ2hDTixTQUFTLENBQUMsYUFBYSxFQUFFLE9BQU8sQ0FBQyxFQUNqQ0gsaUJBQ0YsQ0FBQzs7QUFFRDtBQUNBVCxNQUFNLENBQUNjLElBQUksQ0FBQyxXQUFXLEVBQ3JCRixTQUFTLENBQUMsSUFBSSxFQUFFLE1BQU0sRUFBRSxpQkFBaUIsRUFBRSxhQUFhLENBQUMsRUFDekRGLGlCQUNGLENBQUM7QUFFRFMsTUFBTSxDQUFDQyxPQUFPLEdBQUdwQixNQUFNIiwiaWdub3JlTGlzdCI6W119

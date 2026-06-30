@@ -9,10 +9,17 @@ import procurementService from '../../../services/procurement.service';
 
 const HomePage = () => {
   const { isAuthenticated } = useSelector(state => state.auth);
-  const [timeLeft, setTimeLeft] = useState(86400 * 3 + 3600 * 5);
   const [scrolled, setScrolled] = useState(false);
   const [liveNotices, setLiveNotices] = useState([]);
   const [loadingNotices, setLoadingNotices] = useState(true);
+  const [analytics, setAnalytics] = useState({
+    spendData: [],
+    categoryData: [],
+    monthlyStatusData: [],
+    topVendors: [],
+    categorySpendData: [],
+    recentAwards: [],
+  });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -20,26 +27,39 @@ const HomePage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
-  // Fetch published procurements from public API
+
+  // Fetch published procurements and public analytics
   useEffect(() => {
-    const fetchPublished = async () => {
+    const fetchData = async () => {
       try {
-        const res = await procurementService.getPublic();
-        const items = res.data || res || [];
+        const [resNotices, resAnalytics] = await Promise.all([
+          procurementService.getPublic(),
+          procurementService.getPublicAnalytics()
+        ]);
+        
+        const items = resNotices.data || resNotices || [];
         setLiveNotices(items);
+
+        const analyticsData = resAnalytics.data || resAnalytics;
+        if (analyticsData) {
+          setAnalytics({
+            spendData: analyticsData.spendData || [],
+            categoryData: analyticsData.categoryData || [],
+            monthlyStatusData: analyticsData.monthlyStatusData || [],
+            topVendors: analyticsData.topVendors || [],
+            categorySpendData: analyticsData.categorySpendData || [],
+            recentAwards: analyticsData.recentAwards || [],
+          });
+        }
       } catch (err) {
-        console.warn('Failed to fetch public procurements, using mock data:', err);
+        console.warn('Failed to fetch public data:', err);
         setLiveNotices([]);
       } finally {
         setLoadingNotices(false);
       }
     };
-    fetchPublished();
+    fetchData();
   }, []);
 
   const formatTime = (seconds) => {
@@ -49,64 +69,23 @@ const HomePage = () => {
     return `${d}d ${h}h ${m}m`;
   };
 
-  // Fallback mock data when no live procurements exist
-  const mockTenders = [
-    { id: "UWU/G/NCB/25/01", title: "Laboratory Equipment for Faculty of Medicine", type: "NCB", security: "LKR 500k", close: timeLeft },
-    { id: "UWU/S/ICB/25/02", title: "ERP System Integration Phase I", type: "ICB", security: "USD 5k", close: timeLeft + 432000 },
-    { id: "UWU/W/NCB/25/03", title: "Student Hostel Complex Phase II", type: "NCB", security: "LKR 1.2M", close: timeLeft + 1296000 }
-  ];
+  const activeTenders = liveNotices.map(p => ({
+      id: p.referenceNumber || p._id,
+      title: p.title,
+      type: (p.procurementMethod || 'NCB').split(' - ')[0],
+      value: `LKR ${(p.totalEstimatedCost || 0).toLocaleString()}`,
+      category: p.category || 'Goods',
+      publishedAt: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : '',
+    }));
 
-  const activeTenders = liveNotices.length > 0
-    ? liveNotices.map(p => ({
-        id: p.referenceNumber || p._id,
-        title: p.title,
-        type: (p.procurementMethod || 'NCB').split(' - ')[0],
-        value: `LKR ${(p.totalEstimatedCost || 0).toLocaleString()}`,
-        category: p.category || 'Goods',
-        publishedAt: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : '',
-      }))
-    : mockTenders;
-
-  const spendData = [
-    { month: 'Jan', spend: 45, budget: 60 }, { month: 'Feb', spend: 52, budget: 60 },
-    { month: 'Mar', spend: 38, budget: 60 }, { month: 'Apr', spend: 65, budget: 60 },
-    { month: 'May', spend: 48, budget: 60 }, { month: 'Jun', spend: 55, budget: 60 },
-  ];
-
-  const categoryData = [
-    { category: 'Goods', value: 120 }, { category: 'Works', value: 250 },
-    { category: 'Services', value: 80 }, { category: 'Consulting', value: 30 }
-  ];
-
-  const monthlyStatusData = [
-    { month: 'Jan', Pending: 10, Approved: 25, Completed: 15 },
-    { month: 'Feb', Pending: 12, Approved: 28, Completed: 18 },
-    { month: 'Mar', Pending: 18, Approved: 22, Completed: 25 },
-    { month: 'Apr', Pending: 15, Approved: 30, Completed: 20 },
-    { month: 'May', Pending: 25, Approved: 15, Completed: 10 },
-  ];
-
-  const topVendors = [
-    { id: 1, name: 'TechCorp Solutions', score: 96, category: 'IT & Elec.', trend: 'up' },
-    { id: 2, name: 'MediSupply Co.', score: 88, category: 'Lab Equip.', trend: 'up' },
-    { id: 3, name: 'BuildPro Const.', score: 75, category: 'Works', trend: 'down' },
-    { id: 4, name: 'EduFurniture LK', score: 92, category: 'Furniture', trend: 'up' },
-    { id: 5, name: 'Global Consult.', score: 68, category: 'Consulting', trend: 'down' },
-  ];
-
-  const categorySpendData = [
-    { name: 'IT & Elec.', value: 35, color: '#3b82f6' },
-    { name: 'Lab Equip.', value: 25, color: '#10b981' },
-    { name: 'Furniture', value: 20, color: '#f59e0b' },
-    { name: 'Consulting', value: 15, color: '#8b5cf6' },
-    { name: 'Vehicles', value: 5, color: '#ef4444' },
-  ];
-
-  const recentAwards = [
-    { contract: 'CNT-2026-0012', vendor: 'TechVision Asia', title: 'Network Switches Supply', value: 'LKR 12.5M', date: '2026-05-10' },
-    { contract: 'CNT-2026-0011', vendor: 'Lanka Construction Corp', title: 'Library Renovation', value: 'LKR 45.0M', date: '2026-05-08' },
-    { contract: 'CNT-2026-0010', vendor: 'MedTech Solutions', title: 'Anatomy Lab Microscopes', value: 'LKR 28.2M', date: '2026-05-05' },
-  ];
+  const {
+    spendData,
+    categoryData,
+    monthlyStatusData,
+    topVendors,
+    categorySpendData,
+    recentAwards
+  } = analytics;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">

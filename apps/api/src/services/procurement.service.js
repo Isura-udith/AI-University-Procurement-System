@@ -1,10 +1,9 @@
-/**
- * Procurement Service - Requisition-to-Payment lifecycle management
- */
+
 const Procurement = require('../models/procurement.model');
 const Notification = require('../models/notification.model');
 const User = require('../models/user.model');
 const aiService = require('./ai.service');
+const budgetValidationService = require('./budget.validation.service');
 const { detectProcessAnomalies } = require('../ai/risk.analysis');
 const { getPagination } = require('../utils/pagination');
 const logger = require('../config/logger');
@@ -12,14 +11,8 @@ const { isCrossTenantRole } = require('../../../../packages/types/rbac.config');
 
 class ProcurementService {
   async create(data, userId, tenantId) {
-    // Populate the requestor's department and faculty from their user profile
-    // so that HOD/Dean matching works correctly
     const requestor = await User.findById(userId).select('department faculty');
     const createData = { ...data, requestedBy: userId, tenantId, status: 'draft' };
-    
-    // Always use the user's profile department/faculty for the procurement
-    // The frontend may send FACULTY_MAP labels (e.g., "Faculty of Medicine")
-    // but the User model stores short names (e.g., "Medicine") that HODs match on
     if (requestor) {
       if (requestor.department) createData.department = requestor.department;
       if (requestor.faculty) createData.faculty = requestor.faculty;
@@ -140,6 +133,95 @@ class ProcurementService {
       if (requestor.faculty) procurement.faculty = requestor.faculty;
     }
 
+    // ── Budget Compliance Check (Step 27 enforcement) ──────────────────────────
+    // 1. Item must exist in an approved Annual Plan (distribution_complete)
+    // 2. Department must have sufficient remaining budget
+    const complianceResult = await budgetValidationService.checkCompliance({
+      annualPlanId: procurement.annualPlanId,
+      annualPlanItemId: procurement.annualPlanItemId,
+      department: procurement.department,
+      faculty: procurement.faculty,
+      totalEstimatedCost: procurement.totalEstimatedCost,
+      budgetYear: procurement.budgetYear,
+      tenantId,
+    });
+
+    // Store the compliance check result on the procurement document
+    procurement.budgetComplianceCheck = {
+      checkedAt: new Date(),
+      ...complianceResult,
+    };
+
+    if (!complianceResult.passed) {
+      if (complianceResult.requiresSpecialApproval) {
+        // Within 10% grace — flag for special approval, still route through workflow
+        procurement.status = 'flagged_special_approval';
+        procurement.submittedAt = new Date();
+
+        // Set up a minimal approval chain (HOD must still review)
+        procurement.approvalChain = [{ stage: 'hod', status: 'pending' }];
+        await procurement.save();
+
+        // Notify requester of special approval flag
+        try {
+          await Notification.create({
+            tenantId, recipient: userId, type: 'requisition_submitted',
+            title: 'Requisition Flagged — Special Budget Approval Required',
+            message: `Your requisition ${procurement.referenceNumber} exceeds the department budget by ${complianceResult.overBudgetPercent}% (within the 10% grace threshold). It has been flagged for special HOD approval.`,
+            referenceType: 'procurement', referenceId: procurement._id,
+            link: `/procurements/${procurement._id}`,
+          });
+        } catch (err) { logger.warn('Special approval notification failed', { error: err.message }); }
+
+        logger.audit('PROCUREMENT_FLAGGED_SPECIAL_APPROVAL', userId, {
+          procurementId: procurement._id,
+          ref: procurement.referenceNumber,
+          overBudgetPercent: complianceResult.overBudgetPercent,
+        });
+        return procurement;
+      }
+
+      // Hard fail — budget compliance not met
+      const reasonMessages = {
+        no_annual_plan_linked: 'This requisition is not linked to an approved Annual Procurement Plan (DAPP). Please link a DAPP item before submitting.',
+        plan_not_approved: `The linked Annual Plan has not completed the budget distribution process (current status: ${complianceResult.annualPlanStatus || 'unknown'}). Budget must be fully distributed before initiating procurement.`,
+        item_not_found: 'The selected DAPP item was not found in the linked Annual Plan. Please re-select a valid plan item.',
+        insufficient_budget: `Insufficient department budget. Required: LKR ${(complianceResult.requiredBudget || 0).toLocaleString()}, Available: LKR ${(complianceResult.remainingBudget || 0).toLocaleString()}. The request exceeds the 10% grace threshold and cannot proceed.`,
+        no_budget_allocated: 'No budget has been allocated to your department for this year. Please contact the Finance Division.',
+      };
+      const message = reasonMessages[complianceResult.failureReason] || 'Budget compliance check failed.';
+
+      // Mark the procurement as rejected due to budget non-compliance
+      procurement.status = 'rejected';
+      procurement.approvalChain = [{
+        stage: 'hod',
+        status: 'rejected',
+        comments: `[System Auto-Reject] ${message}`,
+        actionDate: new Date(),
+      }];
+      await procurement.save();
+
+      // Notify the requester
+      try {
+        await Notification.create({
+          tenantId, recipient: userId, type: 'requisition_rejected',
+          title: 'Requisition Rejected — Budget Compliance Failure',
+          message: `Requisition ${procurement.referenceNumber} was automatically rejected: ${message}`,
+          referenceType: 'procurement', referenceId: procurement._id,
+          link: `/procurements/${procurement._id}`,
+        });
+      } catch (err) { logger.warn('Budget rejection notification failed', { error: err.message }); }
+
+      logger.audit('PROCUREMENT_BUDGET_REJECTED', userId, {
+        procurementId: procurement._id,
+        ref: procurement.referenceNumber,
+        reason: complianceResult.failureReason,
+      });
+
+      throw Object.assign(new Error(message), { statusCode: 422, complianceResult });
+    }
+    // ── End Budget Compliance Check ────────────────────────────────────────────
+
     // AI Budget Guard check
     try {
       const analysis = await aiService.analyzeSpecification(JSON.stringify({ title: procurement.title, items: procurement.items, category: procurement.category, total: procurement.totalEstimatedCost }));
@@ -167,12 +249,17 @@ class ProcurementService {
       newApprovalChain.push({ stage: 'dean', status: 'pending' });
     }
 
-    newApprovalChain.push(
-      { stage: 'pmd', status: 'pending' },
-      { stage: 'bursar', status: 'pending' },
-      { stage: 'finance_committee', status: 'pending' },
-      { stage: 'vice_chancellor', status: 'pending' }
-    );
+    newApprovalChain.push({ stage: 'pmd', status: 'pending' });
+    
+    // Add higher-level approvals based on Phase 5 value thresholds
+    const tce = procurement.totalEstimatedCost || 0;
+    if (tce > 500000) {
+      newApprovalChain.push(
+        { stage: 'bursar', status: 'pending' },
+        { stage: 'finance_committee', status: 'pending' },
+        { stage: 'vice_chancellor', status: 'pending' }
+      );
+    }
     
     procurement.approvalChain = newApprovalChain;
     
@@ -223,7 +310,7 @@ class ProcurementService {
       dean: ['dean', 'admin', 'super_admin'],
       pmd: ['procurement_officer', 'admin', 'super_admin'],
       bursar: ['bursar', 'admin', 'super_admin'],
-      finance_committee: ['finance_committee', 'admin', 'super_admin'],
+      finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
@@ -342,7 +429,7 @@ class ProcurementService {
       dean: ['dean', 'admin', 'super_admin'],
       pmd: ['procurement_officer', 'admin', 'super_admin'],
       bursar: ['bursar', 'admin', 'super_admin'],
-      finance_committee: ['finance_committee', 'admin', 'super_admin'],
+      finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
@@ -533,16 +620,9 @@ class ProcurementService {
     logger.audit('PROCUREMENT_DELETED', userId, { procurementId: id });
     return { message: 'Requisition deleted' };
   }
-
-  /**
-   * Publish a VC-approved procurement so it is visible to suppliers.
-   * Only allowed when ALL approval chain stages are approved (i.e. status is pmd_review or budget_locked).
-   */
   async publish(id, userId, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId });
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-
-    // Must be fully approved (pmd_review = all approvals done, or budget_locked)
     if (!['pmd_review', 'budget_locked'].includes(procurement.status)) {
       throw Object.assign(
         new Error('Procurement must be fully approved by Vice Chancellor before publishing to suppliers.'),
@@ -581,13 +661,38 @@ class ProcurementService {
   }
 
   /**
-   * Get all published procurements for the public/supplier-facing portal.
-   * Returns a safe projection without sensitive internal data.
+   * Standalone budget compliance check — called by HOD pre-check endpoint.
+   * Returns the compliance result without modifying the procurement document.
    */
+  async validateBudgetCompliance(id, tenantId) {
+    const procurement = await Procurement.findOne({ _id: id, tenantId });
+    if (!procurement) throw Object.assign(new Error('Procurement not found'), { statusCode: 404 });
+
+    const result = await budgetValidationService.checkCompliance({
+      annualPlanId: procurement.annualPlanId,
+      annualPlanItemId: procurement.annualPlanItemId,
+      department: procurement.department,
+      faculty: procurement.faculty,
+      totalEstimatedCost: procurement.totalEstimatedCost,
+      budgetYear: procurement.budgetYear,
+      tenantId,
+    });
+
+    return {
+      procurementId: procurement._id,
+      referenceNumber: procurement.referenceNumber,
+      title: procurement.title,
+      totalEstimatedCost: procurement.totalEstimatedCost,
+      department: procurement.department,
+      faculty: procurement.faculty,
+      ...result,
+    };
+  }
+
   async getPublicProcurements(tenantId) {
-    const data = await Procurement.find({ tenantId, status: 'published' })
+    const data = await Procurement.find({ tenantId, status: { $ne: 'draft' } })
       .populate('tenderId')
-      .sort('-publishedAt')
+      .sort('-createdAt')
       .limit(50);
     return data;
   }

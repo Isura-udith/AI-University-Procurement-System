@@ -31,6 +31,9 @@ export const aiService = {
   getExplainabilityLogs: (params) => api.get('/ai/explainability-logs', { params }),
   getExplainabilityStats: () => api.get('/ai/explainability-logs/stats'),
   getExplainabilityLog: (id) => api.get(`/ai/explainability-logs/${id}`),
+
+  // System: AI status / health check
+  getAIStatus: () => api.get('/ai/status'),
 };
 
 export default aiService;

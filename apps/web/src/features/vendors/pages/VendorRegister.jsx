@@ -230,7 +230,7 @@ export default function VendorRegister() {
       kycDocuments: files.map(f => ({
         docType: f.name.toLowerCase().includes('cida') ? 'cida' : 'other',
         name: f.name,
-        url: 'http://example.com/mock/' + f.name,
+        url: 'pending-upload/' + f.name,
         verified: false
       })),
       userId: user?._id

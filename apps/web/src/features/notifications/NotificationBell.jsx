@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaBell, FaCheckDouble, FaCircle, FaTimes, FaExternalLinkAlt,
   FaClipboardList, FaGavel, FaFileContract, FaMoneyCheckAlt,
-  FaBullhorn, FaRobot, FaShieldAlt, FaSpinner,
+  FaBullhorn, FaRobot, FaShieldAlt, FaSpinner, FaEnvelope,
 } from 'react-icons/fa';
 import { setNotifications, setUnreadCount } from '../../app/store';
 import notificationService from '../../services/notification.service';
+import messageService from '../../services/message.service';
 
 // ─── Icon resolver by notification type ───────────────────────────────────
 const resolveIcon = (type) => {
@@ -58,7 +59,7 @@ const resolveLink = (notif) => {
   return map[notif.referenceType] || null;
 };
 
-export default function NotificationBell() {
+export default function NotificationBell({ messageUnreadCount = 0 }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
@@ -69,9 +70,11 @@ export default function NotificationBell() {
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
   const [markingAll, setMarkingAll] = useState(false);
   const [animateBell, setAnimateBell] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState([]);
 
   const dropdownRef = useRef(null);
-  const prevCountRef = useRef(unreadCount);
+  const prevCountRef = useRef(unreadCount + messageUnreadCount);
+  const totalUnread = unreadCount + messageUnreadCount;
 
   // ─── Fetch unread count (for badge polling) ──────────────────────────────
   const fetchUnreadCount = useCallback(async () => {
@@ -81,15 +84,16 @@ export default function NotificationBell() {
       if (res?.success) {
         const count = res.data?.count ?? 0;
         dispatch(setUnreadCount(count));
+        const newTotal = count + messageUnreadCount;
         // Animate bell if new notifications arrived
-        if (count > prevCountRef.current) {
+        if (newTotal > prevCountRef.current) {
           setAnimateBell(true);
           setTimeout(() => setAnimateBell(false), 1000);
         }
-        prevCountRef.current = count;
+        prevCountRef.current = newTotal;
       }
     } catch { /* intentionally ignored */ }
-  }, [user, dispatch]);
+  }, [user, dispatch, messageUnreadCount]);
 
   // ─── Fetch full notifications list (when dropdown opened) ────────────────
   const fetchNotifications = useCallback(async () => {
@@ -101,6 +105,10 @@ export default function NotificationBell() {
       const res = await notificationService.getAll(params);
       if (res?.success) {
         dispatch(setNotifications(res.data?.data || []));
+      }
+      const msgRes = await messageService.getMessages({ type: 'inbox', unreadOnly: true, limit: 5 });
+      if (msgRes?.success) {
+        setUnreadMessages(msgRes.data?.data || []);
       }
     } catch { /* intentionally ignored */ }
     finally { setLoading(false); }
@@ -186,13 +194,13 @@ export default function NotificationBell() {
           className={animateBell ? 'animate-[wiggle_0.5s_ease-in-out]' : ''}
           style={animateBell ? { animation: 'wiggle 0.5s ease-in-out' } : {}}
         />
-        {unreadCount > 0 && (
+        {totalUnread > 0 && (
           <span
             className={`absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-extrabold text-white rounded-full shadow-md transition-all duration-300 ${
-              unreadCount > 0 ? 'bg-red-500 scale-100' : 'bg-transparent scale-0'
+              totalUnread > 0 ? 'bg-red-500 scale-100' : 'bg-transparent scale-0'
             }`}
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {totalUnread > 99 ? '99+' : totalUnread}
           </span>
         )}
       </button>
@@ -206,10 +214,10 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center space-x-2">
               <FaBell size={15} className="text-emerald-500" />
-              <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
-              {unreadCount > 0 && (
+              <h3 className="text-sm font-bold text-slate-800">Notifications & Messages</h3>
+              {totalUnread > 0 && (
                 <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-extrabold rounded-full">
-                  {unreadCount} new
+                  {totalUnread} new
                 </span>
               )}
             </div>
@@ -241,6 +249,7 @@ export default function NotificationBell() {
             {[
               { id: 'all', label: 'All' },
               { id: 'unread', label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+              { id: 'messages', label: `Messages${messageUnreadCount > 0 ? ` (${messageUnreadCount})` : ''}` },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -269,14 +278,40 @@ export default function NotificationBell() {
                   <FaBell size={22} className="opacity-30" />
                 </div>
                 <p className="text-sm font-semibold text-slate-500">
-                  {filter === 'unread' ? 'All caught up!' : 'No notifications'}
+                  {filter === 'unread' ? 'All caught up!' : filter === 'messages' ? 'No unread messages' : 'No notifications'}
                 </p>
                 <p className="text-xs text-slate-400 text-center px-4">
-                  {filter === 'unread'
-                    ? 'You have no unread notifications.'
+                  {filter === 'unread' || filter === 'messages'
+                    ? 'You have no unread items here.'
                     : 'Notifications from procurement workflows will appear here.'}
                 </p>
               </div>
+            ) : filter === 'messages' ? (
+              unreadMessages.map((msg) => (
+                <div
+                  key={msg._id}
+                  onClick={() => { setIsOpen(false); navigate('/communications'); }}
+                  className="flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors group bg-blue-50/40 hover:bg-blue-50/70"
+                >
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-blue-100 text-blue-700 border-blue-200">
+                    <FaEnvelope size={14} className="text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
+                        {msg.subject}
+                      </p>
+                      <span className="text-[10px] text-slate-400 shrink-0 whitespace-nowrap mt-0.5">
+                        {timeAgo(msg.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                      From: {msg.sender?.firstName} {msg.sender?.lastName}
+                    </p>
+                  </div>
+                  <FaCircle size={7} className="shrink-0 mt-1.5 text-blue-500" />
+                </div>
+              ))
             ) : (
               displayedNotifs.map((notif) => {
                 const style = severityStyle(notif.severity, notif.priority);

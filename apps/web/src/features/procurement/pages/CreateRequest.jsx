@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck } from 'react-icons/fa';
+import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt } from 'react-icons/fa';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
+import planningService from '../../../services/planning.service';
 import FormSection from '../components/FormSection';
 import FormField, { TextInput, SelectInput, TextArea } from '../components/FormField';
 import BOQTable from '../components/BOQTable';
@@ -95,6 +96,72 @@ export default function CreateRequest() {
   const [files, setFiles] = useState([]);
   const [aiWarning, setAiWarning] = useState('');
   const [errors, setErrors] = useState({});
+
+  // ── Annual Plan / Budget State (Phase 5 workflow) ─────────────
+  const [annualPlans, setAnnualPlans] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [myBudget, setMyBudget] = useState(null);
+  // Budget compliance check state
+  const [budgetCheck, setBudgetCheck] = useState(null);       // null | compliance result object
+  const [budgetCheckLoading, setBudgetCheckLoading] = useState(false);
+  const [savedDocId, setSavedDocId] = useState(null);         // ID of auto-saved draft for pre-check
+
+  // Load approved annual plans and department budget on mount
+  useEffect(() => {
+    if (!isEditMode) {
+      Promise.allSettled([
+        planningService.getAnnualPlans({ status: 'distribution_complete' }),
+        planningService.getMyBudget(),
+      ]).then(([planRes, budgetRes]) => {
+        if (planRes.status === 'fulfilled') {
+          const plans = planRes.value.data?.data || planRes.value.data || [];
+          setAnnualPlans(Array.isArray(plans) ? plans : []);
+        }
+        if (budgetRes.status === 'fulfilled') {
+          setMyBudget(budgetRes.value.data?.data || budgetRes.value.data || null);
+        }
+      });
+    }
+  }, [isEditMode]);
+
+  // Auto-populate form when an annual plan item is selected
+  const handleAnnualItemSelect = (planId, itemId) => {
+    setSelectedPlanId(planId);
+    setSelectedItemId(itemId);
+    setBudgetCheck(null); // Reset compliance check when item changes
+    if (!planId || !itemId) return;
+    const plan = annualPlans.find(p => p._id === planId);
+    if (!plan) return;
+    const item = plan.items?.find(i => (i._id || i.id) === itemId);
+    if (!item) return;
+    // Auto-populate key fields from the DAPP item
+    setForm(f => ({
+      ...f,
+      contractTitle: item.description || f.contractTitle,
+      dappItem: item._id || itemId,
+      mppRef: plan.masterPlanRef || f.mppRef,
+      category: item.category === 'Works' ? 'works' : item.category === 'Services' ? 'non-consulting' : 'goods',
+      faculty: Object.keys(FACULTY_MAP).find(k => FACULTY_MAP[k] === item.faculty) || f.faculty,
+      baseAmount: item.estimatedTotalCost ? String(item.estimatedTotalCost) : f.baseAmount,
+    }));
+    // Pre-fill BOQ with a single line from the annual plan item
+    if (item.description && item.estimatedTotalCost) {
+      setBoqItems([{
+        description: item.description,
+        unit: item.unit || 'Lot',
+        qty: String(item.estimatedQuantity || 1),
+        unitPrice: String(item.estimatedUnitCost || item.estimatedTotalCost || ''),
+      }]);
+    }
+  };
+
+  // Reset compliance check whenever DAPP selection or total cost changes
+  useEffect(() => {
+    if (selectedItemId) {
+      setBudgetCheck(null);
+    }
+  }, [selectedItemId, tce]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -308,6 +375,12 @@ export default function CreateRequest() {
       return;
     }
 
+    // Block submission if compliance check has been run and failed (hard fail, not special approval)
+    if (submitToWorkflow && budgetCheck && !budgetCheck.passed && !budgetCheck.requiresSpecialApproval) {
+      toast.error('Budget compliance check failed. Please resolve the issues before submitting.');
+      return;
+    }
+
     setLoading(true);
     try {
       let dbCategory = 'Goods';
@@ -352,16 +425,19 @@ export default function CreateRequest() {
         programCode: form.programCode,
         projectCode: form.projectCode,
         objectItem: form.objectItem,
+        // ── Workflow linkage (Phase 5 → 45-step lifecycle) ──
+        annualPlanId: selectedPlanId || undefined,
+        annualPlanItemId: selectedItemId || undefined,
       };
 
       let savedDoc;
       if (isEditMode) {
         const res = await procurementService.update(id, payload);
-        savedDoc = res.data;
+        savedDoc = res.data?.data || res.data;
         toast.success('Requisition updated successfully');
       } else {
         const res = await procurementService.create(payload);
-        savedDoc = res.data;
+        savedDoc = res.data?.data || res.data;
         toast.success('Requisition created successfully');
       }
 
@@ -370,12 +446,16 @@ export default function CreateRequest() {
       if (submitToWorkflow) {
         await procurementService.submit(docId);
         toast.success('Requisition submitted for multi-level approval!');
+        navigate('/procurements');
+      } else {
+        // Stay on page so user can run the budget compliance check before submitting
+        setSavedDocId(docId);
+        toast.info('Draft saved. Run the budget compliance check, then click "Submit Requisition".');
       }
-
-      navigate('/procurements');
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Operation failed. Please try again.');
+      const errMsg = err.response?.data?.message || err.message || 'Operation failed. Please try again.';
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -417,7 +497,205 @@ export default function CreateRequest() {
       </div>
 
       <div className="space-y-6">
+
+        {/* ── DAPP Linkage & Budget Compliance Panel (Phase 5 — Step 27) ──── */}
+        {!isEditMode && (
+          <div className="bg-linear-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                  <FaShieldAlt className="text-emerald-600" size={14} />
+                  Step 27: Link to Approved Annual Plan (DAPP) — Budget Compliance Required
+                </h2>
+                <p className="text-xs text-emerald-600 mt-0.5">Procurement requests must be linked to an approved DAPP item and remain within allocated budget.</p>
+              </div>
+              {myBudget && (
+                <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dept. Budget Remaining</p>
+                  <p className={`text-lg font-bold ${(myBudget.remainingAmount || myBudget.allocatedAmount - myBudget.consumedAmount) > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    LKR {((myBudget.remainingAmount || (myBudget.allocatedAmount - (myBudget.consumedAmount || 0))) || 0).toLocaleString()}
+                  </p>
+                  <div className="w-32 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${myBudget.allocatedAmount > 0 ? Math.min(100, 100 - ((myBudget.consumedAmount || 0) / myBudget.allocatedAmount * 100)) : 100}%` }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Plan + Item Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
+                <select
+                  value={selectedPlanId}
+                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); }}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">— Select Annual Plan —</option>
+                  {annualPlans.map(p => (
+                    <option key={p._id} value={p._id}>{p.referenceNumber} · {p.planYear}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item</label>
+                <select
+                  value={selectedItemId}
+                  onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
+                  disabled={!selectedPlanId}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                >
+                  <option value="">— Select Item —</option>
+                  {annualPlans.find(p => p._id === selectedPlanId)?.items?.map(item => (
+                    <option key={item._id || item.id} value={item._id || item.id}>
+                      {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Auto-populated confirmation */}
+            {selectedItemId && !budgetCheck && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100 rounded-lg px-3 py-2">
+                <FaCheck size={10} /> Form fields auto-populated from DAPP item. Review amounts below, then run the compliance check.
+              </div>
+            )}
+
+            {/* No approved plans warning */}
+            {annualPlans.length === 0 && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                <FaExclamationTriangle size={10} /> No approved annual plans found. Budget must be distributed before raising requisitions (Steps 21–26).
+              </div>
+            )}
+
+            {/* ── Live Budget Compliance Check Panel ── */}
+            {selectedItemId && savedDocId && (
+              <div className="border border-slate-200 bg-white rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Budget Compliance Check</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setBudgetCheckLoading(true);
+                      try {
+                        const res = await procurementService.checkBudget(savedDocId);
+                        setBudgetCheck(res.data?.data || res.data);
+                      } catch {
+                        toast.error('Could not run compliance check. Please save draft first.');
+                      } finally {
+                        setBudgetCheckLoading(false);
+                      }
+                    }}
+                    disabled={budgetCheckLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
+                  >
+                    {budgetCheckLoading ? <FaSpinner className="animate-spin" size={10} /> : <FaShieldAlt size={10} />}
+                    {budgetCheckLoading ? 'Checking…' : 'Run Check'}
+                  </button>
+                </div>
+
+                {budgetCheck && (
+                  <div className="space-y-2">
+                    {/* Annual Plan Status row */}
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
+                      budgetCheck.annualPlanPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                      <span className="flex items-center gap-1.5">
+                        {budgetCheck.annualPlanPassed
+                          ? <FaCheckCircle className="text-emerald-500" size={11} />
+                          : <FaTimesCircle className="text-red-500" size={11} />}
+                        Annual Procurement Plan (DAPP)
+                      </span>
+                      <span className="font-semibold">
+                        {budgetCheck.annualPlanPassed
+                          ? `✓ ${budgetCheck.annualPlanRef || 'Approved'}`
+                          : budgetCheck.failureReason === 'no_annual_plan_linked' ? 'Not Linked'
+                          : budgetCheck.failureReason === 'plan_not_approved' ? `Not Approved (${budgetCheck.annualPlanStatus})`
+                          : budgetCheck.failureReason === 'item_not_found' ? 'Item Not Found'
+                          : 'Failed'}
+                      </span>
+                    </div>
+
+                    {/* Budget Sufficiency row */}
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
+                      budgetCheck.budgetPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : budgetCheck.requiresSpecialApproval ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                      <span className="flex items-center gap-1.5">
+                        {budgetCheck.budgetPassed
+                          ? <FaCheckCircle className="text-emerald-500" size={11} />
+                          : budgetCheck.requiresSpecialApproval
+                            ? <FaExclamationTriangle className="text-amber-500" size={11} />
+                            : <FaTimesCircle className="text-red-500" size={11} />}
+                        Department Budget
+                      </span>
+                      <span className="font-semibold">
+                        {budgetCheck.budgetPassed
+                          ? `✓ LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} remaining`
+                          : budgetCheck.failureReason === 'no_budget_allocated' ? 'No Allocation Found'
+                          : `LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} / Need LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()}`}
+                      </span>
+                    </div>
+
+                    {/* Special Approval Banner */}
+                    {budgetCheck.requiresSpecialApproval && (
+                      <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
+                        <FaExclamationTriangle className="text-amber-500 mt-0.5 shrink-0" size={12} />
+                        <div>
+                          <p className="text-xs font-bold text-amber-800">Special Approval Required</p>
+                          <p className="text-[11px] text-amber-700 mt-0.5">
+                            This request exceeds budget by {budgetCheck.overBudgetPercent}% (within the 10% grace threshold). It will be flagged for special HOD approval.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hard Fail Banner */}
+                    {!budgetCheck.passed && !budgetCheck.requiresSpecialApproval && (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2.5">
+                        <FaTimesCircle className="text-red-500 mt-0.5 shrink-0" size={12} />
+                        <div>
+                          <p className="text-xs font-bold text-red-800">Compliance Failed — Cannot Submit</p>
+                          <p className="text-[11px] text-red-700 mt-0.5">
+                            {budgetCheck.failureReason === 'no_annual_plan_linked' && 'This requisition must be linked to an approved DAPP item.'}
+                            {budgetCheck.failureReason === 'plan_not_approved' && `The annual plan is not fully approved (status: ${budgetCheck.annualPlanStatus}). Budget must be distributed before procurement.`}
+                            {budgetCheck.failureReason === 'item_not_found' && 'The selected DAPP item does not exist in the linked plan. Re-select a valid item.'}
+                            {budgetCheck.failureReason === 'insufficient_budget' && `Requested LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()} exceeds the 10% grace limit over remaining budget of LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()}.`}
+                            {budgetCheck.failureReason === 'no_budget_allocated' && 'No budget has been allocated to your department. Contact the Finance Division.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All Pass Banner */}
+                    {budgetCheck.passed && (
+                      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2">
+                        <FaCheckCircle className="text-emerald-500" size={12} />
+                        <p className="text-xs font-bold text-emerald-800">All compliance checks passed — ready to submit</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!budgetCheck && !budgetCheckLoading && (
+                  <p className="text-[11px] text-slate-400">Click "Run Check" to validate DAPP linkage and budget availability before submitting.</p>
+                )}
+              </div>
+            )}
+
+            {/* Prompt user to save draft first to enable check */}
+            {selectedItemId && !savedDocId && (
+              <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 border border-blue-200">
+                <FaInfoCircle size={10} /> Save as draft first to enable the budget compliance pre-check.
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Section 1: Identity */}
+
         <FormSection title="Identification &amp; Multi-Tenant Context" step="1" subtitle="Procurement reference, requesting unit, and officer identification">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FormField label="Procurement Reference Number" hint="Auto-generated. Format: UWU/[Category]/[Method]/YYYY/NNN">

@@ -11,8 +11,10 @@ import procurementService from '../../../services/procurement.service';
 const DEVIATION_COLORS = {
   within_range: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Within Range', icon: FaCheckCircle, iconColor: 'text-emerald-500' },
   slightly_above: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Slightly Above', icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
+  above_range: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Above Range', icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
   significantly_above: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Significantly Above', icon: FaExclamationTriangle, iconColor: 'text-red-500' },
   below_market: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Below Market', icon: FaCheckCircle, iconColor: 'text-blue-500' },
+  below_range: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Below Range', icon: FaCheckCircle, iconColor: 'text-blue-500' },
 };
 
 export default function AIHistoricalMatchPage() {

@@ -466,6 +466,44 @@ const acknowledgeAlert = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+/**
+ * GET /ai/status
+ * Returns Gemini API connectivity status so the frontend can show a health badge.
+ */
+const getAIStatus = async (req, res, next) => {
+  try {
+    const configured = aiService.isConfigured();
+    if (!configured) {
+      return success(res, {
+        status: 'unconfigured',
+        model: aiConfig.gemini.model,
+        message: 'GEMINI_API_KEY is missing or invalid in environment configuration.',
+      });
+    }
+
+    // Minimal probe call — short prompt, low tokens
+    try {
+      await aiService.callGemini('Reply with the single word: ok', '', { maxTokens: 5, retries: 1 });
+      return success(res, {
+        status: 'connected',
+        model: aiConfig.gemini.model,
+        message: 'Gemini API is reachable and responding.',
+      });
+    } catch (probeErr) {
+      const raw = probeErr.message || '';
+      const is429 = raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED');
+      return success(res, {
+        status: is429 ? 'quota_exceeded' : 'error',
+        model: aiConfig.gemini.model,
+        message: is429
+          ? 'API key is valid but the free-tier quota is exhausted. Requests will fail until the quota resets.'
+          : `Gemini API error: ${raw.substring(0, 300)}`,
+        detail: raw.substring(0, 600),
+      });
+    }
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   getMarketPrice,
   verifyQuotations,
@@ -480,4 +518,5 @@ module.exports = {
   getExplainabilityStats,
   getExplainabilityLog,
   acknowledgeAlert,
+  getAIStatus,
 };

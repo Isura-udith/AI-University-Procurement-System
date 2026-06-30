@@ -2,53 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn, FaTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
 import WorkflowTracker from '../../../components/WorkflowTracker';
 import StatusBadge from '../../../components/StatusBadge';
 import ConfirmModal from '../../../components/ConfirmModal';
 import procurementService from '../../../services/procurement.service';
 
-const MOCK = {
-  id: 'UWU/G/NCB/2026/001',
-  title: 'Supply of Laboratory Spectrophotometers for Faculty of Applied Sciences',
-  faculty: 'Faculty of Applied Sciences',
-  officer: 'Dr. A. Perera',
-  designation: 'Senior Lecturer',
-  empId: 'UWU/EMP/2024/045',
-  dappRef: 'DAPP/2026/FAS/012',
-  mppRef: 'MPP/2026-2028/REF-001',
-  fundingSource: 'GOSL Treasury Funds',
-  category: 'Goods',
-  method: 'NCB - National Competitive Bidding',
-  committee: 'DPC (Departmental Procurement Committee)',
-  status: 'pending-approval',
-  stage: 3,
-  priority: 'Normal',
-  baseAmount: 10000000,
-  provisionalSums: 500000,
-  contingencies: 1000000,
-  vat: 2070000,
-  tce: 13570000,
-  techDescription: 'UV-Vis Spectrophotometer, wavelength range 190-1100nm, double beam, spectral bandwidth 1.0nm, photometric range -4 to 4 Abs, USB connectivity, complete with cuvettes and accessories.',
-  boq: [
-    { desc: 'UV-Vis Spectrophotometer', unit: 'Nos', qty: 5, unitPrice: 1800000, amount: 9000000 },
-    { desc: 'Quartz Cuvette Set', unit: 'Set', qty: 10, unitPrice: 50000, amount: 500000 },
-    { desc: 'Installation & Training', unit: 'Lot', qty: 1, unitPrice: 500000, amount: 500000 },
-  ],
-  dates: { created: '2026-05-08', invitation: '2026-06-01', closing: '2026-06-15T14:00', delivery: '2026-08-30' },
-  deliveryLocation: 'UWU Supplies Division, Passara Road, Badulla',
-  approvals: [
-    { role: 'HOD - Applied Sciences', name: 'Prof. K. Silva', status: 'approved', date: '2026-05-09' },
-    { role: 'Dean - Applied Sciences', name: 'Prof. R. Jayawardena', status: 'pending', date: null },
-    { role: 'PMD - Deputy Bursar', name: 'Mr. S. Gunawardena', status: 'pending', date: null },
-  ],
-  aiInsights: [
-    'Specifications are generic — no brand names detected.',
-    'TCE is within DAPP allocated budget (LKR 45M remaining).',
-    'Similar procurement completed in Q4 2025 at 12% lower unit cost.',
-    'Recommend negotiating warranty extension to 3 years.',
-  ],
-};
+
 
 export default function RequestDetails() {
   const { id } = useParams();
@@ -68,9 +28,10 @@ export default function RequestDetails() {
       setLoading(true);
       try {
         const res = await procurementService.getById(id);
-        setData(res.data || MOCK);
+        setData(res.data || null);
       } catch {
-        setData(MOCK);
+        setData(null);
+        toast.error('Failed to load procurement request');
       } finally {
         setLoading(false);
       }
@@ -79,7 +40,7 @@ export default function RequestDetails() {
   }, [id]);
 
   const handleDelete = async () => {
-    try { await procurementService.delete(id); } catch { /* mock */ }
+    try { await procurementService.delete(id); } catch { toast.error('Failed to delete'); }
     toast.success('Procurement request deleted.');
     setDeleteModal(false);
     navigate('/procurements');
@@ -348,6 +309,118 @@ export default function RequestDetails() {
 
         {/* Right Sidebar */}
         <div className="space-y-6">
+
+          {/* ── Budget Compliance Card (Step 27) ─────────────────────── */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className={`px-5 py-3.5 border-b flex items-center space-x-2 ${
+              data.status === 'flagged_special_approval' ? 'bg-amber-50 border-amber-200'
+              : data.budgetComplianceCheck?.passed ? 'bg-emerald-50 border-emerald-200'
+              : data.budgetComplianceCheck ? 'bg-red-50 border-red-200'
+              : 'bg-slate-50 border-slate-200'
+            }`}>
+              <FaShieldAlt className={
+                data.status === 'flagged_special_approval' ? 'text-amber-600'
+                : data.budgetComplianceCheck?.passed ? 'text-emerald-600'
+                : data.budgetComplianceCheck ? 'text-red-500'
+                : 'text-slate-400'
+              } size={13} />
+              <h3 className="text-sm font-bold text-slate-800">Step 27: Budget Compliance</h3>
+            </div>
+            <div className="p-5 space-y-3">
+              {data.budgetComplianceCheck ? (
+                <>
+                  {/* Special Approval Banner */}
+                  {data.status === 'flagged_special_approval' && (
+                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
+                      <FaExclamationTriangle className="text-amber-500 mt-0.5 shrink-0" size={12} />
+                      <div>
+                        <p className="text-xs font-bold text-amber-800">⚠ Flagged — Special Approval Required</p>
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          Exceeds budget by {data.budgetComplianceCheck.overBudgetPercent}% — within 10% grace threshold.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* All clear banner */}
+                  {data.budgetComplianceCheck.passed && (
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                      <FaCheckCircle className="text-emerald-500" size={11} />
+                      <p className="text-xs font-bold text-emerald-800">All compliance checks passed</p>
+                    </div>
+                  )}
+
+                  {/* DAPP Check */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Annual Plan (DAPP)</span>
+                    <span className={`font-semibold flex items-center gap-1 ${data.budgetComplianceCheck.annualPlanPassed ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {data.budgetComplianceCheck.annualPlanPassed
+                        ? <><FaCheckCircle size={9} /> {data.budgetComplianceCheck.annualPlanRef || 'Approved'}</>
+                        : <><FaTimesCircle size={9} />
+                            {data.budgetComplianceCheck.failureReason === 'no_annual_plan_linked' ? ' Not Linked'
+                            : data.budgetComplianceCheck.failureReason === 'plan_not_approved' ? ` Not Approved`
+                            : ' Item Not Found'}
+                          </>
+                      }
+                    </span>
+                  </div>
+
+                  {/* DAPP Item Description */}
+                  {data.budgetComplianceCheck.annualItemDesc && (
+                    <p className="text-[10px] text-slate-400 pl-1 italic">{data.budgetComplianceCheck.annualItemDesc}</p>
+                  )}
+
+                  {/* Budget Check */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Dept. Budget</span>
+                    <span className={`font-semibold flex items-center gap-1 ${
+                      data.budgetComplianceCheck.budgetPassed ? 'text-emerald-700'
+                      : data.budgetComplianceCheck.requiresSpecialApproval ? 'text-amber-700'
+                      : 'text-red-700'
+                    }`}>
+                      {data.budgetComplianceCheck.budgetPassed
+                        ? <><FaCheckCircle size={9} /> Sufficient</>
+                        : data.budgetComplianceCheck.failureReason === 'no_budget_allocated'
+                          ? <><FaTimesCircle size={9} /> No Allocation</>
+                          : <><FaExclamationTriangle size={9} /> Insufficient</>
+                      }
+                    </span>
+                  </div>
+
+                  {/* Budget Waterfall */}
+                  <div className="bg-slate-50 rounded-lg p-3 space-y-1.5 text-[11px]">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Remaining Budget</span>
+                      <span className="font-mono font-semibold">LKR {(data.budgetComplianceCheck.remainingBudget || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Required (TCE)</span>
+                      <span className="font-mono font-semibold text-slate-800">LKR {(data.budgetComplianceCheck.requiredBudget || 0).toLocaleString()}</span>
+                    </div>
+                    {data.budgetComplianceCheck.overBudgetPercent > 0 && (
+                      <div className="flex justify-between text-amber-700 border-t border-slate-200 pt-1 mt-1">
+                        <span>Over Budget By</span>
+                        <span className="font-semibold">{data.budgetComplianceCheck.overBudgetPercent}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Check timestamp */}
+                  {data.budgetComplianceCheck.checkedAt && (
+                    <p className="text-[10px] text-slate-400">
+                      Checked: {new Date(data.budgetComplianceCheck.checkedAt).toLocaleString()}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
+                  <FaExclamationTriangle size={10} className="text-slate-300" />
+                  Compliance check will run automatically when the requisition is submitted.
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Approval Chain */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center space-x-2">

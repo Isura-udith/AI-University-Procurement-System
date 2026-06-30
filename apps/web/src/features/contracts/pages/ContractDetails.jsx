@@ -13,37 +13,7 @@ import StatusBadge from '../../../components/StatusBadge';
 import usePermissions from '../../../hooks/usePermissions';
 import { PERMISSIONS } from '../../../constants/permissions';
 
-const MOCK_CONTRACT = {
-  _id: 'c1', contractNumber: 'CNT-2026-0001', title: 'Supply of Laboratory Microscopes and Equipment',
-  vendor: 'MedTech Solutions (Pvt) Ltd', vendorContact: 'Mr. K. Perera • +94 77 123 4567',
-  value: 38500000, type: 'goods', status: 'active',
-  startDate: '2026-04-01', endDate: '2026-09-30', warrantyExpiry: '2027-09-30',
-  tenderRef: 'TND-2026-0001', loaRef: 'LOA/UWU/2026/001',
-  performanceSecurityRef: 'BG/HNB/2026/45678', insuranceCertRef: 'INS/AIA/2026/9012',
-  penaltyRate: 0.05, performanceRating: 4.2,
-  description: 'Supply, delivery, installation, and commissioning of 10 units of advanced research microscopes with digital imaging systems for the Faculty of Medicine laboratory complex.',
-  signedBy: { university: 'Prof. M. Weerasinghe (Registrar)', vendor: 'Mr. K. Perera (MD)', signedDate: '2026-03-28' },
-  milestones: [
-    { title: 'Advance Payment (10%)', dueDate: '2026-04-15', status: 'completed', completedDate: '2026-04-14', amount: 3850000, deliverables: ['Signed Agreement', 'Performance Security'] },
-    { title: 'Delivery & Installation', dueDate: '2026-06-30', status: 'in-progress', amount: 23100000, deliverables: ['Equipment Delivery', 'Installation Report', 'Acceptance Test'] },
-    { title: 'Training & Handover', dueDate: '2026-08-15', status: 'pending', amount: 7700000, deliverables: ['Training Completion Certificate', 'User Manuals'] },
-    { title: 'Final Payment & Retention Release', dueDate: '2026-09-30', status: 'pending', amount: 3850000, deliverables: ['Final Inspection Report', 'Warranty Certificate'] },
-  ],
-  payments: [
-    { milestone: 'Advance Payment', amount: 3850000, status: 'paid', paidDate: '2026-04-16', invoiceRef: 'INV-MT-2026-001' },
-    { milestone: 'Delivery & Installation', amount: 23100000, status: 'pending', paidDate: null, invoiceRef: null },
-    { milestone: 'Training & Handover', amount: 7700000, status: 'pending', paidDate: null, invoiceRef: null },
-    { milestone: 'Final Payment', amount: 3850000, status: 'pending', paidDate: null, invoiceRef: null },
-  ],
-  variations: [
-    { id: 'VO-001', title: 'Additional calibration equipment', amount: 450000, status: 'approved', date: '2026-05-15' },
-  ],
-  amendments: [
-    { date: '2026-05-15', description: 'Variation Order VO-001 approved: Additional calibration equipment (+LKR 450,000)', user: 'Prof. M. Weerasinghe' },
-    { date: '2026-04-14', description: 'Advance payment milestone completed', user: 'System' },
-    { date: '2026-03-28', description: 'Contract signed and finalized by both parties', user: 'System' },
-  ],
-};
+
 
 export default function ContractDetails() {
   const { hasPermission, role, user } = usePermissions();
@@ -112,11 +82,12 @@ export default function ContractDetails() {
         };
         setContract(mapped);
       } else {
-        setContract(MOCK_CONTRACT);
+        setContract(null);
       }
     } catch (err) {
       console.error('Failed to load contract:', err);
-      setContract(MOCK_CONTRACT);
+      setContract(null);
+      toast.error('Failed to load contract details');
     } finally {
       setLoading(false);
     }

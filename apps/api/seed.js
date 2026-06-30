@@ -1,12 +1,3 @@
-/**
- * Database Seed Script
- * Seeds the MongoDB database with:
- *   1. Role definitions (15 roles with permissions & GOSL thresholds)
- *   2. Demo users for each role (password: Demo@1234)
- *
- * Usage: node seed.js
- * Run from the apps/api directory.
- */
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./src/models/user.model');
@@ -14,9 +5,6 @@ const Role = require('./src/models/role.model');
 const connectDB = require('./src/config/db');
 const { ROLE_PERMISSIONS } = require('../../packages/types/rbac.config');
 
-// ═══════════════════════════════════════════════════════════════════
-//  ROLE DEFINITIONS (seeded into the 'roles' collection)
-// ═══════════════════════════════════════════════════════════════════
 const ROLES = [
   {
     name: 'Super Admin', slug: 'super_admin', hierarchy: 100, isSystem: true,
@@ -191,9 +179,6 @@ const ROLES = [
   },
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-//  DEMO USERS (seeded into the 'users' collection)
-// ═══════════════════════════════════════════════════════════════════
 const DEMO_USERS = [
   // ─── System & Administrative Roles (Cross-Tenant Access) ───
   {
@@ -338,9 +323,6 @@ const DEMO_USERS = [
   },
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-//  SEED FUNCTION
-// ═══════════════════════════════════════════════════════════════════
 const seed = async () => {
   try {
     await connectDB();

@@ -1,18 +1,49 @@
-/**
- * Market Price Engine
- * AI-powered market intelligence for procurement pricing.
- *
- * Features:
- *   1. NLP text parsing → structured product specs (Feature 1 & 4)
- *   2. Market price band recommendation (Feature 1)
- *   3. Historical procurement analysis (Feature 8)
- *   4. Dynamic market monitoring & macroeconomic alerts (Feature 5)
- *
- * Governance: Every output includes an explainabilityLog object.
- */
 const logger = require('../config/logger');
+const nlpProcessor = require('./nlp.processor');
+const aiConfig = require('../config/ai.config');
 
 class MarketPriceEngine {
+  _normalizeUnit(unit) {
+    const normalized = String(unit || '').toLowerCase();
+    const unitMap = {
+      unit: 'units',
+      units: 'units',
+      pcs: 'pieces',
+      piece: 'pieces',
+      pieces: 'pieces',
+      kg: 'kg',
+      kilogram: 'kg',
+      kilograms: 'kg',
+      g: 'g',
+      gram: 'g',
+      grams: 'g',
+      l: 'liters',
+      liter: 'liters',
+      liters: 'liters',
+      ml: 'ml',
+      milliliter: 'ml',
+      milliliters: 'ml',
+      set: 'sets',
+      sets: 'sets',
+      box: 'boxes',
+      boxes: 'boxes',
+      pack: 'packs',
+      packs: 'packs',
+      meter: 'meters',
+      meters: 'meters',
+      m: 'meters',
+      cm: 'cm',
+      dozen: 'dozens',
+      dozens: 'dozens',
+    };
+
+    return unitMap[normalized] || normalized || 'units';
+  }
+
+  _buildFallbackRequisition(rawText) {
+    return nlpProcessor.parseRequisition(rawText);
+  }
+
   /**
    * Parse natural-language requisition text into structured product specifications.
    * Uses Gemini structured output with Zod validation via aiService.
@@ -58,18 +89,37 @@ Return a JSON object with:
     );
 
     let parsed;
+    let usedFallback = false;
     try {
-      parsed = JSON.parse(result.replace(/```json\n?|\n?```/g, ''));
+      const cleaned = result.replace(/```json\n?|\n?```/g, '').trim();
+      parsed = cleaned ? JSON.parse(cleaned) : null;
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('No parseable JSON returned');
+      }
+
+      const fallback = this._buildFallbackRequisition(rawText);
+      parsed = {
+        ...fallback,
+        ...parsed,
+        items: Array.isArray(parsed.items) && parsed.items.length > 0 ? parsed.items : fallback.items,
+        identifiedSpecs: Array.isArray(parsed.identifiedSpecs) && parsed.identifiedSpecs.length > 0 ? parsed.identifiedSpecs : fallback.identifiedSpecs,
+        suggestedTitle: parsed.suggestedTitle || fallback.suggestedTitle,
+        suggestedJustification: parsed.suggestedJustification || fallback.suggestedJustification,
+        recommendedMethod: parsed.recommendedMethod || fallback.recommendedMethod,
+      };
     } catch {
-      parsed = { raw: result, items: [], overallCategory: 'Goods', suggestedTitle: '', identifiedSpecs: [] };
+      parsed = this._buildFallbackRequisition(rawText);
+      usedFallback = true;
     }
 
+    parsed.processingMode = parsed.processingMode || (usedFallback ? 'hybrid' : 'ai');
     parsed.explainabilityLog = {
       feature: 'NLP_REQUISITION_PARSING',
       inputText: rawText.substring(0, 500),
-      model: 'gemini-2.0-flash',
+      model: aiConfig.gemini.model,
+      processingMode: parsed.processingMode,
       processingTimeMs: Date.now() - startTime,
-      dataSources: ['gemini-nlp-extraction'],
+      dataSources: ['gemini-nlp-extraction', 'local-heuristic-fallback'],
       timestamp: new Date().toISOString(),
     };
 
@@ -143,7 +193,7 @@ Return JSON:
       feature: 'MARKET_PRICE_RECOMMENDATION',
       inputItemCount: items.length,
       historicalRecordCount: historicalPrices.length,
-      model: 'gemini-2.0-flash',
+      model: aiConfig.gemini.model,
       processingTimeMs: Date.now() - startTime,
       dataSources: ['gemini-market-analysis', 'university-historical-db'],
       weightsApplied: { marketData: 0.5, historicalData: 0.3, expertKnowledge: 0.2 },
@@ -236,7 +286,7 @@ Return JSON:
       feature: 'HISTORICAL_PROCUREMENT_MATCH',
       currentProcurementId: procurement._id?.toString(),
       historicalRecordsAnalyzed: pastTransactions.length,
-      model: 'gemini-2.0-flash',
+      model: aiConfig.gemini.model,
       processingTimeMs: Date.now() - startTime,
       dataSources: ['university-historical-db', 'gemini-analysis'],
       timestamp: new Date().toISOString(),
@@ -304,7 +354,7 @@ Return JSON:
       feature: 'DYNAMIC_MARKET_MONITORING',
       categoriesMonitored: activeCategories.length,
       alertsGenerated: parsed.alerts?.length || 0,
-      model: 'gemini-2.0-flash',
+      model: aiConfig.gemini.model,
       processingTimeMs: Date.now() - startTime,
       dataSources: ['gemini-economic-intelligence', 'active-procurement-categories'],
       disclaimer: 'Market alerts are AI-generated estimates based on model training data. Verify with official CBSL and market sources.',

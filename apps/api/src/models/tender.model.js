@@ -41,6 +41,7 @@ const tenderSchema = new mongoose.Schema({
   bocMembers: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, role: String }],
   // Bid Box
   bidBoxLocked: { type: Boolean, default: true },
+  bidBoxClosedAt: Date,
   bidBoxOpenedAt: Date,
   bidBoxOpenedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Pre-bid
@@ -67,7 +68,6 @@ const tenderSchema = new mongoose.Schema({
   cancellationReason: String,
   cancelledAt: Date,
   cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  bidBoxClosedAt: Date,
   // Appeals
   appeals: [{
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -34,6 +34,9 @@ export default function AISmartRecommendationsPage() {
     }
     setLoading(false);
   };
+  const aiSummary = typeof result?.aiSummary === 'string'
+    ? { executiveSummary: result.aiSummary }
+    : result?.aiSummary;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -118,7 +121,7 @@ export default function AISmartRecommendationsPage() {
           </div>
 
           {/* AI Executive Summary */}
-          {result.aiSummary && (
+          {aiSummary && (
             <div className="bg-slate-900 rounded-3xl shadow-lg p-6 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center space-x-3 mb-4 relative z-10">
@@ -127,17 +130,17 @@ export default function AISmartRecommendationsPage() {
                 </div>
                 <h3 className="text-lg font-bold text-white">AI Executive Summary</h3>
               </div>
-              <p className="text-sm text-slate-300 leading-relaxed relative z-10 mb-4">{result.aiSummary.executiveSummary}</p>
-              {result.aiSummary.overallRecommendation && (
+              <p className="text-sm text-slate-300 leading-relaxed relative z-10 mb-4">{aiSummary.executiveSummary || aiSummary.aiSummary || 'AI summary generated.'}</p>
+              {aiSummary.overallRecommendation && (
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 relative z-10 mb-4">
                   <p className="text-xs font-semibold text-emerald-400 uppercase mb-1">Overall Recommendation</p>
-                  <p className="text-sm text-white">{result.aiSummary.overallRecommendation}</p>
+                  <p className="text-sm text-white">{aiSummary.overallRecommendation}</p>
                 </div>
               )}
-              {result.aiSummary.keyTradeoffs?.length > 0 && (
+              {aiSummary.keyTradeoffs?.length > 0 && (
                 <div className="space-y-2 relative z-10">
                   <p className="text-xs font-semibold text-slate-400 uppercase">Key Trade-offs</p>
-                  {result.aiSummary.keyTradeoffs.map((t, i) => (
+                  {aiSummary.keyTradeoffs.map((t, i) => (
                     <div key={i} className="flex items-start space-x-2">
                       <FaCheckCircle className="text-emerald-400 mt-0.5 shrink-0" size={11} />
                       <p className="text-sm text-slate-300">{t}</p>

@@ -1,17 +1,5 @@
-/**
- * Risk Analysis Engine
- * Dynamic procurement risk scoring and bid fraud detection.
- *
- * Feature 6: AI Procurement Risk Scoring
- *   - Risk Score: Low / Medium / High
- *   - Factors: Price deviation (30%), Vendor history (25%), Delivery (20%),
- *              Specification restrictiveness (15%), Document completeness (10%)
- *
- * Also includes enhanced bid collusion & fraud detection from the legacy fraud.detection.js.
- *
- * Governance: Every output includes an explainabilityLog object.
- */
 const logger = require('../config/logger');
+const aiConfig = require('../config/ai.config');
 
 class RiskAnalysisEngine {
   constructor() {
@@ -219,7 +207,7 @@ Return JSON:
         procurementId: procurement._id?.toString(),
         calculatedScore: weightedRiskScore,
         riskLevel,
-        model: aiRiskAnalysis ? 'gemini-2.0-flash + statistical' : 'statistical-only',
+        model: aiRiskAnalysis ? `${aiConfig.gemini.model} + statistical` : 'statistical-only',
         processingTimeMs: Date.now() - startTime,
         weightsApplied: this.riskWeights,
         factorScores: factors.map(f => ({ factor: f.factor, score: f.score })),

@@ -11,6 +11,7 @@ export default function TenderDetails() {
   const [tender, setTender] = useState(null);
   const [loading, setLoading] = useState(true);
   const [closeModal, setCloseModal] = useState(false);
+  const [openBidBoxModal, setOpenBidBoxModal] = useState(false);
   const [cancelModal, setCancelModal] = useState(false);
   const [extendModal, setExtendModal] = useState(false);
   const [clarificationModal, setClarificationModal] = useState(false);
@@ -95,12 +96,24 @@ export default function TenderDetails() {
   const handleCloseBidding = async () => {
     try {
       await tenderService.closeBidding(tender._id || id);
-      toast.success('🔒 Bidding closed. Proceed to bid opening ceremony.');
+      toast.success('🔒 Bidding closed. Bid box is sealed. Proceed to bid opening ceremony.');
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to close bidding.');
     } finally {
       setCloseModal(false);
+    }
+  };
+
+  const handleOpenBidBox = async () => {
+    try {
+      await tenderService.openBidBox(tender._id || id);
+      toast.success('📂 Bid box opened. Proceed to bid opening ceremony to unseal bids.');
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to open bid box.');
+    } finally {
+      setOpenBidBoxModal(false);
     }
   };
 
@@ -187,13 +200,23 @@ export default function TenderDetails() {
           {tender.status === 'draft' && (
             <button onClick={() => setPublishModal(true)} className="flex items-center space-x-1 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm"><FaPaperPlane size={10} /><span>Publish Tender</span></button>
           )}
-          {tender.status === 'published' && (
+          {['published', 'bidding'].includes(tender.status) && (
             <>
               <button onClick={() => setExtendModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-blue-300 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-50 transition-colors"><FaCalendarPlus size={10} /><span>Extend Deadline</span></button>
               <button onClick={() => setClarificationModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-purple-300 text-purple-600 text-xs font-semibold rounded-lg hover:bg-purple-50 transition-colors"><FaCommentDots size={10} /><span>Add Clarification</span></button>
               <button onClick={() => setAddendumModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-xs font-semibold rounded-lg hover:bg-indigo-50 transition-colors"><FaPlus size={10} /><span>Issue Addendum</span></button>
-              <button onClick={() => setCloseModal(true)} className="flex items-center space-x-1 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm"><FaLock size={10} /><span>Close Bidding</span></button>
+              <button onClick={() => setCloseModal(true)} className="flex items-center space-x-1 px-3 py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors shadow-sm"><FaLock size={10} /><span>Close Bidding</span></button>
               <button onClick={() => setCancelModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors"><FaTimesCircle size={10} /><span>Cancel</span></button>
+            </>
+          )}
+          {tender.status === 'bid_closed' && (
+            <>
+              <Link to={`/bid-opening?tenderId=${tender._id}`} className="flex items-center space-x-1 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm">
+                <FaBoxOpen size={10} /><span>Go to Bid Opening</span>
+              </Link>
+              <button onClick={() => setOpenBidBoxModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-blue-300 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-50 transition-colors">
+                <FaBoxOpen size={10} /><span>Open Bid Box</span>
+              </button>
             </>
           )}
         </div>
@@ -396,10 +419,19 @@ export default function TenderDetails() {
       </ConfirmModal>
 
       {/* Close Bidding Modal */}
-      <ConfirmModal isOpen={closeModal} onClose={() => setCloseModal(false)} onConfirm={handleCloseBidding} title="Close Bidding" confirmText="Close & Seal" variant="success">
+      <ConfirmModal isOpen={closeModal} onClose={() => setCloseModal(false)} onConfirm={handleCloseBidding} title="Close Bidding" confirmText="Close & Seal Bid Box" variant="danger">
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">Close bidding for <span className="font-bold">{tender.title}</span>?</p>
-          <p className="text-xs text-slate-500">{(tender.bids || []).length} bids received. No further submissions will be accepted.</p>
+          <p className="text-sm text-slate-600">Officially close bidding for <span className="font-bold">{tender.title}</span>?</p>
+          <p className="text-xs text-slate-500">{(tender.bids || []).length} bids received. No further submissions will be accepted. This action is irreversible.</p>
+        </div>
+      </ConfirmModal>
+
+      {/* Open Bid Box Modal */}
+      <ConfirmModal isOpen={openBidBoxModal} onClose={() => setOpenBidBoxModal(false)} onConfirm={handleOpenBidBox} title="Open Bid Box" confirmText="Open Bid Box" variant="success">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Open the sealed bid box for <span className="font-bold">{tender.title}</span>?</p>
+          <p className="text-xs text-slate-500">This will begin the bid opening phase. All bids will be unsealed. Ensure the BOC committee is present before proceeding.</p>
+          <p className="text-xs font-semibold text-blue-600">You will be redirected to the Bid Opening page to conduct the ceremony.</p>
         </div>
       </ConfirmModal>
 

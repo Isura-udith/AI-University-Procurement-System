@@ -212,7 +212,10 @@ class TenderService {
   async closeBidding(id, userId, tenantId) {
     const tender = await Tender.findOne({ _id: id, tenantId });
     if (!tender) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    tender.status = 'closed';
+    if (!['published', 'bidding'].includes(tender.status)) {
+      throw Object.assign(new Error('Can only close bidding for published/active tenders'), { statusCode: 400 });
+    }
+    tender.status = 'bid_closed';
     tender.bidBoxLocked = true;
     tender.bidBoxClosedAt = new Date();
     await tender.save();
@@ -223,15 +226,19 @@ class TenderService {
   async openBidBox(id, userId, tenantId) {
     const tender = await Tender.findOne({ _id: id, tenantId });
     if (!tender) throw Object.assign(new Error('Not found'), { statusCode: 404 });
+    const allowedStatuses = ['published', 'bidding', 'bid_closed', 'closed'];
+    if (!allowedStatuses.includes(tender.status)) {
+      throw Object.assign(new Error(`Cannot open bid box for a tender in '${tender.status}' status`), { statusCode: 400 });
+    }
     if (tender.bidSubmissionDeadline && new Date() < tender.bidSubmissionDeadline) {
-      throw Object.assign(new Error('Bid submission deadline not reached'), { statusCode: 400 });
+      throw Object.assign(new Error('Bid submission deadline not yet reached'), { statusCode: 400 });
     }
     tender.bidBoxLocked = false;
     tender.bidBoxOpenedAt = new Date();
     tender.bidBoxOpenedBy = userId;
     tender.status = 'opening';
     await tender.save();
-    // Unseal all bids
+    // Unseal all bids for the opening ceremony
     await Bid.updateMany({ tenderId: id }, { isSealed: false, openedAt: new Date() });
     logger.audit('BID_BOX_OPENED', userId, { tenderId: tender._id });
     return tender;
@@ -253,8 +260,8 @@ class TenderService {
   async submitBid(tenderId, data, userId, tenantId) {
     const tender = await Tender.findOne({ _id: tenderId, tenantId });
     if (!tender) throw Object.assign(new Error('Tender not found'), { statusCode: 404 });
-    if (tender.status !== 'published') {
-      throw Object.assign(new Error('Bids can only be submitted for published tenders'), { statusCode: 400 });
+    if (!['published', 'bidding'].includes(tender.status)) {
+      throw Object.assign(new Error('Bids can only be submitted for active (published/bidding) tenders'), { statusCode: 400 });
     }
     if (tender.bidSubmissionDeadline && new Date() > tender.bidSubmissionDeadline) {
       throw Object.assign(new Error('Bid submission deadline has passed'), { statusCode: 400 });
@@ -263,8 +270,7 @@ class TenderService {
     // Look up the vendor associated with the logged-in supplier user
     let vendor = await Vendor.findOne({ userId, tenantId });
     if (!vendor) {
-      // Fallback/Automated check: check if user is admin/officer, let's create a test vendor or mock vendor
-      // so it doesn't fail if admins are testing submissions
+      // Fallback: allow admins/officers to test submissions via a mock vendor
       vendor = await Vendor.findOne({ companyName: 'Mock Test Supplier', tenantId });
       if (!vendor) {
         vendor = await Vendor.create({
@@ -278,6 +284,20 @@ class TenderService {
       }
     }
 
+    // ── Duplicate bid prevention: one active bid per vendor per tender ──
+    const existingBid = await Bid.findOne({
+      tenderId,
+      vendorId: vendor._id,
+      tenantId,
+      status: { $nin: ['withdrawn'] },
+    });
+    if (existingBid) {
+      throw Object.assign(
+        new Error('You have already submitted a bid for this tender. Please withdraw your existing bid before submitting a new one.'),
+        { statusCode: 409 }
+      );
+    }
+
     const bidData = {
       ...data,
       tenderId,
@@ -285,7 +305,7 @@ class TenderService {
       submittedBy: userId,
       tenantId,
       isSealed: true,
-      submittedAt: new Date()
+      submittedAt: new Date(),
     };
 
     const bid = await Bid.create(bidData);

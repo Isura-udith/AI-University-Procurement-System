@@ -56,6 +56,22 @@ import CommunicationsHub from "../features/communications/pages/CommunicationsHu
 import DocumentRepository from "../features/documents/pages/DocumentRepository";
 import UserManagement from "../features/users/pages/UserManagement";
 
+// Phase 1-4: Strategic Planning
+import StrategicPlanningHub from "../features/planning/pages/StrategicPlanningHub";
+import MasterPlanList from "../features/planning/pages/MasterPlanList";
+import CreateMasterPlan from "../features/planning/pages/CreateMasterPlan";
+import MasterPlanDetail from "../features/planning/pages/MasterPlanDetail";
+import AnnualPlanList from "../features/planning/pages/AnnualPlanList";
+import CreateAnnualPlan from "../features/planning/pages/CreateAnnualPlan";
+import AnnualPlanDetail from "../features/planning/pages/AnnualPlanDetail";
+import BudgetDistribution from "../features/planning/pages/BudgetDistribution";
+import WorkflowDashboard from "../features/planning/pages/WorkflowDashboard";
+
+// Phase 7-8: Store & Inventory
+import StoreHub from "../features/store/pages/StoreHub";
+import CreateGRN from "../features/store/pages/CreateGRN";
+import IssueItems from "../features/store/pages/IssueItems";
+
 // AI Intelligence Pages
 import AIIntelligenceHubPage from "../features/ai/pages/AIIntelligenceHubPage";
 import AIMarketPricePage from "../features/procurement/pages/AIMarketPricePage";
@@ -186,6 +202,22 @@ export default function RoutesConfig() {
         {/* Hubs */}
         <Route path="/communications" element={<ProtectedRoute><CommunicationsHub /></ProtectedRoute>} />
         <Route path="/documents" element={<ProtectedRoute><DocumentRepository /></ProtectedRoute>} />
+
+        {/* Phase 1-4: Strategic Planning */}
+        <Route path="/planning" element={<ProtectedRoute><StrategicPlanningHub /></ProtectedRoute>} />
+        <Route path="/planning/master-plans" element={<ProtectedRoute><MasterPlanList /></ProtectedRoute>} />
+        <Route path="/planning/master-plans/new" element={<ProtectedRoute><CreateMasterPlan /></ProtectedRoute>} />
+        <Route path="/planning/master-plans/:id" element={<ProtectedRoute><MasterPlanDetail /></ProtectedRoute>} />
+        <Route path="/planning/annual-plans" element={<ProtectedRoute><AnnualPlanList /></ProtectedRoute>} />
+        <Route path="/planning/annual-plans/new" element={<ProtectedRoute><CreateAnnualPlan /></ProtectedRoute>} />
+        <Route path="/planning/annual-plans/:id" element={<ProtectedRoute><AnnualPlanDetail /></ProtectedRoute>} />
+        <Route path="/planning/budget-distribution" element={<ProtectedRoute><BudgetDistribution /></ProtectedRoute>} />
+        <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboard /></ProtectedRoute>} />
+
+        {/* Phase 7-8: Store & Inventory */}
+        <Route path="/store" element={<ProtectedRoute><StoreHub /></ProtectedRoute>} />
+        <Route path="/store/grn/new" element={<ProtectedRoute><CreateGRN /></ProtectedRoute>} />
+        <Route path="/store/issue" element={<ProtectedRoute><IssueItems /></ProtectedRoute>} />
 
         {/* AI Intelligence Hub */}
         <Route path="/ai" element={<ProtectedRoute><AIIntelligenceHubPage /></ProtectedRoute>} />

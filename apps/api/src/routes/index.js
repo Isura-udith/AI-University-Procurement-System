@@ -17,6 +17,14 @@ const auditLogRoutes = require('./audit.log.routes');
 const aiRoutes = require('./ai.routes');
 const messageRoutes = require('./message.routes');
 const documentRoutes = require('./document.routes');
+// Phase 1-4: Strategic Planning & Budget
+const masterPlanRoutes = require('./master.plan.routes');
+const annualPlanRoutes = require('./annual.plan.routes');
+const budgetAllocationRoutes = require('./budget.allocation.routes');
+// Phase 7-8: Store & Inventory
+const inventoryRoutes = require('./inventory.routes');
+// Workflow Engine
+const workflowRoutes = require('./workflow.routes');
 
 router.use('/auth', authRoutes);
 router.use('/procurements', procurementRoutes);
@@ -31,6 +39,14 @@ router.use('/audit-logs', auditLogRoutes);
 router.use('/ai', aiRoutes);
 router.use('/messages', messageRoutes);
 router.use('/documents', documentRoutes);
+// Strategic Planning (Phases 1-4)
+router.use('/master-plans', masterPlanRoutes);
+router.use('/annual-plans', annualPlanRoutes);
+router.use('/budget-allocations', budgetAllocationRoutes);
+// Store & Inventory (Phases 7-8)
+router.use('/inventory', inventoryRoutes);
+// Workflow Engine (45-Step Lifecycle)
+router.use('/workflow', workflowRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

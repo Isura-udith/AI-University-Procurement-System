@@ -1,19 +1,23 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   FaTachometerAlt, FaClipboardList, FaCheckDouble, FaLock,
   FaFileAlt, FaBoxOpen, FaGavel, FaBalanceScale,
   FaFileContract, FaTruck, FaMoneyCheckAlt, FaChartBar,
   FaUsers, FaBars, FaTimes, FaSignOutAlt, FaPlus,
-  FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore } from 'react-icons/fa';
+  FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
+  FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap,
+} from 'react-icons/fa';
 import uwuLogo from '../assets/logos/Logo_uwu.jpg';
 import { logout } from '../app/store';
+
 import { ROLES, ROLE_CONFIG, getRoleLabel } from '../constants/roles';
 import { canAccessRoute } from '../constants/routes';
 import { hasPermission, PERMISSIONS } from '../constants/permissions';
 import Footer from '../components/navigation/Footer';
 import NotificationBell from '../features/notifications/NotificationBell';
+import messageService from '../services/message.service';
 
 // ─── Full Navigation Sections with role access ─────────────────
 const navSections = [
@@ -48,10 +52,28 @@ const navSections = [
     ]
   },
   {
+    title: 'Strategic Planning',
+    items: [
+      { path: '/workflow', label: '45-Step Lifecycle', icon: FaSitemap, hint: 'NEW' },
+      { path: '/planning', label: 'Planning Hub', icon: FaLayerGroup },
+      { path: '/planning/master-plans', label: 'Master Plans (3-Yr)', icon: FaLayerGroup },
+      { path: '/planning/annual-plans', label: 'Annual Plans', icon: FaCalendarAlt },
+      { path: '/planning/budget-distribution', label: 'Budget Distribution', icon: FaMoneyBillWave },
+    ]
+  },
+  {
     title: 'Delivery & Finance',
     items: [
       { path: '/delivery', label: '3-Way Match', icon: FaTruck },
       { path: '/payments', label: 'Payments', icon: FaMoneyCheckAlt },
+    ]
+  },
+  {
+    title: 'Store & Inventory',
+    items: [
+      { path: '/store', label: 'Store Hub', icon: FaWarehouse },
+      { path: '/store/grn/new', label: 'Create GRN', icon: FaTruck },
+      { path: '/store/issue', label: 'Issue Items', icon: FaBoxOpen },
     ]
   },
   {
@@ -99,6 +121,30 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector(state => state.auth);
+
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMessageUnreadCount = async () => {
+      try {
+        const res = await messageService.getUnreadCount();
+        if (res?.success && isMounted) {
+          setMessageUnreadCount(res.data?.count?.all || 0);
+        }
+      } catch { /* intentionally ignored */ }
+    };
+
+    if (isAuthenticated && user) {
+      fetchMessageUnreadCount();
+      const interval = setInterval(fetchMessageUnreadCount, 20000); // 20s poll
+      return () => {
+        isMounted = false;
+        clearInterval(interval);
+      };
+    }
+  }, [isAuthenticated, user]);
 
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
@@ -292,7 +338,7 @@ export default function DashboardLayout() {
                 </div>
               )}
               
-              <NotificationBell />
+              <NotificationBell messageUnreadCount={messageUnreadCount} />
               <div className={`w-8 h-8 rounded-full bg-linear-to-br ${accent.gradient} flex items-center justify-center text-[10px] font-bold text-white lg:hidden shadow-sm`}>
                 {userInitial}
               </div>

@@ -8,15 +8,7 @@ import Pagination from '../../../components/Pagination';
 import ExportButton from '../../../components/ExportButton';
 import StatusBadge from '../../../components/StatusBadge';
 
-const MOCK_DATA = [
-  { _id: 'c1', contractNumber: 'CNT-2026-0001', title: 'Supply of Laboratory Microscopes and Equipment', vendor: 'MedTech Solutions (Pvt) Ltd', value: 38500000, status: 'active', type: 'goods', startDate: '2026-04-01', endDate: '2026-09-30', progress: 45, performanceRating: 4.2 },
-  { _id: 'c2', contractNumber: 'CNT-2026-0002', title: 'Network Infrastructure Upgrade & Fiber Backbone', vendor: 'TechVision Asia', value: 22000000, status: 'active', type: 'goods', startDate: '2026-03-15', endDate: '2026-08-15', progress: 65, performanceRating: 3.8 },
-  { _id: 'c3', contractNumber: 'CNT-2026-0003', title: 'Student Hostel Phase II Construction Works', vendor: 'Lanka Construction (Pvt) Ltd', value: 78200000, status: 'active', type: 'works', startDate: '2026-05-01', endDate: '2027-04-30', progress: 12, performanceRating: 4.5 },
-  { _id: 'c4', contractNumber: 'CNT-2025-0015', title: 'Annual Office Stationery Supply', vendor: 'Colombo Office Suppliers', value: 3200000, status: 'expiring', type: 'goods', startDate: '2025-06-01', endDate: '2026-06-30', progress: 92, performanceRating: 3.5 },
-  { _id: 'c5', contractNumber: 'CNT-2025-0008', title: 'Janitorial & Cleaning Services', vendor: 'CleanPro Services', value: 4800000, status: 'completed', type: 'services', startDate: '2025-01-01', endDate: '2025-12-31', progress: 100, performanceRating: 4.0 },
-  { _id: 'c6', contractNumber: 'CNT-2025-0012', title: 'Security Guard Services Contract', vendor: 'Securitas Lanka', value: 12000000, status: 'terminated', type: 'services', startDate: '2025-03-01', endDate: '2026-02-28', progress: 60, performanceRating: 2.1 },
-  { _id: 'c7', contractNumber: 'CNT-2026-0004', title: 'Solar Panel Installation — Admin Block', vendor: 'GreenEnergy Solutions', value: 18500000, status: 'draft', type: 'works', startDate: null, endDate: null, progress: 0, performanceRating: null },
-];
+
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Status' },
@@ -81,10 +73,11 @@ export default function ContractList() {
           performanceRating: c.performanceRating || (c.slaMetrics?.[0]?.actual ? parseFloat(c.slaMetrics[0].actual) : null),
         };
       });
-      setData(mapped.length > 0 ? mapped : MOCK_DATA);
+      setData(mapped);
     } catch (err) {
       console.error('Failed to fetch contracts:', err);
-      setData(MOCK_DATA);
+      setData([]);
+      toast.error('Failed to load contracts');
     } finally {
       setLoading(false);
     }
@@ -95,7 +88,7 @@ export default function ContractList() {
   }, [fetchData]);
 
   const handleDelete = async () => {
-    try { await contractService.delete(deleteTarget._id); } catch { /* mock */ }
+    try { await contractService.delete(deleteTarget._id); } catch { toast.error('Failed to delete contract'); }
     setData(prev => prev.filter(d => d._id !== deleteTarget._id));
     toast.success(`Contract ${deleteTarget.contractNumber} deleted.`);
     setDeleteTarget(null);

@@ -215,6 +215,7 @@ export default function AIIntelligenceHubPage() {
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(null); // { feature, path }
   const [filter, setFilter] = useState('All');
+  const [aiStatus, setAiStatus] = useState(null); // { status, model, message, detail }
 
   useEffect(() => {
     Promise.resolve().then(async () => {
@@ -225,8 +226,8 @@ export default function AIIntelligenceHubPage() {
           aiService.getExplainabilityStats(),
         ]);
         if (tRes.status === 'fulfilled') {
-          const t = tRes.value?.data || tRes.value;
-          setTenders((t?.tenders || t?.data || []).map(x => ({
+          const t = tRes.value || {};
+          setTenders((t.data || t.tenders || []).map(x => ({
             id: x._id,
             label: x.title || x.tenderNumber || 'Unnamed Tender',
             ref: x.tenderNumber || '',
@@ -234,8 +235,8 @@ export default function AIIntelligenceHubPage() {
           })));
         }
         if (pRes.status === 'fulfilled') {
-          const p = pRes.value?.data || pRes.value;
-          setProcurements((p?.procurements || p?.data || []).map(x => ({
+          const p = pRes.value || {};
+          setProcurements((p.data || p.procurements || []).map(x => ({
             id: x._id,
             label: x.title || x.referenceNumber || 'Unnamed Procurement',
             ref: x.referenceNumber || '',
@@ -245,6 +246,10 @@ export default function AIIntelligenceHubPage() {
         if (sRes.status === 'fulfilled') {
           setStats(sRes.value?.data || sRes.value);
         }
+        // Fetch AI status (non-blocking)
+        aiService.getAIStatus()
+          .then(r => setAiStatus(r?.data || r))
+          .catch(() => setAiStatus({ status: 'error', model: '', message: 'Could not reach the AI status endpoint.' }));
       } finally {
         setLoading(false);
       }
@@ -298,7 +303,7 @@ export default function AIIntelligenceHubPage() {
               </div>
             </div>
             <p className="text-slate-300 max-w-xl text-sm leading-relaxed">
-              Eight integrated AI features powered by Google Gemini 2.0 Flash, designed for Sri Lanka's
+              Eight integrated AI features powered by Google Gemini AI, designed for Sri Lanka's
               Procurement Guidelines 2024.
             </p>
           </div>
@@ -319,6 +324,37 @@ export default function AIIntelligenceHubPage() {
           )}
         </div>
       </div>
+
+      {/* AI Status Banner */}
+      {aiStatus && (() => {
+        const cfg = {
+          connected:      { bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'text-emerald-800', sub: 'text-emerald-700' },
+          quota_exceeded: { bg: 'bg-amber-50 border-amber-200',   dot: 'bg-amber-500',   label: 'text-amber-800',   sub: 'text-amber-700' },
+          unconfigured:   { bg: 'bg-red-50 border-red-200',       dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
+          error:          { bg: 'bg-red-50 border-red-200',       dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
+        }[aiStatus.status] || { bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400', label: 'text-slate-800', sub: 'text-slate-600' };
+        return (
+          <div className={`flex items-start gap-3 rounded-2xl border px-5 py-3.5 ${cfg.bg}`}>
+            <span className={`mt-1.5 w-2.5 h-2.5 shrink-0 rounded-full ${cfg.dot} ${aiStatus.status === 'connected' ? 'animate-pulse' : ''}`} />
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm font-bold ${cfg.label}`}>
+                Gemini AI &mdash; {aiStatus.model || '?'}&nbsp;&middot;&nbsp;
+                {aiStatus.status === 'connected' && 'Connected'}
+                {aiStatus.status === 'quota_exceeded' && 'Quota Exceeded'}
+                {aiStatus.status === 'unconfigured' && 'Not Configured'}
+                {aiStatus.status === 'error' && 'Connection Error'}
+              </p>
+              <p className={`text-xs mt-0.5 ${cfg.sub}`}>{aiStatus.message}</p>
+              {aiStatus.detail && aiStatus.status !== 'connected' && (
+                <details className="mt-1">
+                  <summary className={`text-[11px] cursor-pointer font-semibold ${cfg.sub} opacity-70`}>Technical detail</summary>
+                  <pre className={`mt-1 text-[10px] whitespace-pre-wrap break-all font-mono ${cfg.sub} opacity-80`}>{aiStatus.detail}</pre>
+                </details>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Category Filter */}
       <div className="flex items-center gap-2 flex-wrap">

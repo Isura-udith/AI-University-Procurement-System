@@ -1,10 +1,3 @@
-/**
- * Delivery & Finance DB Seeding Script
- * Seeds the database with mock Vendors, Procurements, Tenders, Bids, Contracts, and Payments.
- *
- * Usage: node seed_delivery_finance.js
- * Run from the apps/api directory.
- */
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./src/models/user.model');

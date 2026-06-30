@@ -1,13 +1,5 @@
-/**
- * Vendor Ranking Engine
- * Multi-criteria vendor evaluation with weighted scoring formula.
- *
- * Scoring Formula: WeightedScore = Σ(Weight_i × Score_i)
- * Default weights: Price 40%, Technical Compliance 40%, Delivery 20%
- *
- * Governance: Every output includes an explainabilityLog object.
- */
 const logger = require('../config/logger');
+const aiConfig = require('../config/ai.config');
 
 class VendorRankingEngine {
   constructor() {
@@ -176,7 +168,7 @@ Return JSON:
         feature: 'AI_VENDOR_ASSESSMENT',
         vendorId: vendor._id?.toString(),
         calculatedScore: score,
-        model: 'gemini-2.0-flash',
+        model: aiConfig.gemini.model,
         processingTimeMs: Date.now() - startTime,
         dataSources: ['vendor-profile', 'performance-metrics', 'bid-history', 'kyc-documents', 'gemini-analysis'],
         weightsApplied: this.defaultWeights,

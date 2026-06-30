@@ -1,14 +1,5 @@
-/**
- * Quotation Analysis Engine
- * AI-powered bid verification, anomaly detection, and comparative analysis.
- *
- * Features:
- *   2. AI Seller Price Verification and Anomaly Detection
- *   7. AI Comparative Quotation Analysis
- *
- * Governance: Every output includes an explainabilityLog object.
- */
 const logger = require('../config/logger');
+const aiConfig = require('../config/ai.config');
 
 class QuotationAnalysisEngine {
   /**
@@ -126,7 +117,7 @@ Return JSON:
         bidsAnalyzed: bids.length,
         anomaliesDetected: anomalies.length,
         thresholdUsed: threshold,
-        model: aiVerification ? 'gemini-2.0-flash' : 'statistical-only',
+        model: aiVerification ? aiConfig.gemini.model : 'statistical-only',
         processingTimeMs: Date.now() - startTime,
         dataSources: ['bid-submissions', 'engineers-estimate', 'statistical-analysis', 'gemini-verification'],
         weightsApplied: { marketAvg: 0.4, historicalPrice: 0.3, competingBids: 0.3 },
@@ -259,7 +250,7 @@ Return JSON:
         vendorsCompared: matrix.length,
         weightsApplied: weights,
         scoringFormula: 'WeightedScore = Σ(Weight_i × Score_i) / TotalWeight',
-        model: 'gemini-2.0-flash + statistical',
+        model: `${aiConfig.gemini.model} + statistical`,
         processingTimeMs: Date.now() - startTime,
         dataSources: ['bid-submissions', 'vendor-performance-db', 'technical-evaluations', 'gemini-analysis'],
         timestamp: new Date().toISOString(),

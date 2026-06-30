@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaTrophy, FaGavel, FaClock, FaChevronRight, FaExclamationTriangle, FaCheckCircle, FaPaperPlane, FaUserShield, FaSpinner, FaBalanceScale, FaBullhorn, FaCalendarAlt } from 'react-icons/fa';
+import { FaTrophy, FaGavel, FaClock, FaChevronRight, FaExclamationTriangle, FaCheckCircle, FaPaperPlane, FaUserShield, FaSpinner, FaBalanceScale, FaBullhorn, FaCalendarAlt, FaTimes } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import usePermissions from '../../../hooks/usePermissions';
@@ -48,6 +48,10 @@ export default function AwardsPage() {
   const [awards, setAwards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loaTarget, setLoaTarget] = useState(null);
+  const [awardModal, setAwardModal] = useState(null);
+  const [awardBidId, setAwardBidId] = useState('');
+  const [awardVendorId, setAwardVendorId] = useState('');
+  const [awardBids, setAwardBids] = useState([]);
   const [appealModal, setAppealModal] = useState(null);
   const [debriefModal, setDebriefModal] = useState(null);
   const [resolveAppealModal, setResolveAppealModal] = useState(null);
@@ -60,7 +64,7 @@ export default function AwardsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await tenderService.getAll({ status: 'awarded,loa_issued,standstill,cleared,appealed' });
+      const res = await tenderService.getAll({ status: 'evaluation,awarded,loa_issued,standstill,cleared,appealed' });
       const items = res.data || res || [];
       const fetchedTenders = Array.isArray(items) ? items : [];
       setAllTenders(fetchedTenders);
@@ -156,6 +160,41 @@ export default function AwardsPage() {
       toast.error(err.message || 'Failed to request debriefing.');
     }
     setDebriefModal(null);
+  };
+
+  const handleOpenAwardModal = async (award) => {
+    try {
+      const bidsRes = await tenderService.getBids(award._id);
+      const bids = Array.isArray(bidsRes.data || bidsRes) ? (bidsRes.data || bidsRes) : [];
+      const evaluatedBids = bids.filter(b => !['withdrawn', 'rejected'].includes(b.status));
+      setAwardBids(evaluatedBids);
+      if (evaluatedBids.length > 0) {
+        setAwardBidId(evaluatedBids[0]._id);
+        setAwardVendorId(evaluatedBids[0].vendorId?._id || evaluatedBids[0].vendorId);
+      }
+      setAwardModal(award);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to load bids for awarding.');
+    }
+  };
+
+  const handleAwardTender = async () => {
+    if (!awardBidId) { toast.error('Please select a bid to award.'); return; }
+    try {
+      const selectedBid = awardBids.find(b => b._id === awardBidId);
+      await tenderService.awardTender(awardModal._id, {
+        bidId: awardBidId,
+        vendorId: awardVendorId || selectedBid?.vendorId?._id || selectedBid?.vendorId,
+        amount: selectedBid?.totalBidAmount || 0,
+      });
+      toast.success(`🏆 Tender awarded to ${selectedBid?.vendorId?.companyName || 'selected vendor'}! Standstill period starts now.`);
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to award tender.');
+    }
+    setAwardModal(null);
+    setAwardBidId('');
+    setAwardBids([]);
   };
 
   const handleResolveAppeal = async () => {
@@ -346,6 +385,11 @@ export default function AwardsPage() {
 
               {/* Actions */}
               <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-3">
+                {award.status === 'evaluation' && hasPermission(PERMISSIONS.AWARD_CONTRACT) && (
+                  <button onClick={() => handleOpenAwardModal(award)} className="flex items-center space-x-2 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-sm">
+                    <FaTrophy size={10} /><span>Award Tender</span>
+                  </button>
+                )}
                 {award.status === 'pending' && hasPermission(PERMISSIONS.SIGN_LOA) && (
                   <button onClick={() => setLoaTarget(award)} className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm">
                     <FaPaperPlane size={10} /><span>Issue Letter of Award (LOA)</span>
@@ -392,6 +436,69 @@ export default function AwardsPage() {
           <p className="text-xs text-slate-500">This triggers a mandatory <strong>10-working-day standstill period</strong> during which unsuccessful bidders may file appeals or request debriefing sessions.</p>
         </div>
       </ConfirmModal>
+
+      {/* Award Tender Modal */}
+      {awardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setAwardModal(null)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">🏆 Award Tender</h3>
+                <p className="text-xs text-slate-500">{awardModal.tenderNumber} — {awardModal.title}</p>
+              </div>
+              <button onClick={() => setAwardModal(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><FaTimes size={12} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600">Select the winning bid to award this tender:</p>
+              {awardBids.length === 0 ? (
+                <p className="text-sm text-red-500">No evaluated bids found. Please evaluate bids first.</p>
+              ) : (
+                <div className="space-y-2">
+                  {awardBids.map(bid => (
+                    <label key={bid._id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${awardBidId === bid._id ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="radio"
+                          name="awardBid"
+                          value={bid._id}
+                          checked={awardBidId === bid._id}
+                          onChange={() => {
+                            setAwardBidId(bid._id);
+                            setAwardVendorId(bid.vendorId?._id || bid.vendorId);
+                          }}
+                          className="accent-amber-500"
+                        />
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{bid.vendorId?.companyName || 'Unknown Vendor'}</p>
+                          <p className="text-xs text-slate-500">Rank #{bid.rank || '—'} • Score: {bid.combinedScore || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-800">LKR {(bid.totalBidAmount || 0).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400">{bid.bidNumber}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                Awarding will set the tender to "Awarded" status and begin the mandatory standstill period. An LOA must then be formally issued.
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end space-x-3 rounded-b-2xl">
+              <button onClick={() => setAwardModal(null)} className="px-4 py-2.5 text-sm text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50">Cancel</button>
+              <button
+                onClick={handleAwardTender}
+                disabled={awardBids.length === 0}
+                className="px-5 py-2.5 bg-amber-500 text-white text-sm font-bold rounded-xl hover:bg-amber-600 disabled:opacity-50 flex items-center space-x-2 shadow-sm"
+              >
+                <FaTrophy size={12} /><span>Award Tender</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Appeal Modal */}
       <ConfirmModal isOpen={!!appealModal} onClose={() => { setAppealModal(null); setAppealText(''); }} onConfirm={handleSubmitAppeal} title="File Bid Appeal" confirmText="Submit Appeal" variant="danger">

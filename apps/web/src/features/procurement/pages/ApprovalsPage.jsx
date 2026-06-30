@@ -2,10 +2,23 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaCheck, FaTimes, FaUser, FaClock, FaCommentDots, FaCheckDouble, FaSpinner, FaEye, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaUser, FaClock, FaCommentDots, FaCheckDouble, FaSpinner, FaEye, FaExclamationTriangle, FaInfoCircle, FaArrowRight } from 'react-icons/fa';
 import WorkflowTracker from '../../../components/WorkflowTracker';
 import ConfirmModal from '../../../components/ConfirmModal';
 import procurementService from '../../../services/procurement.service';
+
+// Approval thresholds from Step 29
+const APPROVAL_THRESHOLDS = [
+  { max: 200000, label: 'Up to Rs. 200,000', authority: 'Faculty Dean', color: 'blue' },
+  { max: 500000, label: 'Rs. 200,001 – 500,000', authority: 'Faculty Dean', color: 'blue' },
+  { max: 1000000, label: 'Rs. 500,001 – 1,000,000', authority: 'Vice Chancellor', color: 'violet' },
+  { max: Infinity, label: 'Above Rs. 1,000,000', authority: 'Procurement Committee', color: 'rose' },
+];
+
+function getApprovalAuthority(tce) {
+  if (!tce || tce <= 0) return null;
+  return APPROVAL_THRESHOLDS.find(t => tce <= t.max) || APPROVAL_THRESHOLDS[APPROVAL_THRESHOLDS.length - 1];
+}
 
 // Map user role to the approval stage they can act on
 const ROLE_TO_STAGE = {
@@ -13,6 +26,7 @@ const ROLE_TO_STAGE = {
   dean: 'dean',
   bursar: 'bursar',
   finance_committee: 'finance_committee',
+  finance_officer: 'finance_committee',
   procurement_officer: 'pmd',
   vc: 'vice_chancellor',
   admin: null,       // admin can approve any stage
@@ -313,6 +327,112 @@ export default function ApprovalsPage() {
                     </div>
                   </div>
 
+                  {/* ── Budget Compliance Summary (Step 27) ─────────────── */}
+                  {selected.budgetComplianceCheck && (
+                    <div className="px-6 py-3 border-b border-slate-100">
+                      <div className={`rounded-lg border p-3 space-y-2 ${
+                        selected.status === 'flagged_special_approval'
+                          ? 'bg-amber-50 border-amber-300'
+                          : selected.budgetComplianceCheck.passed
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : 'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <FaInfoCircle size={11} className="text-slate-500" />
+                            Step 27: Budget Compliance Check
+                          </p>
+                          {selected.budgetComplianceCheck.checkedAt && (
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(selected.budgetComplianceCheck.checkedAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Special Approval Banner */}
+                        {selected.status === 'flagged_special_approval' && (
+                          <div className="flex items-start gap-2 bg-amber-100 border border-amber-400 rounded-lg px-3 py-2">
+                            <FaExclamationTriangle className="text-amber-600 mt-0.5 shrink-0" size={12} />
+                            <div>
+                              <p className="text-xs font-bold text-amber-900">⚠ Flagged for Special HOD Approval</p>
+                              <p className="text-[11px] text-amber-800 mt-0.5">
+                                This request exceeds the department budget by {selected.budgetComplianceCheck.overBudgetPercent}% (within 10% grace threshold). Your special approval is required.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* DAPP Item Row */}
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-600">Annual Plan (DAPP)</span>
+                          <span className={`font-semibold flex items-center gap-1 ${selected.budgetComplianceCheck.annualPlanPassed ? 'text-emerald-700' : 'text-red-700'}`}>
+                            {selected.budgetComplianceCheck.annualPlanPassed
+                              ? <><FaCheck size={9} /> {selected.budgetComplianceCheck.annualPlanRef || 'Approved'}</>
+                              : <><FaTimes size={9} /> {selected.budgetComplianceCheck.failureReason === 'no_annual_plan_linked' ? 'Not Linked' : selected.budgetComplianceCheck.failureReason === 'plan_not_approved' ? `Not Approved (${selected.budgetComplianceCheck.annualPlanStatus})` : 'Item Not Found'}</>
+                            }
+                          </span>
+                        </div>
+
+                        {/* Budget Row */}
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-600">Dept. Budget</span>
+                          <span className={`font-semibold flex items-center gap-1 ${
+                            selected.budgetComplianceCheck.budgetPassed ? 'text-emerald-700'
+                            : selected.budgetComplianceCheck.requiresSpecialApproval ? 'text-amber-700'
+                            : 'text-red-700'
+                          }`}>
+                            {selected.budgetComplianceCheck.budgetPassed
+                              ? <><FaCheck size={9} /> LKR {(selected.budgetComplianceCheck.remainingBudget || 0).toLocaleString()} remaining</>
+                              : selected.budgetComplianceCheck.failureReason === 'no_budget_allocated'
+                                ? <><FaTimes size={9} /> No Allocation</>
+                                : <>
+                                    <FaExclamationTriangle size={9} />
+                                    {' '}LKR {(selected.budgetComplianceCheck.remainingBudget || 0).toLocaleString()} / Need {(selected.budgetComplianceCheck.requiredBudget || 0).toLocaleString()}
+                                  </>
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Not yet checked warning — only visible to HOD */}
+                  {!selected.budgetComplianceCheck && (userRole === 'department_head' || isAdminRole) && (
+                    <div className="px-6 py-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                        <FaExclamationTriangle size={10} />
+                        Budget compliance check not yet run for this requisition. The check will execute automatically on submission.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Value-Based Routing Indicator (Step 29) */}
+                  {(() => {
+                    const tce = selected.totalEstimatedCost || selected.tce || 0;
+                    const threshold = getApprovalAuthority(tce);
+                    if (!threshold || tce <= 0) return null;
+                    return (
+                      <div className="px-6 py-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-indigo-50 border border-indigo-200">
+                          <div className="flex items-center space-x-3">
+                            <FaInfoCircle className="text-indigo-600 shrink-0" size={14} />
+                            <div>
+                              <p className="text-sm font-semibold text-indigo-800">Step 29: Value-Based Routing</p>
+                              <p className="text-xs text-indigo-600">
+                                TCE: <span className="font-bold">LKR {tce.toLocaleString()}</span>
+                                <FaArrowRight size={8} className="inline mx-1.5" />
+                                Required authority: <span className="font-bold">{threshold.authority}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${threshold.color}-100 text-${threshold.color}-700`}>
+                            {threshold.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Approval Chain */}
                   <div className="p-6 space-y-4">
                     <p className="text-sm font-bold text-slate-700">Approval Chain</p>
@@ -411,6 +531,49 @@ export default function ApprovalsPage() {
           </div>
         </div>
       )}
+
+      {/* Step 29: Approval Threshold Reference Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+          <h3 className="text-sm font-bold text-slate-800">Step 29: Value-Based Approval Authority Reference</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Procurement requests are automatically routed based on their Total Cost Estimate (TCE)</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Procurement Value Range</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Required Approval Authority</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {APPROVAL_THRESHOLDS.map((row, i) => {
+                const tce = selected?.totalEstimatedCost || selected?.tce || 0;
+                const threshold = getApprovalAuthority(tce);
+                const isMatch = selected && threshold?.label === row.label;
+                return (
+                  <tr key={i} className={`transition-colors ${isMatch ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}>
+                    <td className="px-6 py-3 text-sm font-medium text-slate-700">{row.label}</td>
+                    <td className="px-6 py-3">
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${row.color}-100 text-${row.color}-700`}>
+                        {row.authority}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3">
+                      {isMatch && (
+                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full">
+                          ← Selected
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Approve Confirmation Modal */}
       {selected && (

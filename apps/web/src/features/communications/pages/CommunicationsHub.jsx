@@ -7,6 +7,7 @@ import {
 import messageService from '../../../services/message.service';
 import userService from '../../../services/user.service';
 import vendorService from '../../../services/vendor.service';
+import notificationService from '../../../services/notification.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 const timeAgo = (date) => {
@@ -87,6 +88,8 @@ export default function CommunicationsHub() {
   const [selectedMsg, setSelectedMsg] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({ all: 0, alerts: 0, supplier: 0, announcements: 0 });
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
 
   // ─── Compose State ─────────────────────────────────────────────────────
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -116,18 +119,24 @@ export default function CommunicationsHub() {
 
   // ─── Tab definitions ───────────────────────────────────────────────────
   const tabs = [
-    { id: 'all', label: 'All Messages', icon: FaInbox, count: unreadCounts.all },
+    { id: 'all', label: 'Inbox', icon: FaInbox, count: unreadCounts.all },
+    { id: 'sent', label: 'Sent', icon: FaPaperPlane, count: 0 },
     { id: 'alerts', label: 'Workflow Alerts', icon: FaBell, count: unreadCounts.alerts },
     { id: 'supplier', label: 'Supplier Comm.', icon: FaComments, count: unreadCounts.supplier },
     { id: 'announcements', label: 'Announcements', icon: FaBullhorn, count: unreadCounts.announcements },
+    { id: 'starred', label: 'Starred', icon: FaStar, count: 0 },
+    { id: 'notifications', label: 'Notifications', icon: FaBell, count: unreadNotifsCount },
   ];
 
   // ─── Fetch unread counts ────────────────────────────────────────────────
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const res = await messageService.getUnreadCount();
-      if (res?.success) {
-        const c = res.data?.count || {};
+      const [msgRes, notifRes] = await Promise.all([
+        messageService.getUnreadCount(),
+        notificationService.getUnreadCount()
+      ]);
+      if (msgRes?.success) {
+        const c = msgRes.data?.count || {};
         setUnreadCounts({
           all: c.all || 0,
           alerts: c.alerts || 0,
@@ -135,27 +144,42 @@ export default function CommunicationsHub() {
           announcements: c.announcements || 0,
         });
       }
+      if (notifRes?.success) {
+        setUnreadNotifsCount(notifRes.data?.count || 0);
+      }
     } catch {/*commit*/}
   }, []);
 
   // ─── Fetch messages ────────────────────────────────────────────────────
-  const fetchMessages = useCallback(async (showLoading = false, tab, search) => {
+  // ─── Fetch messages & notifications ────────────────────────────────────
+  const fetchData = useCallback(async (showLoading = false, tab, search) => {
     if (showLoading) setLoading(true);
     try {
-      let typeParam = 'all';
-      if (tab === 'alerts') typeParam = 'alert';
-      else if (tab === 'supplier') typeParam = 'supplier';
-      else if (tab === 'announcements') typeParam = 'announcement';
+      if (tab === 'notifications') {
+        const res = await notificationService.getAll({ limit: 60 });
+        if (res?.success) setNotifications(res.data?.data || []);
+      } else {
+        let typeParam = 'inbox';
+        if (tab === 'alerts') typeParam = 'alert';
+        else if (tab === 'supplier') typeParam = 'supplier';
+        else if (tab === 'announcements') typeParam = 'announcement';
+        else if (tab === 'sent') typeParam = 'sent';
+        else if (tab === 'all') typeParam = 'inbox'; // Inbox view by default
 
-      const res = await messageService.getMessages({
-        type: typeParam,
-        search: search || undefined,
-        limit: 60,
-      });
-      if (res?.success) {
-        const data = res.data?.data || [];
-        setMessages(data);
-        setSelectedMsg((prev) => prev ? (data.find((m) => m._id === prev._id) || prev) : null);
+        const res = await messageService.getMessages({
+          type: typeParam !== 'starred' ? typeParam : undefined,
+          search: search || undefined,
+          limit: 60,
+        });
+        if (res?.success) {
+          let data = res.data?.data || [];
+          if (tab === 'starred') {
+            const starredIds = new Set(JSON.parse(localStorage.getItem('comm_starred') || '[]'));
+            data = data.filter((m) => starredIds.has(m._id));
+          }
+          setMessages(data);
+          setSelectedMsg((prev) => prev ? (data.find((m) => m._id === prev._id) || prev) : null);
+        }
       }
     } catch {/*commit*/}
     finally {
@@ -166,21 +190,21 @@ export default function CommunicationsHub() {
 
   // ─── Initial load ──────────────────────────────────────────────────────
   useEffect(() => {
-    (async () => { await fetchMessages(true, 'all', ''); })();
+    (async () => { await fetchData(true, 'all', ''); })();
     // eslint-disable-next-line
   }, []);
 
   // ─── Debounced search + tab change ────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => fetchMessages(false, activeTab, searchQuery), 350);
+    const t = setTimeout(() => fetchData(false, activeTab, searchQuery), 350);
     return () => clearTimeout(t);
-  }, [searchQuery, activeTab, fetchMessages]);
+  }, [searchQuery, activeTab, fetchData]);
 
   // ─── Polling every 15s ────────────────────────────────────────────────
   useEffect(() => {
-    const iv = setInterval(() => fetchMessages(false, activeTab, searchQuery), 15000);
+    const iv = setInterval(() => fetchData(false, activeTab, searchQuery), 15000);
     return () => clearInterval(iv);
-  }, [fetchMessages, activeTab, searchQuery]);
+  }, [fetchData, activeTab, searchQuery]);
 
   // ─── Load compose recipients ───────────────────────────────────────────
   const loadComposeData = async () => {
@@ -276,7 +300,7 @@ export default function CommunicationsHub() {
       const res = await messageService.sendMessage(payload);
       if (res?.success) {
         setFormSuccess('Message sent successfully!');
-        fetchMessages(false, activeTab, searchQuery);
+        fetchData(false, activeTab, searchQuery);
         setTimeout(() => setIsComposeOpen(false), 1400);
       }
     } catch (err) {
@@ -303,6 +327,23 @@ export default function CommunicationsHub() {
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  // ─── Notification Handlers ──────────────────────────────────────────────
+  const handleMarkNotifRead = async (id) => {
+    try {
+      await notificationService.markRead(id);
+      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, isRead: true } : n));
+      fetchUnreadCount();
+    } catch {/*commit*/}
+  };
+
+  const handleDeleteNotif = async (id) => {
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      fetchUnreadCount();
+    } catch {/*commit*/}
   };
 
   // ─── Star toggle ──────────────────────────────────────────────────────────
@@ -417,8 +458,64 @@ export default function CommunicationsHub() {
           </div>
         </div>
 
-        {/* Message List */}
-        <div className="w-72 shrink-0 border-r border-slate-100 flex flex-col">
+        {activeTab === 'notifications' ? (
+          <div className="flex-1 p-6 bg-slate-50/50 overflow-y-auto">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-xl font-extrabold text-slate-800 mb-6">System Notifications</h2>
+              <div className="space-y-3">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <FaBell size={32} className="mx-auto mb-3 opacity-20" />
+                    <p className="font-semibold">No notifications</p>
+                    <p className="text-xs">You're all caught up.</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n._id} className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                      n.isRead ? 'bg-white border-slate-200' : 'bg-blue-50/40 border-blue-200 shadow-sm'
+                    }`}>
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                          n.isRead ? 'bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          <FaBell size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${n.isRead ? 'text-slate-700' : 'text-slate-900 font-bold'}`}>
+                            {n.message}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {new Date(n.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!n.isRead && (
+                          <button
+                            onClick={() => handleMarkNotifRead(n._id)}
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-100 px-3 py-1.5 bg-blue-50 rounded-lg transition-colors"
+                          >
+                            Mark Read
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteNotif(n._id)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Message List */}
+            <div className="w-72 shrink-0 border-r border-slate-100 flex flex-col">
           {/* Search */}
           <div className="p-3 border-b border-slate-100 bg-white">
             <div className="relative">
@@ -712,6 +809,8 @@ export default function CommunicationsHub() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* ─── Compose Modal ────────────────────────────────────────────────── */}

@@ -1,7 +1,3 @@
-/**
- * Procurement Controller
- * Passes user role, faculty, and ID to service layer for data-scoped queries.
- */
 const procurementService = require('../services/procurement.service');
 const { success, created, paginated } = require('../utils/response');
 
@@ -115,6 +111,13 @@ const getBudgetStatus = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const checkBudgetCompliance = async (req, res, next) => {
+  try {
+    const result = await procurementService.validateBudgetCompliance(req.params.id, req.tenantId);
+    return success(res, result);
+  } catch (err) { next(err); }
+};
+
 const deleteProcurement = async (req, res, next) => {
   try {
     const result = await procurementService.deleteProcurement(req.params.id, req.user._id, req.tenantId);
@@ -138,4 +141,4 @@ const getPublicProcurements = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { createProcurement, getAllProcurements, getProcurement, updateProcurement, submitProcurement, approveProcurement, rejectProcurement, lockBudget, unlockBudget, getDashboardStats, getPendingApprovals, getBudgetStatus, deleteProcurement, publishProcurement, getPublicProcurements };
+module.exports = { createProcurement, getAllProcurements, getProcurement, updateProcurement, submitProcurement, approveProcurement, rejectProcurement, lockBudget, unlockBudget, getDashboardStats, getPendingApprovals, getBudgetStatus, checkBudgetCompliance, deleteProcurement, publishProcurement, getPublicProcurements };

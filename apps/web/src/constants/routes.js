@@ -17,7 +17,7 @@ const INTERNAL_ROLES = [
 // ─── Approval chain roles ──────────────────────────────────────
 const APPROVAL_ROLES = [
   ROLES.DEPARTMENT_HEAD, ROLES.DEAN, ROLES.PROCUREMENT_OFFICER,
-  ROLES.BURSAR, ROLES.FINANCE_COMMITTEE, ROLES.ADMIN, ROLES.VC, ROLES.SUPER_ADMIN,
+  ROLES.BURSAR, ROLES.FINANCE_COMMITTEE, ROLES.FINANCE_OFFICER, ROLES.ADMIN, ROLES.VC, ROLES.SUPER_ADMIN,
 ];
 
 // ─── Route → Allowed Roles ─────────────────────────────────────
@@ -164,7 +164,47 @@ export const ROUTE_ACCESS = {
     ROLES.AUDITOR, ROLES.ADMIN, ROLES.VC, ROLES.SUPER_ADMIN,
     ROLES.PROCUREMENT_OFFICER,
   ],
+
+  // ── Strategic Planning (Phases 1–4) ──────────────────────────
+  '/planning': APPROVAL_ROLES,
+  '/planning/master-plans': APPROVAL_ROLES,
+  '/planning/master-plans/new': [
+    ROLES.DEPARTMENT_HEAD, ROLES.PROCUREMENT_OFFICER,
+    ROLES.ADMIN, ROLES.SUPER_ADMIN,
+  ],
+  '/planning/annual-plans': APPROVAL_ROLES,
+  '/planning/annual-plans/new': [
+    ROLES.DEPARTMENT_HEAD, ROLES.PROCUREMENT_OFFICER,
+    ROLES.ADMIN, ROLES.SUPER_ADMIN,
+  ],
+  '/planning/budget-distribution': [
+    ROLES.VC, ROLES.BURSAR, ROLES.FINANCE_COMMITTEE, ROLES.FINANCE_OFFICER,
+    ROLES.DEAN, ROLES.DEPARTMENT_HEAD, ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.AUDITOR,
+  ],
+
+  // ── Workflow Dashboard (All 45 Steps Overview) ────────────
+  '/workflow': INTERNAL_ROLES,
+
+  // ── Store & Inventory (Phases 7–8) ───────────────────────────
+  '/store': [
+    ROLES.STORE_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.ADMIN,
+    ROLES.VC, ROLES.BURSAR, ROLES.AUDITOR, ROLES.SUPER_ADMIN,
+    ROLES.DEPARTMENT_HEAD, ROLES.DEPARTMENT_USER,
+  ],
+  '/store/grn': [
+    ROLES.STORE_MANAGER, ROLES.PROCUREMENT_OFFICER,
+    ROLES.ADMIN, ROLES.SUPER_ADMIN,
+  ],
+  '/store/grn/new': [
+    ROLES.STORE_MANAGER, ROLES.PROCUREMENT_OFFICER,
+    ROLES.ADMIN, ROLES.SUPER_ADMIN,
+  ],
+  '/store/issue': [
+    ROLES.STORE_MANAGER, ROLES.DEPARTMENT_HEAD, ROLES.DEPARTMENT_USER,
+    ROLES.ADMIN, ROLES.SUPER_ADMIN,
+  ],
 };
+
 
 // ─── Default landing page per role ─────────────────────────────
 export const ROLE_LANDING_PAGE = {
@@ -189,11 +229,10 @@ export const ROLE_LANDING_PAGE = {
 // ─── Helper: Check if a role can access a given route ──────────
 export function canAccessRoute(role, path) {
   if (role === ROLES.SUPER_ADMIN) return true;
-  // Check exact match first, then prefix match
-  if (ROUTE_ACCESS[path]) return ROUTE_ACCESS[path].includes(role);
-  // Check parent path (e.g., /procurements/123 → /procurements)
-  const parentPath = '/' + path.split('/').filter(Boolean)[0];
-  if (ROUTE_ACCESS[parentPath]) return ROUTE_ACCESS[parentPath].includes(role);
+  const matchingRoute = Object.keys(ROUTE_ACCESS)
+    .sort((a, b) => b.length - a.length)
+    .find(route => path === route || path.startsWith(`${route}/`));
+  if (matchingRoute) return ROUTE_ACCESS[matchingRoute].includes(role);
   return false;
 }
 

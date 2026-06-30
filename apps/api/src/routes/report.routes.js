@@ -1,19 +1,12 @@
-/**
- * Report Routes - RBAC-enforced for 15 roles
- *
- * Access:
- *   - auditor: Full read-only to all reports, audit trails, AI-flagged anomalies
- *   - vc, bursar: Executive-level reports
- *   - procurement_officer, admin: Generate procurement reports
- *   - dean: Faculty-scoped reports
- *   - finance_officer: Financial reports
- */
 const express = require('express');
 const router = express.Router();
 const {
-  generateReport, getAllReports, getReport, getSpendAnalysis,
+  generateReport, getAllReports, getReport, getSpendAnalysis, getPublicAnalytics
 } = require('../controllers/report.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
+
+// Public route for landing page analytics
+router.get('/public-analytics', getPublicAnalytics);
 
 router.use(protect);
 

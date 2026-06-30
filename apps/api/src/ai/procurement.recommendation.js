@@ -1,16 +1,5 @@
-/**
- * Procurement Recommendation Engine
- * AI-powered trade-off analysis generating 4 recommendation types.
- *
- * Feature 3: AI Smart Decision Support (Trade-off Analysis)
- *   1. Best Price – lowest responsive bid
- *   2. Best Value – highest quality-to-price ratio
- *   3. Fastest Delivery – top lead-time compliance
- *   4. Lowest Risk – stable credit, valid certs, low disputes
- *
- * Governance Rule 1: "Human-in-the-Loop" — recommendations only, no autonomous decisions.
- */
 const logger = require('../config/logger');
+const aiConfig = require('../config/ai.config');
 
 class ProcurementRecommendationEngine {
   /**
@@ -184,7 +173,7 @@ Return JSON:
           fastestDelivery: fastestDelivery?.vendorName,
           lowestRisk: lowestRisk?.vendorName,
         },
-        model: 'gemini-2.0-flash + statistical',
+        model: `${aiConfig.gemini.model} + statistical`,
         processingTimeMs: Date.now() - startTime,
         dataSources: ['bid-submissions', 'technical-evaluations', 'vendor-metrics', 'gemini-analysis'],
         scoringFormulas: {

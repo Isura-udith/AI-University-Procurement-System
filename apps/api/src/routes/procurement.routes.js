@@ -1,23 +1,11 @@
-/**
- * Procurement Routes - RBAC-enforced for 15 roles
- *
- * Access:
- *   - department_user, department_head: Create/view own requisitions
- *   - department_head, dean: Approve requisitions at respective levels
- *   - procurement_officer, admin: Full lifecycle management
- *   - finance_officer, bursar: Budget lock/validation
- *   - vc: High-level approval
- *   - auditor: Full read-only (blocked from writes by readOnlyGuard)
- *   - super_admin: Unrestricted
- */
 const express = require('express');
 const router = express.Router();
 const {
   createProcurement, getAllProcurements, getProcurement,
   updateProcurement, submitProcurement, approveProcurement,
   rejectProcurement, lockBudget, unlockBudget, getDashboardStats,
-  getPendingApprovals, getBudgetStatus, deleteProcurement,
-  publishProcurement, getPublicProcurements,
+  getPendingApprovals, getBudgetStatus, checkBudgetCompliance,
+  deleteProcurement, publishProcurement, getPublicProcurements,
 } = require('../controllers/procurement.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { checkApprovalThreshold, requireSameFaculty, readOnlyGuard, requireWorkflowPhase } = require('../middlewares/role.middleware');
@@ -39,6 +27,12 @@ router.get('/pending-approvals',
 router.get('/budget-status',
   authorize('finance_officer', 'bursar', 'admin', 'vc', 'auditor', 'super_admin'),
   getBudgetStatus
+);
+
+// Budget compliance pre-check (HOD + procurement_officer can run before approving)
+router.get('/:id/budget-check',
+  authorize('department_head', 'procurement_officer', 'admin', 'super_admin', 'dean', 'bursar', 'vc', 'auditor'),
+  checkBudgetCompliance
 );
 
 // Read - all procurement-related roles including auditor (read-only)

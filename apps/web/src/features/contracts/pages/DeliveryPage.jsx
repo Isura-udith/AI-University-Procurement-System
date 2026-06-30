@@ -7,13 +7,7 @@ import contractService from '../../../services/contract.service';
 import usePermissions from '../../../hooks/usePermissions';
 import { PERMISSIONS } from '../../../constants/permissions';
 
-const MOCK_DELIVERIES = [
-  { _id: '1', po: 'PO-2026-045', contract: 'CNT-2026-0001', vendor: 'MedTech Solutions', items: 'Lab Microscopes (10 units)', grn: 'GRN-2026-032', matchStatus: 'matched', deliveredDate: '2026-05-08', orderedQty: 10, receivedQty: 10, acceptedQty: 10, invoiceRef: 'INV-MT-2026-001', invoiceAmount: 38500000, poAmount: 38500000 },
-  { _id: '2', po: 'PO-2026-052', contract: 'CNT-2026-0003', vendor: 'Lanka Construction', items: 'Steel Reinforcement (50 tons)', grn: null, matchStatus: 'pending', deliveredDate: null, orderedQty: 50, receivedQty: 0, acceptedQty: 0, invoiceRef: null, invoiceAmount: null, poAmount: 78200000 },
-  { _id: '3', po: 'PO-2026-048', contract: 'CNT-2026-0002', vendor: 'TechVision Asia', items: 'Network Switches (25 units)', grn: 'GRN-2026-035', matchStatus: 'discrepancy', deliveredDate: '2026-05-12', orderedQty: 25, receivedQty: 23, acceptedQty: 23, invoiceRef: 'INV-TV-2026-004', invoiceAmount: 22000000, poAmount: 22000000 },
-  { _id: '4', po: 'PO-2026-061', contract: 'CNT-2026-0004', vendor: 'GreenEnergy Solutions', items: 'Solar Panels (120 units)', grn: null, matchStatus: 'pending', deliveredDate: null, orderedQty: 120, receivedQty: 0, acceptedQty: 0, invoiceRef: null, invoiceAmount: null, poAmount: 18500000 },
-  { _id: '5', po: 'PO-2026-055', contract: 'CNT-2026-0002', vendor: 'TechVision Asia', items: 'Fiber Optic Cables (2000m)', grn: 'GRN-2026-038', matchStatus: 'matched', deliveredDate: '2026-05-18', orderedQty: 2000, receivedQty: 2000, acceptedQty: 2000, invoiceRef: 'INV-TV-2026-005', invoiceAmount: 4500000, poAmount: 4500000 },
-];
+
 
 export default function DeliveryPage() {
   const { hasPermission, role } = usePermissions();
@@ -28,9 +22,10 @@ export default function DeliveryPage() {
     setLoading(true);
     try {
       const res = await contractService.getDeliveries();
-      setDeliveries(res.data?.length > 0 ? res.data : MOCK_DELIVERIES);
+      setDeliveries(res.data || []);
     } catch {
-      setDeliveries(MOCK_DELIVERIES);
+      setDeliveries([]);
+      toast.error('Failed to load deliveries');
     } finally {
       setLoading(false);
     }
@@ -40,10 +35,13 @@ export default function DeliveryPage() {
     let active = true;
     contractService.getDeliveries()
       .then(res => {
-        if (active) setDeliveries(res.data?.length > 0 ? res.data : MOCK_DELIVERIES);
+        if (active) setDeliveries(res.data || []);
       })
       .catch(() => {
-        if (active) setDeliveries(MOCK_DELIVERIES);
+        if (active) {
+          setDeliveries([]);
+          toast.error('Failed to load deliveries');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);

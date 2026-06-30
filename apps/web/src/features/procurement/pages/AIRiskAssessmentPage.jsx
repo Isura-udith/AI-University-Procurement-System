@@ -31,7 +31,11 @@ export default function AIRiskAssessmentPage() {
   const riskLevel = result?.riskLevel || 'Medium';
   const riskColors = RISK_COLORS[riskLevel] || RISK_COLORS.Medium;
   const factors = result?.factors || [];
-  const radarData = factors.map(f => ({ subject: f.factor.replace(/ & /g, '\n'), score: f.score, fullMark: 100 }));
+  const radarData = factors.map(f => ({
+    subject: (f.factor || f.name || 'Risk Factor').replace(/ & /g, '\n'),
+    score: f.score,
+    fullMark: 100,
+  }));
   const aiAnalysis = result?.aiRiskAnalysis;
 
   // Risk gauge calculations
@@ -145,13 +149,13 @@ export default function AIRiskAssessmentPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-bold text-slate-800">{f.factor}</h4>
+                      <h4 className="text-sm font-bold text-slate-800">{f.factor || f.name}</h4>
                       <div className="flex items-center space-x-3">
                         <span className="text-xs font-semibold text-slate-400">{f.weight}</span>
                         <span className={`text-sm font-bold ${f.score >= 70 ? 'text-red-600' : f.score >= 40 ? 'text-amber-600' : 'text-emerald-600'}`}>{f.score}/100</span>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500">{f.detail}</p>
+                    <p className="text-xs text-slate-500">{f.detail || f.description}</p>
                     {/* Progress bar */}
                     <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5">
                       <div className={`h-1.5 rounded-full transition-all duration-500 ${f.score >= 70 ? 'bg-red-500' : f.score >= 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}

@@ -26,7 +26,13 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
-    return Promise.reject(error.response?.data || error);
+    const errData = error.response?.data || error;
+    // Ensure there is always a proper .message so callers can use err.message
+    const normalized = typeof errData === 'object' && errData !== null
+      ? errData
+      : { message: String(errData) };
+    if (!normalized.message) normalized.message = error.message || 'An unexpected error occurred';
+    return Promise.reject(normalized);
   }
 );
 
