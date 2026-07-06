@@ -107,6 +107,27 @@ export default function CreateRequest() {
   const [budgetCheckLoading, setBudgetCheckLoading] = useState(false);
   const [savedDocId, setSavedDocId] = useState(null);         // ID of auto-saved draft for pre-check
 
+  const baseNum = parseFloat(form.baseAmount) || 0;
+  const provNum = parseFloat(form.provisionalSums) || 0;
+  const contNum = parseFloat(form.contingencies) || 0;
+  const vatNum = useMemo(() => {
+    if (form.vatAmount !== '') return parseFloat(form.vatAmount) || 0;
+    return (baseNum + provNum + contNum) * 0.18;
+  }, [baseNum, provNum, contNum, form.vatAmount]);
+  const tce = baseNum + provNum + contNum + vatNum;
+
+  // Track previous selectedItemId and tce to reset compliance check during render (avoiding useEffect cascading renders)
+  const [prevSelectedItemId, setPrevSelectedItemId] = useState(selectedItemId);
+  const [prevTce, setPrevTce] = useState(tce);
+
+  if (selectedItemId !== prevSelectedItemId || tce !== prevTce) {
+    setPrevSelectedItemId(selectedItemId);
+    setPrevTce(tce);
+    if (selectedItemId) {
+      setBudgetCheck(null);
+    }
+  }
+
   // Load approved annual plans and department budget on mount
   useEffect(() => {
     if (!isEditMode) {
@@ -156,12 +177,6 @@ export default function CreateRequest() {
     }
   };
 
-  // Reset compliance check whenever DAPP selection or total cost changes
-  useEffect(() => {
-    if (selectedItemId) {
-      setBudgetCheck(null);
-    }
-  }, [selectedItemId, tce]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -310,15 +325,6 @@ export default function CreateRequest() {
     setForm(prev => ({ ...prev, [field]: val }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
-
-  const baseNum = parseFloat(form.baseAmount) || 0;
-  const provNum = parseFloat(form.provisionalSums) || 0;
-  const contNum = parseFloat(form.contingencies) || 0;
-  const vatNum = useMemo(() => {
-    if (form.vatAmount !== '') return parseFloat(form.vatAmount) || 0;
-    return (baseNum + provNum + contNum) * 0.18;
-  }, [baseNum, provNum, contNum, form.vatAmount]);
-  const tce = baseNum + provNum + contNum + vatNum;
 
   const committee = useMemo(() => {
     if (tce <= 0) return '-';

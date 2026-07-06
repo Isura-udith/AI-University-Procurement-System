@@ -40,8 +40,8 @@ export default function StrategicPlanningHub() {
     const load = async () => {
       try {
         const [mpps, annual, pendingMPP, pendingAnnual] = await Promise.all([
-          planningService.getMasterPlans({ limit: 5 }),
-          planningService.getAnnualPlans({ limit: 5 }),
+          planningService.getMasterPlans({ limit: 100 }),
+          planningService.getAnnualPlans({ limit: 100 }),
           planningService.getPendingMasterPlans(),
           planningService.getPendingAnnualPlans(),
         ]);
@@ -49,11 +49,14 @@ export default function StrategicPlanningHub() {
         const annualData = annual.data?.data || annual.data || [];
         const pendMPP = pendingMPP.data?.data || pendingMPP.data || [];
         const pendAnn = pendingAnnual.data?.data || pendingAnnual.data || [];
+        // Use pagination total if available
+        const mppTotal = mpps.data?.total ?? mppData.length;
+        const annualTotal = annual.data?.total ?? annualData.length;
         setRecentMPPs(mppData.slice(0, 4));
         setRecentAnnual(annualData.slice(0, 4));
         setStats({
-          masterPlans: mppData.length,
-          annualPlans: annualData.length,
+          masterPlans: mppTotal,
+          annualPlans: annualTotal,
           activeMPPs: mppData.filter(p => p.status === 'active').length,
           pendingApprovals: pendMPP.length + pendAnn.length,
         });

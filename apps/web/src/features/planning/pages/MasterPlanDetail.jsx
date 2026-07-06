@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaCheck, FaTimes, FaArrowLeft, FaCalendarAlt } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaLayerGroup } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
 const APPROVAL_CHAIN = [
@@ -73,16 +73,30 @@ export default function MasterPlanDetail() {
   const [comment, setComment] = useState('');
   const [estimatedBudget, setEstimatedBudget] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     planningService.getMasterPlan(id)
       .then(res => setPlan(res.data?.data || res.data))
       .catch(() => {
         setPlan(null);
-        toast.error('Failed to load master plan details');
+        toast.error('Failed to load master plan details. Please try again.');
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const res = await planningService.submitMasterPlan(id);
+      setPlan(res.data?.data || res.data);
+      toast.success('Submitted for Dean review!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to submit');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const myStage = ROLE_TO_STAGE[user?.role];
   const pendingStage = plan ? STATUS_PENDING[plan.status] : null;
@@ -107,9 +121,24 @@ export default function MasterPlanDetail() {
   const fmtCurrency = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
   const fmtStatus = (s) => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
   const priorityColor = { low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700', high: 'bg-amber-100 text-amber-700', critical: 'bg-red-100 text-red-700' };
+  const canSubmitDraft = plan?.status === 'draft' && ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
-  if (!plan) return <div className="text-center text-slate-400 py-16">Plan not found.</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3 text-slate-400">
+        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm">Loading master plan…</p>
+      </div>
+    </div>
+  );
+
+  if (!plan) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+      <FaLayerGroup size={40} className="text-slate-300" />
+      <p className="text-lg font-semibold">Master Plan not found</p>
+      <Link to="/planning/master-plans" className="text-sm text-violet-600 font-semibold hover:underline">← Back to Master Plans</Link>
+    </div>
+  );
 
   const year1Items = plan.requirements?.filter(r => r.plannedYear === 1) || [];
   const year2Items = plan.requirements?.filter(r => r.plannedYear === 2) || [];
@@ -140,12 +169,21 @@ export default function MasterPlanDetail() {
             </p>
           </div>
         </div>
-        {plan.status === 'active' && (
-          <Link to="/planning/annual-plans/new" state={{ masterPlanId: plan._id }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all shadow-sm">
-            <FaCalendarAlt size={12} /> Create Annual Plan
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {canSubmitDraft && (
+            <button onClick={handleSubmit} disabled={submitting}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 transition-all shadow-sm disabled:opacity-60">
+              <FaPaperPlane size={12} />
+              {submitting ? 'Submitting…' : 'Submit for Dean Review'}
+            </button>
+          )}
+          {plan.status === 'active' && (
+            <Link to="/planning/annual-plans/new" state={{ masterPlanId: plan._id }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all shadow-sm">
+              <FaCalendarAlt size={12} /> Create Annual Plan
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -243,20 +281,35 @@ export default function MasterPlanDetail() {
             </div>
           )}
 
+          {/* Submit hint for draft */}
+          {canSubmitDraft && (
+            <div className="bg-violet-50 rounded-2xl border border-violet-200 p-4 space-y-2">
+              <p className="text-xs font-semibold text-violet-700">This plan is in Draft status.</p>
+              <p className="text-xs text-violet-600">Click "Submit for Dean Review" to begin the 6-stage approval chain.</p>
+            </div>
+          )}
+
           {/* Plan Info */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
             <h2 className="font-semibold text-slate-800">Plan Summary</h2>
             {[
+              { label: 'Cycle', value: `${plan.cycleStart}–${plan.cycleEnd}` },
               { label: 'Total Est. Budget', value: fmtCurrency(plan.totalEstimatedBudget) },
               { label: 'Bursar Estimate', value: fmtCurrency(plan.bursarEstimatedBudget) },
               { label: 'Approved Ceiling', value: fmtCurrency(plan.approvedBudgetCeiling) },
               { label: 'Requirements', value: `${plan.requirements?.length || 0} items` },
+              { label: 'Status', value: fmtStatus(plan.status) },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">{row.label}</span>
                 <span className="font-semibold text-slate-800">{row.value}</span>
               </div>
             ))}
+            {plan.description && (
+              <div className="pt-2 border-t border-slate-100">
+                <p className="text-xs text-slate-500 italic">{plan.description}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

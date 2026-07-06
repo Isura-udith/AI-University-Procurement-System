@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaTrash, FaSave, FaPaperPlane, FaCalendarAlt } from 'react-icons/fa';
+import { FaTrash, FaSave, FaPaperPlane, FaCalendarAlt, FaPlus } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
@@ -40,7 +40,7 @@ export default function CreateAnnualPlan() {
     }
   });
 
-  const { fields, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watchItems = useWatch({ control, name: 'items' });
   const watchMasterPlanId = useWatch({ control, name: 'masterPlanId' });
   const watchCycleYearNumber = useWatch({ control, name: 'cycleYearNumber' });
@@ -174,6 +174,13 @@ export default function CreateAnnualPlan() {
               <h2 className="font-semibold text-slate-800">Procurement Items (from Master Plan)</h2>
               <p className="text-xs text-slate-400 mt-0.5">Total: <strong className="text-blue-700">{fmtCurrency(totalBudget)}</strong></p>
             </div>
+            <button type="button" onClick={() => append({
+              description: '', faculty: '', category: 'Goods', estimatedQuantity: 1,
+              unit: 'Units', estimatedUnitCost: 0, quarter: 1, priority: 'medium', department: '',
+            })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors">
+              <FaPlus size={10} /> Add Item
+            </button>
           </div>
 
           <div className="space-y-4">

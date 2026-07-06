@@ -56,6 +56,16 @@ const messageSchema = new mongoose.Schema({
   readAt: {
     type: Date,
   },
+  // Per-user read tracking for broadcast messages (announcements, role-targeted alerts)
+  readBy: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    readAt: { type: Date, default: Date.now },
+  }],
+  // Per-user soft delete — users can dismiss broadcasts without affecting others
+  deletedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   referenceType: {
     type: String,
     enum: ['procurement', 'tender', 'contract', 'payment', 'vendor'],
@@ -76,5 +86,6 @@ messageSchema.index({ tenantId: 1, recipient: 1, isRead: 1 });
 messageSchema.index({ tenantId: 1, sender: 1 });
 messageSchema.index({ tenantId: 1, recipientRole: 1 });
 messageSchema.index({ replyTo: 1 });
+messageSchema.index({ deletedBy: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

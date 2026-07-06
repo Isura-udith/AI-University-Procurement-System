@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
   FaArrowLeft, FaCheck, FaTimes, FaGlobeAsia, FaCheckCircle, FaMoneyBillWave, FaEdit,
+  FaPaperPlane, FaCalendarAlt,
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
@@ -119,33 +120,14 @@ export default function AnnualPlanDetail() {
   const [comment, setComment] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     planningService.getAnnualPlan(id)
       .then(res => setPlan(res.data?.data || res.data))
       .catch(() => {
-        setPlan({
-          _id: id, referenceNumber: 'UWU/DAPP/2026/001',
-          title: 'Annual Procurement Plan 2026', planYear: 2026, cycleYearNumber: 1,
-          status: 'ugc_submitted', totalBudgetRequest: 280000000, totalAllocatedBudget: null,
-          masterPlanRef: 'UWU/MPP/2025-2028/001',
-          items: [
-            { _id: '1', description: 'Laboratory Spectrophotometers', category: 'Goods', faculty: 'Faculty of Applied Sciences', estimatedTotalCost: 12500000, quarter: 1, priority: 'high' },
-            { _id: '2', description: 'Student Hostel Complex Phase II', category: 'Works', faculty: 'Works Division', estimatedTotalCost: 85000000, quarter: 2, priority: 'critical' },
-            { _id: '3', description: 'ERP System Integration', category: 'Services', faculty: 'ICT Centre', estimatedTotalCost: 45000000, quarter: 1, priority: 'high' },
-          ],
-          internalApprovals: [
-            { stage: 'dean', status: 'approved', comments: 'Plan verified', actionDate: new Date() },
-            { stage: 'bursar', status: 'approved', comments: 'Budget reviewed', actionDate: new Date() },
-            { stage: 'finance_committee', status: 'approved', actionDate: new Date() },
-            { stage: 'vice_chancellor', status: 'approved', actionDate: new Date() },
-            { stage: 'council', status: 'approved', actionDate: new Date() },
-          ],
-          externalApprovals: [
-            { body: 'ugc', status: 'submitted', referenceNumber: 'UGC/2026/REF/0042', submittedAt: new Date() },
-          ],
-          createdBy: { name: 'Mr. S. Rathnayake' },
-        });
+        setPlan(null);
+        toast.error('Failed to load annual plan. Please try again.');
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -155,7 +137,31 @@ export default function AnnualPlanDetail() {
   const canActInternal = myStage && pendingInternal === myStage;
   const canRecordExternal = ['bursar', 'vc', 'admin', 'super_admin'].includes(user?.role);
   const canConfirmBudget = ['vc', 'bursar', 'admin', 'super_admin'].includes(user?.role);
-  const showExternal = !INTERNAL_PENDING[plan?.status] || plan?.status?.includes('ugc') || plan?.status?.includes('treasury') || plan?.status?.includes('parliament') || plan?.status === 'budget_received';
+  const canSubmit = plan?.status === 'draft' && ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
+
+  // Show external approvals section when internal chain is done or already in external stage
+  const showExternal = plan && (
+    plan.status === 'ugc_submitted' ||
+    plan.status === 'ugc_approved' ||
+    plan.status === 'treasury_submitted' ||
+    plan.status === 'treasury_approved' ||
+    plan.status === 'parliament_submitted' ||
+    plan.status === 'parliament_approved' ||
+    plan.status === 'budget_received' ||
+    plan.status === 'distribution_complete' ||
+    // show once council approved
+    (plan.internalApprovals?.some(a => a.stage === 'council' && a.status === 'approved'))
+  );
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const res = await planningService.submitAnnualPlan(id);
+      setPlan(res.data?.data || res.data);
+      toast.success('Submitted for Dean review!');
+    } catch (err) { toast.error(err?.response?.data?.message || 'Failed to submit'); }
+    finally { setSubmitting(false); }
+  };
 
   const handleInternalAction = async (action) => {
     setActionLoading(true);
@@ -196,8 +202,24 @@ export default function AnnualPlanDetail() {
   };
   const priorityColor = { low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700', high: 'bg-amber-100 text-amber-700', critical: 'bg-red-100 text-red-700' };
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
-  if (!plan) return <div className="text-center py-16 text-slate-400">Plan not found.</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3 text-slate-400">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm">Loading annual plan…</p>
+      </div>
+    </div>
+  );
+
+  if (!plan) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+      <FaCalendarAlt size={40} className="text-slate-300" />
+      <p className="text-lg font-semibold">Annual Plan not found</p>
+      <Link to="/planning/annual-plans" className="text-sm text-blue-600 font-semibold hover:underline">
+        ← Back to Annual Plans
+      </Link>
+    </div>
+  );
 
   const getInternalApproval = (stage) => plan.internalApprovals?.find(a => a.stage === stage);
   const getExternalApproval = (body) => plan.externalApprovals?.find(a => a.body === body);
@@ -221,13 +243,24 @@ export default function AnnualPlanDetail() {
               Plan Year: {plan.planYear} · Budget Request: <strong>{fmtCurrency(plan.totalBudgetRequest)}</strong>
               {plan.totalAllocatedBudget && <> · Allocated: <strong className="text-emerald-700">{fmtCurrency(plan.totalAllocatedBudget)}</strong></>}
             </p>
+            <p className="text-xs text-slate-400 mt-0.5">MPP Ref: {plan.masterPlanRef} · Created by {plan.createdBy?.name || '—'}</p>
           </div>
         </div>
-        {plan.status === 'budget_received' && canConfirmBudget && (
-          <Link to="/planning/budget-distribution" className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all">
-            <FaMoneyBillWave size={12} /> Distribute Budget
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {canSubmit && (
+            <button onClick={handleSubmit} disabled={submitting}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all disabled:opacity-60">
+              <FaPaperPlane size={12} />
+              {submitting ? 'Submitting…' : 'Submit for Dean Review'}
+            </button>
+          )}
+          {plan.status === 'budget_received' && canConfirmBudget && (
+            <Link to="/planning/budget-distribution"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all">
+              <FaMoneyBillWave size={12} /> Distribute Budget
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -242,7 +275,7 @@ export default function AnnualPlanDetail() {
                 <div key={q} className="bg-white rounded-xl border border-slate-100 p-3 text-center">
                   <p className="text-xs font-semibold text-slate-500">Q{q}</p>
                   <p className="text-lg font-bold text-slate-800 mt-1">{qItems.length}</p>
-                  <p className="text-xs text-slate-400">{qTotal > 0 ? `LKR ${(qTotal/1000000).toFixed(1)}M` : '—'}</p>
+                  <p className="text-xs text-slate-400">{qTotal > 0 ? `LKR ${(qTotal / 1000000).toFixed(1)}M` : '—'}</p>
                 </div>
               );
             })}
@@ -253,39 +286,43 @@ export default function AnnualPlanDetail() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
               <h2 className="font-semibold text-slate-800">Procurement Items ({plan.items?.length || 0})</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500">Description</th>
-                    <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Category</th>
-                    <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Faculty</th>
-                    <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500">Q</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500">Est. Cost</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {plan.items?.map((item, i) => (
-                    <tr key={item._id || i} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-3">
-                        <p className="font-medium text-slate-800">{item.description}</p>
-                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
-                      <td className="px-3 py-3 text-xs text-slate-500">{item.faculty}</td>
-                      <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter}</td>
-                      <td className="px-6 py-3 text-right font-semibold text-slate-700">{fmtCurrency(item.estimatedTotalCost)}</td>
+            {plan.items?.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-400">No items in this plan.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500">Description</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Category</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Faculty</th>
+                      <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500">Q</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500">Est. Cost</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-slate-50">
-                    <td colSpan={4} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
-                    <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {plan.items?.map((item, i) => (
+                      <tr key={item._id || i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-3">
+                          <p className="font-medium text-slate-800">{item.description}</p>
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
+                        <td className="px-3 py-3 text-xs text-slate-500">{item.faculty}</td>
+                        <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter}</td>
+                        <td className="px-6 py-3 text-right font-semibold text-slate-700">{fmtCurrency(item.estimatedTotalCost)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50">
+                      <td colSpan={4} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
+                      <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
@@ -306,15 +343,27 @@ export default function AnnualPlanDetail() {
                        approval?.status === 'rejected' ? <FaTimes className="text-white" size={10} /> :
                        <span className="text-xs text-white font-bold">{INTERNAL_CHAIN.findIndex(s => s.stage === step.stage) + 1}</span>}
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className={`text-xs font-semibold ${isCurrent ? 'text-blue-700' : approval?.status === 'approved' ? 'text-emerald-700' : 'text-slate-500'}`}>{step.label}</p>
-                      {approval?.comments && <p className="text-xs text-slate-400 truncate max-w-32">{approval.comments}</p>}
+                      {approval?.comments && <p className="text-xs text-slate-400 truncate">{approval.comments}</p>}
+                      {isCurrent && !approval && <p className="text-xs text-blue-400 font-medium">Awaiting action</p>}
                     </div>
+                    {approval?.actionDate && (
+                      <span className="text-xs text-slate-400 shrink-0">{new Date(approval.actionDate).toLocaleDateString()}</span>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* Submit Action (draft) */}
+          {canSubmit && (
+            <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 space-y-2">
+              <p className="text-xs font-semibold text-blue-700">This plan is in Draft status.</p>
+              <p className="text-xs text-blue-600">Click "Submit for Dean Review" above to begin the approval process.</p>
+            </div>
+          )}
 
           {/* Action: Internal */}
           {canActInternal && (
@@ -363,6 +412,24 @@ export default function AnnualPlanDetail() {
               </button>
             </div>
           )}
+
+          {/* Plan Info */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <h2 className="font-semibold text-slate-800 text-sm">Plan Summary</h2>
+            {[
+              { label: 'Plan Year', value: plan.planYear },
+              { label: 'Cycle Year', value: `Year ${plan.cycleYearNumber} of 3` },
+              { label: 'Budget Request', value: fmtCurrency(plan.totalBudgetRequest) },
+              { label: 'Allocated', value: fmtCurrency(plan.totalAllocatedBudget) },
+              { label: 'Items', value: `${plan.items?.length || 0} items` },
+              { label: 'Status', value: fmtStatus(plan.status) },
+            ].map(row => (
+              <div key={row.label} className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">{row.label}</span>
+                <span className="font-semibold text-slate-800">{row.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

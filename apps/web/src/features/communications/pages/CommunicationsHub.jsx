@@ -110,10 +110,9 @@ export default function CommunicationsHub() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-  const canDelete = selectedMsg && (
-    selectedMsg.sender?._id === user?._id ||
-    selectedMsg.recipient?._id === user?._id
-  );
+  // Any user can delete/dismiss messages from their inbox
+  // Backend handles soft-delete for broadcasts, hard-delete for direct messages
+  const canDelete = !!selectedMsg;
 
   const searchRef = useRef(null);
 
@@ -243,14 +242,13 @@ export default function CommunicationsHub() {
   const handleSelectMessage = async (msg) => {
     setIsConfirmingDelete(false);
     setSelectedMsg(msg);
-    // Mark as read if: not yet read AND (user is recipient, OR it's an announcement/alert)
-    const isRecipient = msg.recipient?._id === user?._id;
-    const isBroadcast = msg.type === 'announcement' || (msg.type === 'alert' && !msg.recipient);
-    if (!msg.isRead && (isRecipient || isBroadcast)) {
+    // Mark as read if not yet read by the current user
+    const isSentByMe = String(msg.sender?._id) === String(user?._id);
+    if (!msg.isReadByMe && !isSentByMe) {
       try {
         const res = await messageService.markRead(msg._id);
         if (res?.success) {
-          setMessages((prev) => prev.map((m) => m._id === msg._id ? { ...m, isRead: true } : m));
+          setMessages((prev) => prev.map((m) => m._id === msg._id ? { ...m, isReadByMe: true } : m));
           fetchUnreadCount();
         }
       } catch {/*commit*/}
@@ -557,8 +555,8 @@ export default function CommunicationsHub() {
                 </p>
               </div>
             ) : messages.map((msg) => {
-              const isSentByMe = msg.sender?._id === user?._id;
-              const isUnread = !msg.isRead && !isSentByMe;
+              const isSentByMe = String(msg.sender?._id) === String(user?._id);
+              const isUnread = !msg.isReadByMe && !isSentByMe;
               const isSelected = selectedMsg?._id === msg._id;
               const color = getColor(msg.type);
               const isStarred = starred.includes(msg._id);
@@ -640,7 +638,7 @@ export default function CommunicationsHub() {
                           {selectedMsg.category}
                         </span>
                       )}
-                      {!selectedMsg.isRead && (
+                      {!selectedMsg.isReadByMe && String(selectedMsg.sender?._id) !== String(user?._id) && (
                         <span className="px-2 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded font-bold">
                           NEW
                         </span>
