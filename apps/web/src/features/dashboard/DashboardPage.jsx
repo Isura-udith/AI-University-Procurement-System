@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
 import SupplierDashboard from "./SupplierDashboard";
@@ -184,44 +184,53 @@ function KpiCard({ label, value, sub, icon: Icon, color, path, loading }) {
   const c = colorMap[color] || colorMap.blue;
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm">
-        <div className="flex items-center space-x-4">
+      <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between min-h-[148px]">
+        <div className="flex items-center justify-between">
           <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-7 w-16" />
-            <Skeleton className="h-4 w-32" />
-          </div>
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <div className="space-y-2 mt-4">
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-4 w-32" />
         </div>
       </div>
     );
   }
+
+  // Choose a clean fallback badge label if sub is null
+  const badgeText = sub || (label === "Active Contracts" ? "In force" : "Active");
+  const badgeBg = c.light || "bg-slate-50";
+  const badgeTextClass = c.text || "text-slate-500";
+
   return (
     <Link
       to={path}
-      className="group bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden block"
+      className="group bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[148px] h-full"
     >
       <div
-        className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${c.light} opacity-50 group-hover:scale-150 transition-transform duration-500 pointer-events-none`}
+        className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${c.light} opacity-40 group-hover:scale-150 transition-transform duration-500 pointer-events-none`}
       />
-      <div className="flex items-center justify-between relative z-10">
-        <div className="flex items-center space-x-4">
-          <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md ${c.bg} shrink-0`}
-          >
-            <Icon size={20} />
-          </div>
-          <div>
-            <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">
-              {value}
-            </h3>
-            <p className="text-sm font-medium text-slate-500 mt-1">{label}</p>
-          </div>
+      
+      {/* Top row: Icon and Subtitle badge */}
+      <div className="flex items-center justify-between relative z-10 w-full">
+        <div
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md ${c.bg} shrink-0 transition-transform duration-300 group-hover:scale-110`}
+        >
+          <Icon size={20} />
         </div>
-        {sub && (
-          <div className="text-right">
-            <p className="text-xs font-semibold text-slate-400">{sub}</p>
-          </div>
-        )}
+        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${badgeBg} ${badgeTextClass} max-w-[110px] truncate shrink-0`}>
+          {badgeText}
+        </span>
+      </div>
+
+      {/* Bottom row: Value and Label */}
+      <div className="relative z-10 mt-4 flex flex-col">
+        <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none group-hover:text-slate-800 transition-colors duration-300">
+          {value}
+        </h3>
+        <p className="text-[11px] font-bold text-slate-400 mt-2 tracking-wider uppercase">
+          {label}
+        </p>
       </div>
     </Link>
   );
@@ -244,6 +253,7 @@ const ChartSkeleton = () => (
 export default function DashboardPage() {
   const { user } = useSelector((s) => s.auth);
   const userRole = user?.role;
+  const { category = 'all', timeRange = 'month' } = useOutletContext() || {};
 
   const [rawData, setRawData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -278,8 +288,12 @@ export default function DashboardPage() {
           "auditor",
         ].includes(userRole);
 
+        const filterParams = {};
+        if (category && category !== 'all') filterParams.category = category;
+        if (timeRange && timeRange !== 'all') filterParams.timeRange = timeRange;
+
         const results = await Promise.allSettled([
-          dashboardService.getProcurementStats(),
+          dashboardService.getProcurementStats(filterParams),
           dashboardService.getPendingApprovals(),
           privileged ? dashboardService.getContracts() : Promise.resolve(null),
           privileged ? dashboardService.getVendors() : Promise.resolve(null),
@@ -309,7 +323,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [userRole, refreshKey]);
+  }, [userRole, refreshKey, category, timeRange]);
 
   const [now] = useState(() => Date.now());
 
@@ -333,6 +347,7 @@ export default function DashboardPage() {
   // ── KPI values ────────────────────────────────────────────────────────────
   const activeReqs = procStats?.active ?? 0;
   const pendingCount = procStats?.pending ?? pendingList.length;
+  const totalSpend = procStats?.totalSpend ?? 0;
   const vendorTotal =
     rawData?.vendorsRaw?.pagination?.total ?? vendorsList.length;
   const activeContracts =
@@ -514,7 +529,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <KpiCard
           loading={loading}
           label="Active Requisitions"
@@ -532,6 +547,15 @@ export default function DashboardPage() {
           icon={FaClock}
           color="amber"
           path="/approvals"
+        />
+        <KpiCard
+          loading={loading}
+          label="Total Spend"
+          value={fmtLKR(totalSpend)}
+          sub={procStats ? `${procStats.completed || 0} completed` : null}
+          icon={FaMoneyCheckAlt}
+          color="emerald"
+          path="/procurements"
         />
         <KpiCard
           loading={loading}

@@ -122,7 +122,20 @@ const approveAnnualPlan = async (req, res, next) => {
     if (!plan) return res.status(404).json({ message: 'Annual Plan not found' });
 
     const { action, comments } = req.body;
-    const stage = INTERNAL_ROLE_TO_STAGE[req.user.role];
+
+    // Super admin: auto-detect current pending stage from plan status
+    const STATUS_TO_STAGE = {
+      dean_review: 'dean', bursar_review: 'bursar',
+      finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
+      council_review: 'council',
+    };
+    let stage;
+    if (req.user.role === 'super_admin') {
+      stage = STATUS_TO_STAGE[plan.status];
+      if (!stage) return res.status(400).json({ message: 'This plan is not pending any approval stage.' });
+    } else {
+      stage = INTERNAL_ROLE_TO_STAGE[req.user.role];
+    }
     if (!stage) return res.status(403).json({ message: 'Your role cannot approve Annual Plans' });
 
     plan.internalApprovals.push({
@@ -236,6 +249,18 @@ const confirmBudgetReceived = async (req, res, next) => {
 /** GET /api/annual-plans/pending — Plans pending my approval */
 const getPendingAnnualPlans = async (req, res, next) => {
   try {
+    // Super admin sees ALL pending plans across all review stages
+    if (req.user.role === 'super_admin') {
+      const plans = await AnnualPlan.find({
+        tenantId: req.tenantId,
+        status: { $in: ['dean_review', 'bursar_review', 'finance_committee_review', 'vc_review', 'council_review'] },
+      })
+        .populate('createdBy', 'name email')
+        .populate('masterPlanId', 'title referenceNumber')
+        .sort({ createdAt: -1 });
+      return success(res, plans);
+    }
+
     const stageFilter = {
       dean: 'dean_review',
       bursar: 'bursar_review',
@@ -243,7 +268,6 @@ const getPendingAnnualPlans = async (req, res, next) => {
       finance_officer: 'finance_committee_review',
       vc: 'vc_review',
       admin: 'council_review',
-      super_admin: 'council_review',
     };
     const statusToFilter = stageFilter[req.user.role];
     if (!statusToFilter) return success(res, []);

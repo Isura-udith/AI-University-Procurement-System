@@ -52,7 +52,7 @@ export default function RequestDetails() {
       // Re-fetch the procurement to get the updated approval chain from backend
       const res = await procurementService.getById(id);
       setData(res.data || res);
-      toast.success('📝 Request submitted for multi-level approval (HOD → Dean → Bursar → Finance Committee → VC).');
+      toast.success('📝 Request submitted for value-based multi-level approval.');
     } catch (err) {
       const errMsg = err?.message || err?.error || 'Submission failed';
       toast.error(`❌ ${errMsg}`);
@@ -499,12 +499,22 @@ export default function RequestDetails() {
           <p className="text-sm text-slate-600">{data.status === 'rejected' ? 'Re-submit' : 'Submit'} <span className="font-bold">"{data.title}"</span> for multi-level approval?</p>
           {data.status === 'rejected' && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700">⚠ This requisition was previously rejected. The approval chain will be reset and it will go through HOD → Dean → Bursar → Finance Committee → VC again.</p>
+              <p className="text-xs font-semibold text-amber-700">⚠ This requisition was previously rejected. The approval chain will be reset and it will go through the full value-based routing again.</p>
             </div>
           )}
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1.5 text-sm">
             <div className="flex justify-between"><span className="text-slate-500">TCE</span><span className="font-bold">LKR {(data.totalEstimatedCost || data.tce || 0).toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Approval Chain</span><span className="font-medium">HOD → Dean → Bursar → Finance Com. → VC</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Approval Chain</span><span className="font-medium">
+              {(() => {
+                const tce = data.totalEstimatedCost || data.tce || 0;
+                let chain = 'HOD';
+                if (data.faculty) chain += ' → Dean';
+                chain += ' → PMD';
+                if (tce > 200000) chain += ' → Bursar';
+                if (tce > 500000) chain += ' → Finance Com. → VC';
+                return chain;
+              })()}
+            </span></div>
           </div>
         </div>
       </ConfirmModal>

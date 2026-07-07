@@ -3,6 +3,7 @@ import api from './api';
 export const tenderService = {
   getAll: (params) => api.get('/tenders', { params }),
   getById: (id) => api.get(`/tenders/${id}`),
+  getMyBids: () => api.get('/tenders/my-bids'),
   create: (data) => api.post('/tenders', data),
   update: (id, data) => api.put(`/tenders/${id}`, data),
   delete: (id) => api.delete(`/tenders/${id}`),

@@ -253,9 +253,11 @@ class ProcurementService {
     
     // Add higher-level approvals based on Phase 5 value thresholds
     const tce = procurement.totalEstimatedCost || 0;
+    if (tce > 200000) {
+      newApprovalChain.push({ stage: 'bursar', status: 'pending' });
+    }
     if (tce > 500000) {
       newApprovalChain.push(
-        { stage: 'bursar', status: 'pending' },
         { stage: 'finance_committee', status: 'pending' },
         { stage: 'vice_chancellor', status: 'pending' }
       );
@@ -265,12 +267,22 @@ class ProcurementService {
     
     await procurement.save();
 
+    const chainNames = newApprovalChain.map(s => {
+      if (s.stage === 'hod') return 'HOD';
+      if (s.stage === 'dean') return 'Dean';
+      if (s.stage === 'pmd') return 'PMD';
+      if (s.stage === 'bursar') return 'Bursar';
+      if (s.stage === 'finance_committee') return 'Finance Committee';
+      if (s.stage === 'vice_chancellor') return 'VC';
+      return s.stage.toUpperCase();
+    }).join(' → ');
+
     // Notify the requester that their requisition was submitted
     try {
       await Notification.create({
         tenantId, recipient: userId, type: 'requisition_submitted',
         title: 'Requisition Submitted',
-        message: `Your requisition ${procurement.referenceNumber} has been submitted and is awaiting HOD approval (HOD → Dean → Bursar → Finance Committee → VC).`,
+        message: `Your requisition ${procurement.referenceNumber} has been submitted and is awaiting HOD approval (${chainNames}).`,
         referenceType: 'procurement', referenceId: procurement._id,
         link: `/procurements/${procurement._id}`,
       });
@@ -347,12 +359,22 @@ class ProcurementService {
       procurement.status = 'pmd_review'; // Ready for budget validation
       procurement.currentStage = 4; // Stage 4 = Financial Validation & Budget Lock
 
+      const chainNames = procurement.approvalChain.map(s => {
+        if (s.stage === 'hod') return 'HOD';
+        if (s.stage === 'dean') return 'Dean';
+        if (s.stage === 'pmd') return 'PMD';
+        if (s.stage === 'bursar') return 'Bursar';
+        if (s.stage === 'finance_committee') return 'Finance Committee';
+        if (s.stage === 'vice_chancellor') return 'VC';
+        return s.stage.toUpperCase();
+      }).join(' → ');
+
       // Notify finance/bursar that this is ready for budget lock
       try {
         await Notification.create({
           tenantId, recipient: procurement.requestedBy, type: 'approval_complete',
           title: 'All Approvals Complete',
-          message: `Requisition ${procurement.referenceNumber} has been fully approved (HOD → Dean → PMD → Bursar → Finance Committee → VC). It is now ready for Budget Lock.`,
+          message: `Requisition ${procurement.referenceNumber} has been fully approved (${chainNames}). It is now ready for Budget Lock.`,
           referenceType: 'procurement', referenceId: procurement._id,
           link: `/procurements/${procurement._id}`,
         });
@@ -483,7 +505,7 @@ class ProcurementService {
     return procurement;
   }
 
-  async getDashboardStats(tenantId, userContext = {}) {
+  async getDashboardStats(tenantId, userContext = {}, queryParams = {}) {
     // Build base filter — scope by faculty/department for non-cross-tenant roles
     const baseFilter = { tenantId };
     const { role, userId, faculty } = userContext;
@@ -502,7 +524,40 @@ class ProcurementService {
       }
     }
 
-    const [total, active, pending, completed, byCategory, byStatus, byDepartment, recentItems] = await Promise.all([
+    // ── Category filter ─────────────────────────────────────────────────
+    const { category, timeRange } = queryParams;
+    if (category && category !== 'all') {
+      baseFilter.category = { $regex: `^${category}$`, $options: 'i' };
+    }
+
+    // ── Time range filter ───────────────────────────────────────────────
+    if (timeRange && timeRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      switch (timeRange) {
+        case 'week':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'quarter': {
+          const qMonth = Math.floor(now.getMonth() / 3) * 3;
+          startDate = new Date(now.getFullYear(), qMonth, 1);
+          break;
+        }
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          break;
+      }
+      if (startDate) {
+        baseFilter.createdAt = { $gte: startDate };
+      }
+    }
+
+    const [total, active, pending, completed, byCategory, byStatus, byDepartment, recentItems, totalSpendAgg] = await Promise.all([
       Procurement.countDocuments(baseFilter),
       Procurement.countDocuments({ ...baseFilter, status: { $nin: ['completed', 'cancelled', 'rejected', 'draft'] } }),
       Procurement.countDocuments({ ...baseFilter, status: { $in: ['submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review'] } }),
@@ -511,8 +566,10 @@ class ProcurementService {
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$department', count: { $sum: 1 }, totalValue: { $sum: '$totalEstimatedCost' } } }]),
       Procurement.find(baseFilter).sort('-createdAt').limit(10).populate('requestedBy', 'firstName lastName'),
+      Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: null, totalSpend: { $sum: '$totalEstimatedCost' } } }]),
     ]);
-    return { total, active, pending, completed, byCategory, byStatus, byDepartment, recentItems };
+    const totalSpend = totalSpendAgg.length > 0 ? totalSpendAgg[0].totalSpend : 0;
+    return { total, active, pending, completed, totalSpend, byCategory, byStatus, byDepartment, recentItems };
   }
 
   async getMyPendingApprovals(userId, role, tenantId, userContext = {}) {

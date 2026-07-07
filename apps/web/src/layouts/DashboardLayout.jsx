@@ -54,7 +54,7 @@ const navSections = [
   {
     title: 'Strategic Planning',
     items: [
-      { path: '/workflow', label: '45-Step Lifecycle', icon: FaSitemap, hint: 'NEW' },
+      { path: '/workflow', label: '45-Step Lifecycle', icon: FaSitemap },
       { path: '/planning', label: 'Planning Hub', icon: FaLayerGroup },
       { path: '/planning/master-plans', label: 'Master Plans (3-Yr)', icon: FaLayerGroup },
       { path: '/planning/annual-plans', label: 'Annual Plans', icon: FaCalendarAlt },

@@ -314,9 +314,12 @@ const HomePage = () => {
           <div>
             <div className="flex justify-between items-center mb-8">
               <h3 id="active-tenders" className="text-2xl font-extrabold text-slate-900 flex items-center">Live Procurement Notices</h3>
+              {activeTenders.length > 3 && (
+                <span className="text-sm font-semibold text-slate-500">Showing 3 of {activeTenders.length}</span>
+              )}
             </div>
             <div className="space-y-4">
-              {activeTenders.map(t => (
+              {activeTenders.slice(0, 3).map(t => (
                 <div key={t.id} className="group p-5 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-100 transition-all cursor-pointer bg-slate-50 hover:bg-white relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
                   <div className="flex justify-between items-start mb-2">

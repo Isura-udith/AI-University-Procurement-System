@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
@@ -124,7 +124,7 @@ const AI_FEATURES = [
     roles: ['procurement_officer', 'bursar', 'finance_officer', 'admin', 'vc', 'super_admin'],
     requiresId: false,
     category: 'Forecasting',
-    note: 'See Market Monitoring',
+    note: 'Available inside Market Monitoring',
   },
   {
     id: 'explainability',
@@ -144,20 +144,62 @@ const AI_FEATURES = [
 
 const CATEGORY_COLORS = {
   Requisition: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Evaluation: 'bg-blue-50 text-blue-700 border-blue-200',
-  Monitoring: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  Risk: 'bg-orange-50 text-orange-700 border-orange-200',
-  Analysis: 'bg-teal-50 text-teal-700 border-teal-200',
+  Evaluation:  'bg-blue-50 text-blue-700 border-blue-200',
+  Monitoring:  'bg-indigo-50 text-indigo-700 border-indigo-200',
+  Risk:        'bg-orange-50 text-orange-700 border-orange-200',
+  Analysis:    'bg-teal-50 text-teal-700 border-teal-200',
   Forecasting: 'bg-purple-50 text-purple-700 border-purple-200',
-  Audit: 'bg-slate-50 text-slate-700 border-slate-200',
+  Audit:       'bg-slate-50 text-slate-700 border-slate-200',
 };
 
-// ID Picker Modal
+const STATUS_CFG = {
+  connected:      { bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'text-emerald-800', sub: 'text-emerald-700' },
+  quota_exceeded: { bg: 'bg-amber-50 border-amber-200',     dot: 'bg-amber-500',   label: 'text-amber-800',   sub: 'text-amber-700' },
+  unconfigured:   { bg: 'bg-red-50 border-red-200',         dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
+  error:          { bg: 'bg-red-50 border-red-200',         dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
+};
+
+const STATUS_LABELS = {
+  connected:      'Connected',
+  quota_exceeded: 'Quota Exceeded',
+  unconfigured:   'Not Configured',
+  error:          'Connection Error',
+};
+
+// ─── Sub-components ───────────────────────────────────────────────
+
+function AIStatusBanner({ aiStatus }) {
+  const cfg = STATUS_CFG[aiStatus.status] || {
+    bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400', label: 'text-slate-800', sub: 'text-slate-600',
+  };
+  return (
+    <div className={`flex items-start gap-3 rounded-2xl border px-5 py-3.5 ${cfg.bg}`}>
+      <span className={`mt-1.5 w-2.5 h-2.5 shrink-0 rounded-full ${cfg.dot} ${aiStatus.status === 'connected' ? 'animate-pulse' : ''}`} />
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-bold ${cfg.label}`}>
+          Gemini AI &mdash; {aiStatus.model || '?'}&nbsp;&middot;&nbsp;
+          {STATUS_LABELS[aiStatus.status] || aiStatus.status}
+        </p>
+        <p className={`text-xs mt-0.5 ${cfg.sub}`}>{aiStatus.message}</p>
+        {aiStatus.detail && aiStatus.status !== 'connected' && (
+          <details className="mt-1">
+            <summary className={`text-[11px] cursor-pointer font-semibold ${cfg.sub} opacity-70`}>Technical detail</summary>
+            <pre className={`mt-1 text-[10px] whitespace-pre-wrap break-all font-mono ${cfg.sub} opacity-80`}>{aiStatus.detail}</pre>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function IdPickerModal({ type, items, onSelect, onClose }) {
   const [search, setSearch] = useState('');
-  const filtered = items.filter(i =>
-    (i.label || '').toLowerCase().includes(search.toLowerCase()) ||
-    (i.ref || '').toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () => items.filter(i =>
+      (i.label || '').toLowerCase().includes(search.toLowerCase()) ||
+      (i.ref  || '').toLowerCase().includes(search.toLowerCase())
+    ),
+    [items, search]
   );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -206,71 +248,89 @@ function IdPickerModal({ type, items, onSelect, onClose }) {
   );
 }
 
+// ─── Main Page ────────────────────────────────────────────────────
+
 export default function AIIntelligenceHubPage() {
   const { user } = useSelector(state => state.auth);
-  const navigate = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [tenders, setTenders] = useState([]);
+  const navigate  = useNavigate();
+
+  const [stats,        setStats]        = useState(null);
+  const [tenders,      setTenders]      = useState([]);
   const [procurements, setProcurements] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [picker, setPicker] = useState(null); // { feature, path }
-  const [filter, setFilter] = useState('All');
-  const [aiStatus, setAiStatus] = useState(null); // { status, model, message, detail }
+  const [loading,      setLoading]      = useState(true);
+  const [picker,       setPicker]       = useState(null);
+  const [filter,       setFilter]       = useState('All');
+  const [aiStatus,     setAiStatus]     = useState(null);
 
   useEffect(() => {
-    Promise.resolve().then(async () => {
+    let cancelled = false;
+
+    async function init() {
       try {
         const [tRes, pRes, sRes] = await Promise.allSettled([
           tenderService.getAll({ limit: 50 }),
           procurementService.getAll({ limit: 50 }),
           aiService.getExplainabilityStats(),
         ]);
+
+        if (cancelled) return;
+
         if (tRes.status === 'fulfilled') {
           const t = tRes.value || {};
           setTenders((t.data || t.tenders || []).map(x => ({
-            id: x._id,
-            label: x.title || x.tenderNumber || 'Unnamed Tender',
-            ref: x.tenderNumber || '',
+            id:     x._id,
+            label:  x.title || x.tenderNumber || 'Unnamed Tender',
+            ref:    x.tenderNumber || '',
             status: x.status,
           })));
         }
         if (pRes.status === 'fulfilled') {
           const p = pRes.value || {};
           setProcurements((p.data || p.procurements || []).map(x => ({
-            id: x._id,
-            label: x.title || x.referenceNumber || 'Unnamed Procurement',
-            ref: x.referenceNumber || '',
+            id:     x._id,
+            label:  x.title || x.referenceNumber || 'Unnamed Procurement',
+            ref:    x.referenceNumber || '',
             status: x.status,
           })));
         }
         if (sRes.status === 'fulfilled') {
           setStats(sRes.value?.data || sRes.value);
         }
-        // Fetch AI status (non-blocking)
+
+        // Non-blocking AI status check
         aiService.getAIStatus()
-          .then(r => setAiStatus(r?.data || r))
-          .catch(() => setAiStatus({ status: 'error', model: '', message: 'Could not reach the AI status endpoint.' }));
+          .then(r => { if (!cancelled) setAiStatus(r?.data || r); })
+          .catch(() => {
+            if (!cancelled) setAiStatus({ status: 'error', model: '', message: 'Could not reach the AI status endpoint.' });
+          });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    });
+    }
+
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   const userRole = user?.role || '';
-  const accessibleFeatures = AI_FEATURES.filter(f =>
-    f.roles.includes(userRole) || userRole === 'super_admin'
+
+  const accessibleFeatures = useMemo(
+    () => AI_FEATURES.filter(f => f.roles.includes(userRole)),
+    [userRole]
   );
 
-  const categories = ['All', ...new Set(AI_FEATURES.map(f => f.category))];
-  const displayed = filter === 'All'
-    ? accessibleFeatures
-    : accessibleFeatures.filter(f => f.category === filter);
+  const categories = useMemo(
+    () => ['All', ...new Set(AI_FEATURES.map(f => f.category))],
+    []
+  );
+
+  const displayed = useMemo(
+    () => filter === 'All' ? accessibleFeatures : accessibleFeatures.filter(f => f.category === filter),
+    [accessibleFeatures, filter]
+  );
 
   const handleFeatureClick = (feature) => {
-    if (!feature.requiresId) {
-      navigate(feature.path);
-      return;
-    }
+    if (!feature.requiresId) { navigate(feature.path); return; }
     setPicker({ feature });
   };
 
@@ -284,6 +344,7 @@ export default function AIIntelligenceHubPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
+
       {/* Hero Header */}
       <div className="relative overflow-hidden bg-linear-to-br from-slate-700 via-slate-600 to-slate-700 rounded-3xl p-8 text-white shadow-2xl">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -303,16 +364,18 @@ export default function AIIntelligenceHubPage() {
               </div>
             </div>
             <p className="text-slate-300 max-w-xl text-sm leading-relaxed">
-              Eight integrated AI features powered by Google Gemini AI, designed for Sri Lanka's
+              Nine integrated AI features powered by Google Gemini AI, designed for Sri Lanka&apos;s
               Procurement Guidelines 2024.
             </p>
           </div>
-          {/* Stats */}
+
+          {/* Stats KPIs */}
           {!loading && stats && (
-            <div className="grid grid-cols-2 gap-3 shrink-0">
+            <div className="grid grid-cols-3 gap-3 shrink-0">
               {[
-                { label: 'Total AI Analyses', value: stats.total || 0, icon: FaRobot, color: 'text-emerald-400' },
-                { label: 'Last 24 Hours', value: stats.last24h || 0, icon: FaChartLine, color: 'text-blue-400' },
+                { label: 'Total AI Analyses', value: stats.total      || 0,                        icon: FaRobot,      color: 'text-emerald-400' },
+                { label: 'Last 24 Hours',      value: stats.last24h   || 0,                        icon: FaChartLine,  color: 'text-blue-400'    },
+                { label: 'Feature Types',      value: stats.byFeature?.length || 0,                icon: FaChartBar,   color: 'text-violet-400'  },
               ].map((s, i) => (
                 <div key={i} className="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-center backdrop-blur-sm">
                   <s.icon className={`mx-auto mb-2 ${s.color}`} size={18} />
@@ -326,35 +389,7 @@ export default function AIIntelligenceHubPage() {
       </div>
 
       {/* AI Status Banner */}
-      {aiStatus && (() => {
-        const cfg = {
-          connected:      { bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'text-emerald-800', sub: 'text-emerald-700' },
-          quota_exceeded: { bg: 'bg-amber-50 border-amber-200',   dot: 'bg-amber-500',   label: 'text-amber-800',   sub: 'text-amber-700' },
-          unconfigured:   { bg: 'bg-red-50 border-red-200',       dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
-          error:          { bg: 'bg-red-50 border-red-200',       dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
-        }[aiStatus.status] || { bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400', label: 'text-slate-800', sub: 'text-slate-600' };
-        return (
-          <div className={`flex items-start gap-3 rounded-2xl border px-5 py-3.5 ${cfg.bg}`}>
-            <span className={`mt-1.5 w-2.5 h-2.5 shrink-0 rounded-full ${cfg.dot} ${aiStatus.status === 'connected' ? 'animate-pulse' : ''}`} />
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm font-bold ${cfg.label}`}>
-                Gemini AI &mdash; {aiStatus.model || '?'}&nbsp;&middot;&nbsp;
-                {aiStatus.status === 'connected' && 'Connected'}
-                {aiStatus.status === 'quota_exceeded' && 'Quota Exceeded'}
-                {aiStatus.status === 'unconfigured' && 'Not Configured'}
-                {aiStatus.status === 'error' && 'Connection Error'}
-              </p>
-              <p className={`text-xs mt-0.5 ${cfg.sub}`}>{aiStatus.message}</p>
-              {aiStatus.detail && aiStatus.status !== 'connected' && (
-                <details className="mt-1">
-                  <summary className={`text-[11px] cursor-pointer font-semibold ${cfg.sub} opacity-70`}>Technical detail</summary>
-                  <pre className={`mt-1 text-[10px] whitespace-pre-wrap break-all font-mono ${cfg.sub} opacity-80`}>{aiStatus.detail}</pre>
-                </details>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {aiStatus && <AIStatusBanner aiStatus={aiStatus} />}
 
       {/* Category Filter */}
       <div className="flex items-center gap-2 flex-wrap">

@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "jest --passWithNoTests",
-    "seed:finance": "node seed_delivery_finance.js"
+    "seed:finance": "node seed_delivery_finance.js",
+    "db:feed": "node feed_all_data.js"
   },
   "keywords": [
     "procurement",

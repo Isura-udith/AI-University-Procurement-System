@@ -1,0 +1,46 @@
+[
+  {
+    "companyName": "MedTech Solutions (Pvt) Ltd",
+    "tradingName": "MedTech Solutions",
+    "registrationNumber": "PV-12345",
+    "vatNumber": "VAT-12345-MED",
+    "cidaGrade": "M2",
+    "businessType": "Private Limited",
+    "contactPerson": "Mr. K. Perera",
+    "email": "perera@medtech.lk",
+    "userEmail": "supplier@vendor.lk",
+    "phone": "+94 77 123 4567",
+    "address": {
+      "street": "12 Galle Road",
+      "city": "Colombo 03",
+      "district": "Colombo",
+      "province": "Western",
+      "postalCode": "00300"
+    },
+    "supplierCategories": ["Medical Equipment", "Lab Consumables", "Furniture"],
+    "status": "preferred",
+    "performanceScore": 84
+  },
+  {
+    "companyName": "TechVision Asia",
+    "tradingName": "TechVision",
+    "registrationNumber": "PV-98765",
+    "vatNumber": "VAT-98765-TECH",
+    "cidaGrade": "M1",
+    "businessType": "Private Limited",
+    "contactPerson": "Mr. S. Dias",
+    "email": "dias@techvision.lk",
+    "userEmail": "supplier2@vendor.lk",
+    "phone": "+94 77 987 6543",
+    "address": {
+      "street": "45 Kandy Road",
+      "city": "Kiribathgoda",
+      "district": "Gampaha",
+      "province": "Western",
+      "postalCode": "11600"
+    },
+    "supplierCategories": ["IT Hardware", "Software Development", "Networking Solutions"],
+    "status": "preferred",
+    "performanceScore": 92
+  }
+]

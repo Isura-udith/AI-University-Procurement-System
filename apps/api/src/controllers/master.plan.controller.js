@@ -107,7 +107,20 @@ const approveMasterPlan = async (req, res, next) => {
 
     const { action, comments, estimatedBudget } = req.body; // action: 'approve' | 'reject'
     const userRole = req.user.role;
-    const stage = ROLE_TO_STAGE[userRole];
+
+    // Super admin: auto-detect current pending stage from plan status
+    const STATUS_TO_STAGE = {
+      dean_review: 'dean', bursar_estimation: 'bursar',
+      finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
+      council_review: 'council',
+    };
+    let stage;
+    if (userRole === 'super_admin') {
+      stage = STATUS_TO_STAGE[plan.status];
+      if (!stage) return res.status(400).json({ message: 'This plan is not pending any approval stage.' });
+    } else {
+      stage = ROLE_TO_STAGE[userRole];
+    }
 
     if (!stage && !['admin', 'super_admin'].includes(userRole)) {
       return res.status(403).json({ message: 'Your role cannot approve Master Plans' });
@@ -186,6 +199,18 @@ const approveMasterPlan = async (req, res, next) => {
 const getPendingMasterPlans = async (req, res, next) => {
   try {
     const userRole = req.user.role;
+
+    // Super admin sees ALL pending plans across all review stages
+    if (userRole === 'super_admin') {
+      const plans = await MasterPlan.find({
+        tenantId: req.tenantId,
+        status: { $in: ['dean_review', 'bursar_estimation', 'finance_committee_review', 'vc_review', 'council_review'] },
+      })
+        .populate('createdBy', 'name email')
+        .sort({ createdAt: -1 });
+      return success(res, plans);
+    }
+
     const stageFilter = {
       dean: 'dean_review',
       bursar: 'bursar_estimation',
@@ -193,7 +218,6 @@ const getPendingMasterPlans = async (req, res, next) => {
       finance_officer: 'finance_committee_review',
       vc: 'vc_review',
       admin: 'council_review',
-      super_admin: 'council_review',
     };
     const statusToFilter = stageFilter[userRole];
     if (!statusToFilter) return success(res, []);

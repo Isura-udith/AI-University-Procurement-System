@@ -1,0 +1,92 @@
+[
+  {
+    "senderEmail": "admin@uwu.ac.lk",
+    "recipientEmail": "procurement@uwu.ac.lk",
+    "type": "message",
+    "subject": "Quarterly Procurement Review – Action Required",
+    "body": "Dear Procurement Officer,\n\nPlease prepare a summary of all active tenders and pending requisitions for the quarterly review meeting scheduled for next Friday. Ensure all compliance documents are up to date.\n\nBest regards,\nProcurement Admin",
+    "category": "Workflow",
+    "isRead": true
+  },
+  {
+    "senderEmail": "procurement@uwu.ac.lk",
+    "recipientEmail": "tec@uwu.ac.lk",
+    "type": "message",
+    "subject": "TEC Evaluation – Bidding Documents Ready",
+    "body": "Dear TEC Member,\n\nThe bidding documents for the IT Infrastructure tender are ready for your technical review. Please complete the evaluation within 5 working days as per the procurement timeline.\n\nThank you,\nProcurement Officer",
+    "category": "Workflow",
+    "isRead": false
+  },
+  {
+    "senderEmail": "bursar@uwu.ac.lk",
+    "recipientEmail": "hod@uwu.ac.lk",
+    "type": "alert",
+    "subject": "Budget Utilization Warning – Applied Sciences",
+    "body": "Dear Head of Department,\n\nThis is to inform you that the Applied Sciences department has utilized 78% of its allocated annual budget. Please exercise caution in submitting new requisitions and prioritize critical items only.\n\nRegards,\nBursar",
+    "category": "Financial",
+    "isRead": true
+  },
+  {
+    "senderEmail": "admin@uwu.ac.lk",
+    "recipientRole": "supplier",
+    "type": "announcement",
+    "subject": "New E-Procurement Portal Guidelines for Suppliers",
+    "body": "Dear Valued Suppliers,\n\nWe are pleased to inform you that UWU has launched an updated e-procurement portal. All future bid submissions must be done through the online portal. Physical submissions will no longer be accepted after 2025-02-01.\n\nPlease update your profiles and ensure your digital signatures are registered.\n\nSupplies Division\nUva Wellassa University",
+    "category": "Announcement",
+    "isRead": false
+  },
+  {
+    "senderEmail": "supplier@vendor.lk",
+    "recipientEmail": "procurement@uwu.ac.lk",
+    "type": "supplier",
+    "subject": "Query Regarding Tender Specifications – TND-2024-001",
+    "body": "Dear Procurement Officer,\n\nWe would like to seek clarification on the technical specifications outlined in the tender document TND-2024-001. Specifically, regarding the RAM requirement – can we propose 32GB DDR5 as an alternative to the specified DDR4?\n\nWe look forward to your response.\n\nBest regards,\nDemo Supplier\nSupplyTech Lanka (Pvt) Ltd",
+    "category": "Supplier",
+    "isRead": true
+  },
+  {
+    "senderEmail": "procurement@uwu.ac.lk",
+    "recipientEmail": "supplier@vendor.lk",
+    "type": "supplier",
+    "subject": "RE: Query Regarding Tender Specifications – TND-2024-001",
+    "body": "Dear Demo Supplier,\n\nThank you for your query. After consulting with our TEC team, we confirm that 32GB DDR5 is an acceptable alternative to the specified DDR4, provided all other specifications remain compliant.\n\nPlease note this clarification applies equally to all participating vendors.\n\nBest regards,\nProcurement Officer\nUva Wellassa University",
+    "category": "Supplier",
+    "isRead": true
+  },
+  {
+    "senderEmail": "vc@uwu.ac.lk",
+    "recipientRole": "procurement_officer",
+    "type": "announcement",
+    "subject": "University Procurement Policy Update 2025",
+    "body": "Dear Procurement Team,\n\nPlease be advised that the University Council has approved updates to the procurement policy effective January 2025. Key changes include:\n\n1. Threshold for competitive tendering reduced to Rs. 500,000\n2. All contracts above Rs. 5M require VC approval\n3. Supplier registration must be renewed annually\n\nPlease ensure all staff are briefed accordingly.\n\nVice Chancellor\nUva Wellassa University",
+    "category": "Announcement",
+    "isRead": false
+  },
+  {
+    "senderEmail": "contracts@uwu.ac.lk",
+    "recipientEmail": "supplier@vendor.lk",
+    "type": "supplier",
+    "subject": "Contract Signing – Required Documents",
+    "body": "Dear Supplier,\n\nCongratulations on being awarded the contract. Please provide the following documents within 5 working days:\n\n1. Company Registration Certificate\n2. Tax Clearance Certificate\n3. Performance Bond (10% of contract value)\n4. Signed Contract Agreement (3 copies)\n\nPlease contact us to schedule the contract signing ceremony.\n\nContract Manager\nUva Wellassa University",
+    "category": "Supplier",
+    "isRead": true
+  },
+  {
+    "senderEmail": "finance@uwu.ac.lk",
+    "recipientEmail": "contracts@uwu.ac.lk",
+    "type": "message",
+    "subject": "Payment Voucher Verification Complete",
+    "body": "Dear Contract Manager,\n\nThis is to confirm that the payment voucher for the first milestone payment has been verified and approved. The amount of Rs. 1,250,000 will be disbursed within 3 working days.\n\nFinance Officer",
+    "category": "Financial",
+    "isRead": true
+  },
+  {
+    "senderEmail": "admin@uwu.ac.lk",
+    "recipientRole": "department_head",
+    "type": "announcement",
+    "subject": "Reminder: Annual Procurement Plan Submission Deadline",
+    "body": "Dear Heads of Departments,\n\nThis is a reminder that the deadline for submitting your department's Annual Procurement Plan for FY 2025/2026 is 2025-03-31. Late submissions cannot be accommodated in the planning cycle.\n\nPlease coordinate with your respective faculties.\n\nSupplies Division",
+    "category": "Announcement",
+    "isRead": false
+  }
+]

@@ -257,6 +257,14 @@ class TenderService {
     return Bid.find(filter).populate('vendorId', 'companyName contactPerson email performanceScore').sort('totalBidAmount');
   }
 
+  async getMyBids(userId, tenantId) {
+    const vendor = await Vendor.findOne({ userId, tenantId });
+    if (!vendor) return [];
+    return Bid.find({ vendorId: vendor._id, tenantId })
+      .populate('tenderId', 'tenderNumber title category status bidSubmissionDeadline estimatedValue')
+      .sort('-submittedAt');
+  }
+
   async submitBid(tenderId, data, userId, tenantId) {
     const tender = await Tender.findOne({ _id: tenderId, tenantId });
     if (!tender) throw Object.assign(new Error('Tender not found'), { statusCode: 404 });

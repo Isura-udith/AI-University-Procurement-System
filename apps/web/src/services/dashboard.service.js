@@ -6,7 +6,7 @@ import api from './api';
  */
 export const dashboardService = {
   /** Procurement KPIs + byStatus + byCategory + byDepartment + recentItems */
-  getProcurementStats: () => api.get('/procurements/dashboard-stats'),
+  getProcurementStats: (params = {}) => api.get('/procurements/dashboard-stats', { params }),
 
   /** Items pending the current user's approval */
   getPendingApprovals: () => api.get('/procurements/pending-approvals'),

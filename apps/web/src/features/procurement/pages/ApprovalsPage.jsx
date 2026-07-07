@@ -10,7 +10,7 @@ import procurementService from '../../../services/procurement.service';
 // Approval thresholds from Step 29
 const APPROVAL_THRESHOLDS = [
   { max: 200000, label: 'Up to Rs. 200,000', authority: 'Faculty Dean', color: 'blue' },
-  { max: 500000, label: 'Rs. 200,001 – 500,000', authority: 'Faculty Dean', color: 'blue' },
+  { max: 500000, label: 'Rs. 200,001 – 500,000', authority: 'Bursar', color: 'indigo' },
   { max: 1000000, label: 'Rs. 500,001 – 1,000,000', authority: 'Vice Chancellor', color: 'violet' },
   { max: Infinity, label: 'Above Rs. 1,000,000', authority: 'Procurement Committee', color: 'rose' },
 ];
@@ -209,7 +209,7 @@ export default function ApprovalsPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Multi-Level Approval Queue</h1>
-        <p className="text-sm text-slate-500 mt-1">Stage 3: HOD → Dean → PMD → Bursar → Finance Committee → VC approval chain</p>
+        <p className="text-sm text-slate-500 mt-1">Stage 3: Value-based multi-level approval chain (HOD → Dean → PMD → Bursar → Finance Committee → VC)</p>
         <div className="mt-2 flex items-center space-x-2">
           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
             Your Role: {getRoleDisplayLabel()}

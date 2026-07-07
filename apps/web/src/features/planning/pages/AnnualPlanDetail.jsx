@@ -134,7 +134,7 @@ export default function AnnualPlanDetail() {
 
   const myStage = ROLE_TO_INTERNAL_STAGE[user?.role];
   const pendingInternal = plan ? INTERNAL_PENDING[plan.status] : null;
-  const canActInternal = myStage && pendingInternal === myStage;
+  const canActInternal = user?.role === 'super_admin' ? !!pendingInternal : (myStage && pendingInternal === myStage);
   const canRecordExternal = ['bursar', 'vc', 'admin', 'super_admin'].includes(user?.role);
   const canConfirmBudget = ['vc', 'bursar', 'admin', 'super_admin'].includes(user?.role);
   const canSubmit = plan?.status === 'draft' && ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);

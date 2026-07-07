@@ -37,6 +37,9 @@ const openBidBox = async (req, res, next) => {
 const getBids = async (req, res, next) => {
   try { return success(res, await tenderService.getBidsForTender(req.params.id, req.tenantId, req.user)); } catch (err) { next(err); }
 };
+const getMyBids = async (req, res, next) => {
+  try { return success(res, await tenderService.getMyBids(req.user._id, req.tenantId)); } catch (err) { next(err); }
+};
 const submitBid = async (req, res, next) => {
   try { return created(res, await tenderService.submitBid(req.params.id, req.body, req.user._id, req.tenantId), 'Bid submitted'); } catch (err) { next(err); }
 };
@@ -98,7 +101,7 @@ const resolveDebriefing = async (req, res, next) => {
 module.exports = {
   createTender, getAllTenders, getTender, updateTender, deleteTender,
   publishTender, cancelTender, extendDeadline, closeBidding, openBidBox,
-  getBids, submitBid, withdrawBid, generateMinutes, unsealBid,
+  getBids, getMyBids, submitBid, withdrawBid, generateMinutes, unsealBid,
   recordBidPrice, awardTender, issueLOA, submitAppeal, resolveAppeal,
   requestDebriefing, addClarification, answerClarification,
   evaluateBid, completeBidOpening, getEvaluationResults, submitEvaluation,

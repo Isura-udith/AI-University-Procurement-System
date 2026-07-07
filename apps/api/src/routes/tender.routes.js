@@ -14,7 +14,7 @@ const router = express.Router();
 const {
   createTender, getAllTenders, getTender, updateTender, deleteTender,
   publishTender, cancelTender, extendDeadline, closeBidding, openBidBox,
-  getBids, submitBid, withdrawBid, generateMinutes, unsealBid,
+  getBids, getMyBids, submitBid, withdrawBid, generateMinutes, unsealBid,
   recordBidPrice, awardTender, issueLOA, submitAppeal, resolveAppeal,
   requestDebriefing, addClarification, answerClarification,
   evaluateBid, completeBidOpening, getEvaluationResults, submitEvaluation,
@@ -29,6 +29,10 @@ router.use(protect);
 router.get('/',
   authorize('procurement_officer', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'contract_manager', 'tec_member', 'auditor', 'super_admin', 'supplier'),
   getAllTenders
+);
+router.get('/my-bids',
+  authorize('supplier', 'admin', 'super_admin'),
+  getMyBids
 );
 router.get('/:id',
   authorize('procurement_officer', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'contract_manager', 'tec_member', 'auditor', 'super_admin', 'supplier'),

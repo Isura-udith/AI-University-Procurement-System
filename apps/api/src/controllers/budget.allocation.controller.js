@@ -77,7 +77,7 @@ const advanceDistribution = async (req, res, next) => {
     const next_status = transitions[allocation.distributionStatus];
     if (!next_status) return res.status(400).json({ message: 'Already at final distribution stage' });
     allocation.distributionStatus = next_status;
-    if (req.user.role === 'bursar') {
+    if (req.user.role === 'bursar' || (req.user.role === 'super_admin' && next_status === 'bursar_confirmed')) {
       allocation.verifiedByBursar = req.user._id;
       allocation.verifiedAt = new Date();
     }

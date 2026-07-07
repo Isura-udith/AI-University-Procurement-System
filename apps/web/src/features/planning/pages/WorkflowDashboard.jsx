@@ -6,7 +6,7 @@ import planningService from '../../../services/planning.service';
 
 const APPROVAL_TABLE = [
   { range: 'Up to Rs. 200,000', authority: 'Faculty Dean', color: 'blue' },
-  { range: 'Rs. 200,001 – 500,000', authority: 'Faculty Dean', color: 'blue' },
+  { range: 'Rs. 200,001 – 500,000', authority: 'Bursar', color: 'indigo' },
   { range: 'Rs. 500,001 – 1,000,000', authority: 'Vice Chancellor', color: 'violet' },
   { range: 'Above Rs. 1,000,000', authority: 'Procurement Committee', color: 'rose' },
 ];

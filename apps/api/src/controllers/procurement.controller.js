@@ -79,7 +79,8 @@ const getDashboardStats = async (req, res, next) => {
   try {
     const result = await procurementService.getDashboardStats(
       req.tenantId,
-      { role: req.user.role, userId: req.user._id, faculty: req.user.faculty }
+      { role: req.user.role, userId: req.user._id, faculty: req.user.faculty },
+      req.query
     );
     return success(res, result);
   } catch (err) { next(err); }

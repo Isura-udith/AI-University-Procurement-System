@@ -1,40 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaHistory, FaRobot, FaSpinner, FaInfoCircle, FaCheckCircle,
   FaExclamationTriangle, FaArrowLeft, FaSearch, FaChartLine,
 } from 'react-icons/fa';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
 
 const DEVIATION_COLORS = {
-  within_range: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Within Range', icon: FaCheckCircle, iconColor: 'text-emerald-500' },
-  slightly_above: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Slightly Above', icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
-  above_range: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Above Range', icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
-  significantly_above: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Significantly Above', icon: FaExclamationTriangle, iconColor: 'text-red-500' },
-  below_market: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Below Market', icon: FaCheckCircle, iconColor: 'text-blue-500' },
-  below_range: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Below Range', icon: FaCheckCircle, iconColor: 'text-blue-500' },
+  within_range:       { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Within Range',        icon: FaCheckCircle,     iconColor: 'text-emerald-500' },
+  slightly_above:     { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   label: 'Slightly Above',       icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
+  above_range:        { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   label: 'Above Range',          icon: FaExclamationTriangle, iconColor: 'text-amber-500' },
+  significantly_above:{ bg: 'bg-red-50',     border: 'border-red-200',     text: 'text-red-700',     label: 'Significantly Above',  icon: FaExclamationTriangle, iconColor: 'text-red-500'   },
+  below_market:       { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    label: 'Below Market',         icon: FaCheckCircle,     iconColor: 'text-blue-500'    },
+  below_range:        { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    label: 'Below Range',          icon: FaCheckCircle,     iconColor: 'text-blue-500'    },
 };
 
 export default function AIHistoricalMatchPage() {
   const { procurementId } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const [result,   setResult]   = useState(null);
+  const [error,    setError]    = useState(null);
   const [procInfo, setProcInfo] = useState(null);
 
   // Load basic procurement info
   useEffect(() => {
     if (!procurementId) return;
-    Promise.resolve().then(async () => {
-      try {
-        const res = await procurementService.getById(procurementId);
-        const p = res?.data || res;
-        setProcInfo(p);
-      } catch { /* optional – procurement info is non-critical */ }
-    });
+    procurementService.getById(procurementId)
+      .then(res => setProcInfo(res?.data || res))
+      .catch(() => {/* optional — non-critical */});
   }, [procurementId]);
 
   const handleAnalyze = async () => {
@@ -49,30 +45,31 @@ export default function AIHistoricalMatchPage() {
     setLoading(false);
   };
 
-  const matches = result?.matches || [];
+  const matches   = useMemo(() => result?.matches        || [], [result]);
+  const alerts    = useMemo(() => result?.alerts         || [], [result]);
   const deviation = result?.priceDeviation;
-  const alerts = result?.alerts || [];
-  const summary = result?.summary;
+  const summary   = result?.summary;
 
   const deviationStyle = DEVIATION_COLORS[deviation?.assessment] || DEVIATION_COLORS.within_range;
-  const DeviationIcon = deviationStyle.icon;
+  const DeviationIcon  = deviationStyle.icon;
 
-  // Build chart — show historical prices + current estimate
-  const chartData = [
+  // Memoised chart data — current estimate bar colored amber for visual distinction
+  const chartData = useMemo(() => [
     ...matches.slice(0, 5).map(m => ({
-      name: m.historicalRef?.substring(0, 14) || 'Past',
-      price: m.previousPrice || 0,
-      type: 'historical',
+      name:    m.historicalRef?.substring(0, 18) || 'Past',
+      price:   m.previousPrice || 0,
+      isCurrent: false,
     })),
     ...(deviation?.currentEstimate ? [{
-      name: 'Current Est.',
-      price: deviation.currentEstimate,
-      type: 'current',
+      name:      'Current Est.',
+      price:     deviation.currentEstimate,
+      isCurrent: true,
     }] : []),
-  ];
+  ], [matches, deviation]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -118,8 +115,8 @@ export default function AIHistoricalMatchPage() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-2">Run Historical Match Analysis</h3>
           <p className="text-sm text-slate-500 mb-2 max-w-md mx-auto">
-            Compare this procurement against UWU's purchase history. The AI will find similar past transactions,
-            calculate price deviation, and alert the Bursar's office if costs are disproportionate.
+            Compare this procurement against UWU&apos;s purchase history. The AI will find similar past transactions,
+            calculate price deviation, and alert the Bursar&apos;s office if costs are disproportionate.
           </p>
           <div className="flex items-center justify-center space-x-6 mb-6 text-xs text-slate-400">
             {['Price Deviation Scoring', 'Vendor History Lookup', 'Quality Report Retrieval', 'Bursar Alerts'].map((s, i) => (
@@ -166,9 +163,9 @@ export default function AIHistoricalMatchPage() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                   {[
-                    { label: 'Current Estimate', value: deviation.currentEstimate ? `LKR ${deviation.currentEstimate.toLocaleString()}` : 'N/A' },
+                    { label: 'Current Estimate',  value: deviation.currentEstimate  ? `LKR ${deviation.currentEstimate.toLocaleString()}`  : 'N/A' },
                     { label: 'Historical Average', value: deviation.historicalAverage ? `LKR ${deviation.historicalAverage.toLocaleString()}` : 'N/A' },
-                    { label: 'Deviation', value: deviation.deviationPercent != null ? `${deviation.deviationPercent > 0 ? '+' : ''}${deviation.deviationPercent}%` : 'N/A' },
+                    { label: 'Deviation',          value: deviation.deviationPercent != null ? `${deviation.deviationPercent > 0 ? '+' : ''}${deviation.deviationPercent}%` : 'N/A' },
                   ].map((item, i) => (
                     <div key={i} className="bg-white/60 rounded-xl p-3 text-center">
                       <p className="text-xs font-semibold text-slate-500 uppercase">{item.label}</p>
@@ -195,7 +192,7 @@ export default function AIHistoricalMatchPage() {
             </div>
           )}
 
-          {/* Price History Chart */}
+          {/* Price History Chart — current estimate bar is amber */}
           {chartData.length > 0 && (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
               <div className="flex items-center space-x-3 mb-4">
@@ -204,7 +201,7 @@ export default function AIHistoricalMatchPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-800">Price History vs Current Estimate</h3>
-                  <p className="text-xs text-slate-500">Historical transaction prices compared to current estimate</p>
+                  <p className="text-xs text-slate-500">Historical transaction prices compared to current estimate (amber bar)</p>
                 </div>
               </div>
               <div className="h-[280px] w-full">
@@ -220,12 +217,11 @@ export default function AIHistoricalMatchPage() {
                     {deviation?.historicalAverage && (
                       <ReferenceLine y={deviation.historicalAverage} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: 'Hist. Avg', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }} />
                     )}
-                    <Bar
-                      dataKey="price"
-                      radius={[6, 6, 0, 0]}
-                      name="Price (LKR)"
-                      fill="#14b8a6"
-                    />
+                    <Bar dataKey="price" radius={[6, 6, 0, 0]} name="Price (LKR)">
+                      {chartData.map((entry, index) => (
+                        <Cell key={index} fill={entry.isCurrent ? '#f59e0b' : '#14b8a6'} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

@@ -1,0 +1,16 @@
+[
+  {
+    "refCode": "TND-2026-001",
+    "procurementRefCode": "PROC-2026-001",
+    "title": "Tender for Laboratory Microscopes",
+    "description": "Open tender for Faculty of Medicine lab equipment",
+    "status": "awarded"
+  },
+  {
+    "refCode": "TND-2026-002",
+    "procurementRefCode": "PROC-2026-002",
+    "title": "Tender for IT Infrastructure Upgrade",
+    "description": "Open tender for university campus wide network equipment",
+    "status": "awarded"
+  }
+]

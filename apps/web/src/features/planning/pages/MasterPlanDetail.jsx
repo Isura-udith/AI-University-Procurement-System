@@ -100,7 +100,7 @@ export default function MasterPlanDetail() {
 
   const myStage = ROLE_TO_STAGE[user?.role];
   const pendingStage = plan ? STATUS_PENDING[plan.status] : null;
-  const canAct = myStage && pendingStage === myStage;
+  const canAct = user?.role === 'super_admin' ? !!pendingStage : (myStage && pendingStage === myStage);
 
   const handleAction = async (action) => {
     setActionLoading(true);

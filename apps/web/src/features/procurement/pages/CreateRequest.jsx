@@ -18,18 +18,80 @@ const FACULTY_MAP = {
   'fom-mgt': 'Faculty of Management',
   supplies: 'Supplies Division',
   works: 'Works Division',
-  'vc-office': "Vice Chancellor's Office"
+  'vc-office': "Vice Chancellor's Office",
+  'admin-building': 'Administration Building',
+  'exam-division': 'Examination Division',
+  'student-affairs': 'Student Affairs Division',
+  library: 'Library',
+  'main-canteen': 'Main Canteen (Samajaya)',
+  'gallery-canteen': 'Gallery Canteen',
+  'g-canteen': 'G Canteen',
+  'sports-unit': 'Sports & Physical Education Unit',
+  hostels: 'Hostels',
+  'security-unit': 'Security Unit',
 };
 
+// Map from faculty dropdown code → DAPP item department/faculty field names
+// Some DAPP data uses shorter names (e.g. "Medicine" not "Faculty of Medicine")
+const FACULTY_TO_DAPP_NAMES = {
+  fom: ['Medicine'],
+  fots: ['Technological Studies'],
+  foas: ['Applied Sciences'],
+  foahs: ['Animal Science', 'Animal Science & Export Agriculture'],
+  'fom-mgt': ['Management'],
+  supplies: ['Supplies Division'],
+  works: ['Works Division'],
+  'vc-office': ['Vice Chancellor Office', "Vice Chancellor's Office"],
+  'admin-building': ['Admin Building', 'Administration Building'],
+  'exam-division': ['Exam Division', 'Examination Division'],
+  'student-affairs': ['Student Affairs', 'Student Affairs Division'],
+  library: ['Library'],
+  'main-canteen': ['Main Canteen', 'Main Canteen (Samajaya)'],
+  'gallery-canteen': ['Gallery Canteen'],
+  'g-canteen': ['G Canteen'],
+  'sports-unit': ['Sports Unit', 'Sports & Physical Education Unit'],
+  hostels: ['Hostels'],
+  'security-unit': ['Security Unit'],
+};
+
+// Common/university-wide departments (not academic faculties)
+const COMMON_DEPARTMENTS = new Set([
+  'Library', 'Main Canteen', 'Main Canteen (Samajaya)', 'Gallery Canteen', 'G Canteen',
+  'Security Unit', 'Sports Unit', 'Sports & Physical Education Unit',
+  'Hostels', 'Admin Building', 'Administration Building',
+  'Student Affairs', 'Student Affairs Division',
+  'Exam Division', 'Examination Division',
+  'Works Division', 'Supplies Division',
+  'Vice Chancellor Office', "Vice Chancellor's Office",
+]);
+
+// Roles that can see and add common department DAPP items
+const TOP_OFFICER_ROLES = new Set([
+  'dean', 'vc', 'bursar', 'admin', 'super_admin', 'procurement_officer',
+]);
+
 const FACULTIES = [
+  // Faculties
   { value: 'fom', label: 'Faculty of Medicine' },
   { value: 'fots', label: 'Faculty of Technological Studies' },
   { value: 'foas', label: 'Faculty of Applied Sciences' },
   { value: 'foahs', label: 'Faculty of Animal Science & Export Agriculture' },
   { value: 'fom-mgt', label: 'Faculty of Management' },
+  // Administrative & Central Divisions
+  { value: 'vc-office', label: "Vice Chancellor's Office" },
+  { value: 'admin-building', label: 'Administration Building' },
   { value: 'supplies', label: 'Supplies Division' },
   { value: 'works', label: 'Works Division' },
-  { value: 'vc-office', label: "Vice Chancellor's Office" },
+  { value: 'exam-division', label: 'Examination Division' },
+  { value: 'student-affairs', label: 'Student Affairs Division' },
+  // University Common Sections
+  { value: 'library', label: 'Library' },
+  { value: 'main-canteen', label: 'Main Canteen (Samajaya)' },
+  { value: 'gallery-canteen', label: 'Gallery Canteen' },
+  { value: 'g-canteen', label: 'G Canteen' },
+  { value: 'sports-unit', label: 'Sports & Physical Education Unit' },
+  { value: 'hostels', label: 'Hostels' },
+  { value: 'security-unit', label: 'Security Unit' },
 ];
 const FUNDING = [
   { value: 'gosl', label: 'GOSL Treasury Funds' },
@@ -151,7 +213,13 @@ export default function CreateRequest() {
     setSelectedPlanId(planId);
     setSelectedItemId(itemId);
     setBudgetCheck(null); // Reset compliance check when item changes
-    if (!planId || !itemId) return;
+    if (!planId || !itemId) {
+      setForm(f => ({
+        ...f,
+        dappItem: '',
+      }));
+      return;
+    }
     const plan = annualPlans.find(p => p._id === planId);
     if (!plan) return;
     const item = plan.items?.find(i => (i._id || i.id) === itemId);
@@ -324,6 +392,33 @@ export default function CreateRequest() {
     const val = e.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e;
     setForm(prev => ({ ...prev, [field]: val }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+    // Reset DAPP item selection when faculty changes (items depend on faculty)
+    if (field === 'faculty') {
+      setSelectedItemId('');
+      setBudgetCheck(null);
+      setForm(prev => ({ ...prev, dappItem: '' }));
+    }
+  };
+
+  const isTopOfficer = user && TOP_OFFICER_ROLES.has(user.role);
+
+  const getFilteredDappItems = (plan) => {
+    if (!plan?.items || !form.faculty) return [];
+    const dappNames = FACULTY_TO_DAPP_NAMES[form.faculty] || [];
+    return plan.items.filter(item => {
+      const itemDept = item.department || '';
+      const itemFaculty = item.faculty || '';
+      // Check if item belongs to the selected faculty/department
+      const matchesFaculty = dappNames.some(name =>
+        itemDept === name || itemFaculty === name
+      );
+      if (matchesFaculty) return true;
+      // For top officers, also show common/university-wide department items
+      if (isTopOfficer && (COMMON_DEPARTMENTS.has(itemDept) || COMMON_DEPARTMENTS.has(itemFaculty))) {
+        return true;
+      }
+      return false;
+    });
   };
 
   const committee = useMemo(() => {
@@ -729,6 +824,213 @@ export default function CreateRequest() {
             </div>
           </div>
         </FormSection>
+
+        {/* ── DAPP Linkage & Budget Compliance Panel (Phase 5 — Step 27) ──── */}
+        {!isEditMode && (
+          <div className="bg-linear-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                  <FaShieldAlt className="text-emerald-600" size={14} />
+                  Step 27: Link to Approved Annual Plan (DAPP) — Budget Compliance Required
+                </h2>
+                <p className="text-xs text-emerald-600 mt-0.5">Procurement requests must be linked to an approved DAPP item and remain within allocated budget.</p>
+              </div>
+              {myBudget && (
+                <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dept. Budget Remaining</p>
+                  <p className={`text-lg font-bold ${(myBudget.remainingAmount || myBudget.allocatedAmount - myBudget.consumedAmount) > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    LKR {((myBudget.remainingAmount || (myBudget.allocatedAmount - (myBudget.consumedAmount || 0))) || 0).toLocaleString()}
+                  </p>
+                  <div className="w-32 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${myBudget.allocatedAmount > 0 ? Math.min(100, 100 - ((myBudget.consumedAmount || 0) / myBudget.allocatedAmount * 100)) : 100}%` }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Plan + Item Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
+                <select
+                  value={selectedPlanId}
+                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); }}
+                  disabled={!form.faculty}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                >
+                  <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Annual Plan —'}</option>
+                  {annualPlans.map(p => (
+                    <option key={p._id} value={p._id}>{p.referenceNumber} · {p.planYear}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item <span className="text-slate-400 font-normal">(filtered by selected faculty)</span></label>
+                <select
+                  value={selectedItemId}
+                  onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
+                  disabled={!selectedPlanId || !form.faculty}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                >
+                  <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Item —'}</option>
+                  {(() => {
+                    const plan = annualPlans.find(p => p._id === selectedPlanId);
+                    const filtered = plan ? getFilteredDappItems(plan) : [];
+                    return filtered.map(item => (
+                      <option key={item._id || item.id} value={item._id || item.id}>
+                        [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                      </option>
+                    ));
+                  })()}
+                </select>
+                {form.faculty && selectedPlanId && !isTopOfficer && (
+                  <p className="text-[10px] text-slate-400 mt-1">Common university department items (Library, Security, etc.) are managed by authorized officers (Dean / VC / Bursar).</p>
+                )}
+                {form.faculty && selectedPlanId && isTopOfficer && (
+                  <p className="text-[10px] text-emerald-600 mt-1">As a senior officer, you can also see common university department items.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Auto-populated confirmation */}
+            {selectedItemId && !budgetCheck && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100 rounded-lg px-3 py-2">
+                <FaCheck size={10} /> Form fields auto-populated from DAPP item. Review amounts below, then run the compliance check.
+              </div>
+            )}
+
+            {/* No approved plans warning */}
+            {annualPlans.length === 0 && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                <FaExclamationTriangle size={10} /> No approved annual plans found. Budget must be distributed before raising requisitions (Steps 21–26).
+              </div>
+            )}
+
+            {/* ── Live Budget Compliance Check Panel ── */}
+            {selectedItemId && savedDocId && (
+              <div className="border border-slate-200 bg-white rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Budget Compliance Check</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setBudgetCheckLoading(true);
+                      try {
+                        const res = await procurementService.checkBudget(savedDocId);
+                        setBudgetCheck(res.data?.data || res.data);
+                      } catch {
+                        toast.error('Could not run compliance check. Please save draft first.');
+                      } finally {
+                        setBudgetCheckLoading(false);
+                      }
+                    }}
+                    disabled={budgetCheckLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
+                  >
+                    {budgetCheckLoading ? <FaSpinner className="animate-spin" size={10} /> : <FaShieldAlt size={10} />}
+                    {budgetCheckLoading ? 'Checking…' : 'Run Check'}
+                  </button>
+                </div>
+
+                {budgetCheck && (
+                  <div className="space-y-2">
+                    {/* Annual Plan Status row */}
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
+                      budgetCheck.annualPlanPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                      <span className="flex items-center gap-1.5">
+                        {budgetCheck.annualPlanPassed
+                          ? <FaCheckCircle className="text-emerald-500" size={11} />
+                          : <FaTimesCircle className="text-red-500" size={11} />}
+                        Annual Procurement Plan (DAPP)
+                      </span>
+                      <span className="font-semibold">
+                        {budgetCheck.annualPlanPassed
+                          ? `✓ ${budgetCheck.annualPlanRef || 'Approved'}`
+                          : budgetCheck.failureReason === 'no_annual_plan_linked' ? 'Not Linked'
+                          : budgetCheck.failureReason === 'plan_not_approved' ? `Not Approved (${budgetCheck.annualPlanStatus})`
+                          : budgetCheck.failureReason === 'item_not_found' ? 'Item Not Found'
+                          : 'Failed'}
+                      </span>
+                    </div>
+
+                    {/* Budget Sufficiency row */}
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
+                      budgetCheck.budgetPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : budgetCheck.requiresSpecialApproval ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                      <span className="flex items-center gap-1.5">
+                        {budgetCheck.budgetPassed
+                          ? <FaCheckCircle className="text-emerald-500" size={11} />
+                          : budgetCheck.requiresSpecialApproval
+                            ? <FaExclamationTriangle className="text-amber-500" size={11} />
+                            : <FaTimesCircle className="text-red-500" size={11} />}
+                        Department Budget
+                      </span>
+                      <span className="font-semibold">
+                        {budgetCheck.budgetPassed
+                          ? `✓ LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} remaining`
+                          : budgetCheck.failureReason === 'no_budget_allocated' ? 'No Allocation Found'
+                          : `LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} / Need LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()}`}
+                      </span>
+                    </div>
+
+                    {/* Special Approval Banner */}
+                    {budgetCheck.requiresSpecialApproval && (
+                      <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
+                        <FaExclamationTriangle className="text-amber-500 mt-0.5 shrink-0" size={12} />
+                        <div>
+                          <p className="text-xs font-bold text-amber-800">Special Approval Required</p>
+                          <p className="text-[11px] text-amber-700 mt-0.5">
+                            This request exceeds budget by {budgetCheck.overBudgetPercent}% (within the 10% grace threshold). It will be flagged for special HOD approval.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hard Fail Banner */}
+                    {!budgetCheck.passed && !budgetCheck.requiresSpecialApproval && (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2.5">
+                        <FaTimesCircle className="text-red-500 mt-0.5 shrink-0" size={12} />
+                        <div>
+                          <p className="text-xs font-bold text-red-800">Compliance Failed — Cannot Submit</p>
+                          <p className="text-[11px] text-red-700 mt-0.5">
+                            {budgetCheck.failureReason === 'no_annual_plan_linked' && 'This requisition must be linked to an approved DAPP item.'}
+                            {budgetCheck.failureReason === 'plan_not_approved' && `The annual plan is not fully approved (status: ${budgetCheck.annualPlanStatus}). Budget must be distributed before procurement.`}
+                            {budgetCheck.failureReason === 'item_not_found' && 'The selected DAPP item does not exist in the linked plan. Re-select a valid item.'}
+                            {budgetCheck.failureReason === 'insufficient_budget' && `Requested LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()} exceeds the 10% grace limit over remaining budget of LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()}.`}
+                            {budgetCheck.failureReason === 'no_budget_allocated' && 'No budget has been allocated to your department. Contact the Finance Division.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All Pass Banner */}
+                    {budgetCheck.passed && (
+                      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2">
+                        <FaCheckCircle className="text-emerald-500" size={12} />
+                        <p className="text-xs font-bold text-emerald-800">All compliance checks passed — ready to submit</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!budgetCheck && !budgetCheckLoading && (
+                  <p className="text-[11px] text-slate-400">Click "Run Check" to validate DAPP linkage and budget availability before submitting.</p>
+                )}
+              </div>
+            )}
+
+            {/* Prompt user to save draft first to enable check */}
+            {selectedItemId && !savedDocId && (
+              <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 border border-blue-200">
+                <FaInfoCircle size={10} /> Save as draft first to enable the budget compliance pre-check.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Section 2: Financial */}
         <FormSection title="Strategic Planning &amp; Budget Linkage" step="2" subtitle="DAPP/MPP linkage, funding source, and cost estimates (Section 4.1.3)">

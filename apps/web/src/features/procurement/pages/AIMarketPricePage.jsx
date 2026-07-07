@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import { FaRobot, FaSearch, FaChartBar, FaHistory, FaLightbulb, FaSpinner, FaCheckCircle, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
+import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  FaRobot, FaSearch, FaChartBar, FaHistory, FaLightbulb,
+  FaSpinner, FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaArrowLeft,
+} from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import aiService from '../../../services/ai.service';
 
 export default function AIMarketPricePage() {
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [result,  setResult]  = useState(null);
+  const [error,   setError]   = useState(null);
 
   const handleAnalyze = async () => {
     if (!rawText.trim()) return;
@@ -17,30 +21,39 @@ export default function AIMarketPricePage() {
       const response = await aiService.getMarketPrice({ rawText });
       setResult(response.data || response);
     } catch (err) {
-      setError(err.message || 'Analysis failed. Please try again.');
+      // Surface structured API error messages when available
+      const msg = err?.response?.data?.message || err?.response?.data?.error || err.message || 'Analysis failed. Please try again.';
+      setError(msg);
     }
     setLoading(false);
   };
 
-  const nlp = result?.nlpResult;
-  const price = result?.priceRecommendation;
-  const priceBands = price?.priceBands || [];
+  // Memoised derivations — avoid recalculating on every keystroke
+  const nlp        = useMemo(() => result?.nlpResult,                         [result]);
+  const price      = useMemo(() => result?.priceRecommendation,               [result]);
+  const priceBands = useMemo(() => result?.priceRecommendation?.priceBands || [], [result]);
 
-  const chartData = priceBands.map(b => ({
+  const chartData = useMemo(() => priceBands.map(b => ({
     name: (b.itemDescription || '').substring(0, 20),
-    Low: b.lowPrice,
-    Mid: b.midPrice,
+    Low:  b.lowPrice,
+    Mid:  b.midPrice,
     High: b.highPrice,
-  }));
+  })), [priceBands]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center">
-          <FaRobot className="mr-3 text-emerald-600" /> AI Market Price Intelligence
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">Feature 1 &amp; 4: Natural language requisition parsing with real-time market price recommendations</p>
+      <div className="flex items-center space-x-3">
+        <Link to="/ai" className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
+          <FaArrowLeft size={14} />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center">
+            <FaRobot className="mr-3 text-emerald-600" /> AI Market Price Intelligence
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Feature 1 &amp; 4: Natural language requisition parsing with real-time market price recommendations</p>
+        </div>
       </div>
 
       {/* Governance Banner */}
@@ -71,10 +84,7 @@ export default function AIMarketPricePage() {
           className="w-full h-32 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-          <div className="flex flex-wrap gap-2">
-          </div>
-
+        <div className="flex items-center justify-end mt-4">
           <button
             onClick={handleAnalyze}
             disabled={loading || !rawText.trim()}
@@ -186,8 +196,8 @@ export default function AIMarketPricePage() {
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                       <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                      <Bar dataKey="Low" fill="#10b981" radius={[4, 4, 0, 0]} name="Low Estimate" />
-                      <Bar dataKey="Mid" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Mid Estimate" />
+                      <Bar dataKey="Low"  fill="#10b981" radius={[4, 4, 0, 0]} name="Low Estimate" />
+                      <Bar dataKey="Mid"  fill="#3b82f6" radius={[4, 4, 0, 0]} name="Mid Estimate" />
                       <Bar dataKey="High" fill="#f59e0b" radius={[4, 4, 0, 0]} name="High Estimate" />
                     </BarChart>
                   </ResponsiveContainer>
