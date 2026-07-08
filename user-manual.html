@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UWU Smart Procurement System — User Manual</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ───────────── Design Tokens ───────────── */
+        :root {
+            --font: 'Inter', system-ui, -apple-system, sans-serif;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #059669;
+            --accent-light: #d1fae5;
+            --accent-dark: #047857;
+            --border: #e2e8f0;
+            --sidebar-bg: #0B1120;
+            --sidebar-text: #cbd5e1;
+            --sidebar-active: #10b981;
+            --code-bg: #1e293b;
+            --radius: 12px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,.12);
+            --transition: .2s ease;
+        }
+
+        /* ───────────── Reset ───────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { font-family: var(--font); color: var(--text); background: var(--bg); line-height: 1.7; display: flex; min-height: 100vh; }
+
+        /* ───────────── Sidebar ───────────── */
+        .sidebar {
+            width: 300px; min-width: 300px;
+            background: var(--sidebar-bg);
+            position: fixed; top: 0; left: 0; bottom: 0;
+            overflow-y: auto; z-index: 100;
+            display: flex; flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,.06);
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 4px; }
+
+        .sidebar-header {
+            padding: 28px 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+            position: sticky; top: 0;
+            background: var(--sidebar-bg);
+            z-index: 2;
+        }
+        .sidebar-header .logo-row { display: flex; align-items: center; gap: 12px; }
+        .sidebar-header .logo-icon {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, #059669, #0ea5e9);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; color: #fff; font-size: 16px;
+            box-shadow: 0 4px 12px rgba(5,150,105,.3);
+        }
+        .sidebar-header h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; letter-spacing: -.2px; margin: 0; }
+        .sidebar-header .subtitle { font-size: 10px; font-weight: 600; color: var(--sidebar-active); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 2px; }
+        .sidebar-header .version { font-size: 10px; color: var(--text-muted); margin-top: 8px; letter-spacing: .5px; }
+
+        .sidebar-nav { padding: 16px 12px; flex: 1; }
+        .nav-section { margin-bottom: 20px; }
+        .nav-section-title {
+            font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.4px;
+            color: rgba(148,163,184,.55);
+            padding: 0 12px; margin-bottom: 6px;
+        }
+        .nav-link {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 13px; font-weight: 500;
+            transition: all var(--transition);
+        }
+        .nav-link:hover { background: rgba(255,255,255,.06); color: #f1f5f9; }
+        .nav-link .num {
+            font-size: 10px; font-weight: 700;
+            background: rgba(255,255,255,.06);
+            padding: 2px 7px; border-radius: 4px;
+            color: var(--text-muted);
+            min-width: 24px; text-align: center;
+        }
+        .nav-link:hover .num { background: rgba(16,185,129,.15); color: var(--sidebar-active); }
+
+        /* ───────────── Main Content ───────────── */
+        .main { margin-left: 300px; flex: 1; }
+        .hero {
+            background: linear-gradient(135deg, #0B1120 0%, #1e3a5f 50%, #064e3b 100%);
+            padding: 80px 60px 60px;
+            color: #fff;
+            position: relative; overflow: hidden;
+        }
+        .hero::before {
+            content: ''; position: absolute; top: -50%; right: -20%;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(16,185,129,.12) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .hero .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(16,185,129,.15);
+            border: 1px solid rgba(16,185,129,.25);
+            padding: 6px 14px; border-radius: 20px;
+            font-size: 11px; font-weight: 600; color: #6ee7b7;
+            text-transform: uppercase; letter-spacing: .8px;
+            margin-bottom: 20px;
+        }
+        .hero h1 {
+            font-size: 44px; font-weight: 800; letter-spacing: -1px;
+            line-height: 1.15; margin-bottom: 16px;
+            background: linear-gradient(to right, #fff, #a7f3d0);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p { font-size: 17px; color: rgba(255,255,255,.7); max-width: 600px; line-height: 1.7; }
+        .hero .meta-row {
+            display: flex; gap: 32px; margin-top: 32px;
+            padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1);
+        }
+        .hero .meta-item { display: flex; flex-direction: column; }
+        .hero .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.4); font-weight: 600; }
+        .hero .meta-value { font-size: 14px; font-weight: 600; color: #a7f3d0; margin-top: 4px; }
+
+        .content { max-width: 860px; margin: 0 auto; padding: 48px 60px 80px; }
+
+        /* ───────────── Sections ───────────── */
+        .section { margin-bottom: 56px; scroll-margin-top: 24px; }
+        .section h2 {
+            font-size: 28px; font-weight: 800; color: var(--text);
+            margin-bottom: 8px; letter-spacing: -.5px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .section h2 .section-num {
+            font-size: 13px; font-weight: 700;
+            background: var(--accent-light); color: var(--accent);
+            padding: 4px 10px; border-radius: 6px;
+        }
+        .section > .section-desc {
+            font-size: 15px; color: var(--text-secondary); margin-bottom: 28px;
+        }
+
+        h3 {
+            font-size: 20px; font-weight: 700; color: var(--text);
+            margin: 32px 0 12px; letter-spacing: -.3px;
+        }
+        h4 {
+            font-size: 16px; font-weight: 600; color: var(--text);
+            margin: 24px 0 8px;
+        }
+        p { margin-bottom: 14px; color: var(--text-secondary); font-size: 14.5px; }
+
+        /* ───────────── Step Cards ───────────── */
+        .steps { display: flex; flex-direction: column; gap: 16px; margin: 20px 0 28px; }
+        .step-card {
+            display: flex; gap: 16px; align-items: flex-start;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            transition: all var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+        .step-card:hover { box-shadow: var(--shadow-md); border-color: #d1fae5; transform: translateY(-1px); }
+        .step-num {
+            width: 36px; height: 36px; min-width: 36px;
+            background: linear-gradient(135deg, #059669, #0ea5e9);
+            color: #fff; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px;
+            box-shadow: 0 4px 12px rgba(5,150,105,.25);
+        }
+        .step-card h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--text); }
+        .step-card p { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
+
+        /* ───────────── Info Boxes ───────────── */
+        .info-box {
+            border-radius: var(--radius); padding: 18px 22px;
+            margin: 16px 0 20px; font-size: 13.5px; line-height: 1.7;
+            display: flex; gap: 14px; align-items: flex-start;
+        }
+        .info-box .icon { font-size: 18px; min-width: 24px; text-align: center; margin-top: 1px; }
+        .info-box.tip { background: #ecfdf5; border-left: 4px solid #059669; color: #065f46; }
+        .info-box.warning { background: #fef3c7; border-left: 4px solid #d97706; color: #92400e; }
+        .info-box.important { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+        .info-box.caution { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+        /* ───────────── Tables ───────────── */
+        .table-wrapper { overflow-x: auto; margin: 16px 0 24px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+        table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        th { background: #f8fafc; font-weight: 700; color: var(--text); text-align: left; padding: 12px 16px; border-bottom: 2px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
+
+        /* ───────────── Code ───────────── */
+        code {
+            background: #f1f5f9; padding: 2px 7px; border-radius: 5px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12.5px; color: #7c3aed; font-weight: 500;
+        }
+        pre {
+            background: var(--code-bg); color: #e2e8f0;
+            padding: 20px 24px; border-radius: var(--radius);
+            overflow-x: auto; margin: 16px 0 20px;
+            font-size: 13px; line-height: 1.7;
+            border: 1px solid rgba(255,255,255,.06);
+        }
+        pre code { background: transparent; color: inherit; padding: 0; font-size: 13px; }
+        .cmd-comment { color: #64748b; }
+        .cmd-highlight { color: #34d399; }
+
+        /* ───────────── Role Badges ───────────── */
+        .role-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 6px;
+            font-size: 11px; font-weight: 600;
+            white-space: nowrap;
+        }
+        .role-badge.rose { background: #fef2f2; color: #be123c; border: 1px solid #fecdd3; }
+        .role-badge.purple { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+        .role-badge.blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .role-badge.emerald { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+        .role-badge.amber { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .role-badge.teal { background: #f0fdfa; color: #0d9488; border: 1px solid #99f6e4; }
+        .role-badge.indigo { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        .role-badge.slate { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+
+        /* ───────────── Feature Cards ───────────── */
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 28px; }
+        .feature-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px;
+            transition: all var(--transition); box-shadow: var(--shadow-sm);
+        }
+        .feature-card:hover { box-shadow: var(--shadow-md); border-color: #d1fae5; }
+        .feature-card .icon { font-size: 28px; margin-bottom: 10px; }
+        .feature-card h4 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+        .feature-card p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+        /* ───────────── Lifecycle Flow ───────────── */
+        .lifecycle-flow {
+            display: flex; flex-direction: column; gap: 0;
+            margin: 24px 0 28px;
+            position: relative;
+        }
+        .lifecycle-flow::before {
+            content: ''; position: absolute; left: 19px; top: 22px; bottom: 22px;
+            width: 2px; background: linear-gradient(to bottom, #059669, #0ea5e9, #8b5cf6);
+            border-radius: 2px;
+        }
+        .lifecycle-stage {
+            display: flex; gap: 16px; align-items: flex-start;
+            padding: 12px 0; position: relative;
+        }
+        .lifecycle-dot {
+            width: 40px; height: 40px; min-width: 40px;
+            border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-weight: 800; font-size: 12px; color: #fff;
+            z-index: 1; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        }
+        .lifecycle-stage:nth-child(-n+5) .lifecycle-dot { background: linear-gradient(135deg, #059669, #10b981); }
+        .lifecycle-stage:nth-child(n+6):nth-child(-n+9) .lifecycle-dot { background: linear-gradient(135deg, #3b82f6, #0ea5e9); }
+        .lifecycle-stage:nth-child(n+10):nth-child(-n+12) .lifecycle-dot { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+        .lifecycle-stage:nth-child(n+13) .lifecycle-dot { background: linear-gradient(135deg, #d97706, #f59e0b); }
+        .lifecycle-info h4 { margin: 0 0 2px; font-size: 14px; font-weight: 700; }
+        .lifecycle-info p { margin: 0; font-size: 12.5px; color: var(--text-secondary); }
+        .lifecycle-info .stage-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+
+        /* ───────────── Footer ───────────── */
+        .footer {
+            text-align: center; padding: 32px 60px;
+            border-top: 1px solid var(--border); color: var(--text-muted);
+            font-size: 13px; background: var(--surface);
+        }
+
+        /* ───────────── Accordion ───────────── */
+        details { margin: 12px 0; }
+        details summary {
+            cursor: pointer; font-weight: 600; font-size: 14.5px;
+            padding: 14px 18px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            list-style: none; display: flex; align-items: center; gap: 10px;
+            transition: all var(--transition);
+        }
+        details summary:hover { border-color: #d1fae5; background: #f8fafc; }
+        details summary::before { content: '▸'; font-size: 12px; transition: transform var(--transition); }
+        details[open] summary::before { transform: rotate(90deg); }
+        details summary::-webkit-details-marker { display: none; }
+        details .details-content { padding: 16px 20px; font-size: 14px; color: var(--text-secondary); }
+
+        /* ───────────── Print Styles ───────────── */
+        @media print {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .hero { padding: 40px 30px 30px; }
+            .content { padding: 20px 30px; }
+        }
+
+        /* ───────────── Responsive ───────────── */
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .hero { padding: 48px 32px 40px; }
+            .hero h1 { font-size: 32px; }
+            .content { padding: 32px 24px 60px; }
+            .feature-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ───────────── Lists ───────────── */
+        ul, ol { margin: 8px 0 16px 20px; }
+        li { margin-bottom: 6px; font-size: 14px; color: var(--text-secondary); }
+        li strong { color: var(--text); }
+
+        /* ───────────── Divider ───────────── */
+        hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+        .kbd {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-family: var(--font);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            box-shadow: 0 1px 2px rgba(0,0,0,.06);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SIDEBAR NAVIGATION                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-row">
+            <div class="logo-icon">SP</div>
+            <div>
+                <h2>User Manual</h2>
+                <div class="subtitle">Smart Procurement</div>
+            </div>
+        </div>
+        <div class="version">Version 1.0 &bull; July 2026</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">Getting Started</div>
+            <a href="#introduction" class="nav-link"><span class="num">1</span> Introduction</a>
+            <a href="#prerequisites" class="nav-link"><span class="num">2</span> Prerequisites</a>
+            <a href="#installation" class="nav-link"><span class="num">3</span> Installation &amp; Setup</a>
+            <a href="#first-login" class="nav-link"><span class="num">4</span> Your First Login</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">System Overview</div>
+            <a href="#roles" class="nav-link"><span class="num">5</span> User Roles (15)</a>
+            <a href="#navigation" class="nav-link"><span class="num">6</span> Navigation &amp; Layout</a>
+            <a href="#lifecycle" class="nav-link"><span class="num">7</span> 15-Stage Lifecycle</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Core Modules</div>
+            <a href="#procurement" class="nav-link"><span class="num">8</span> Procurement</a>
+            <a href="#approvals" class="nav-link"><span class="num">9</span> Approvals</a>
+            <a href="#tendering" class="nav-link"><span class="num">10</span> Tendering</a>
+            <a href="#contracts" class="nav-link"><span class="num">11</span> Contracts</a>
+            <a href="#delivery" class="nav-link"><span class="num">12</span> Delivery &amp; Payments</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Advanced Features</div>
+            <a href="#planning" class="nav-link"><span class="num">13</span> Strategic Planning</a>
+            <a href="#store" class="nav-link"><span class="num">14</span> Store &amp; Inventory</a>
+            <a href="#ai" class="nav-link"><span class="num">15</span> AI Intelligence</a>
+            <a href="#reports" class="nav-link"><span class="num">16</span> Reports &amp; Audit</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Operations</div>
+            <a href="#communications" class="nav-link"><span class="num">17</span> Communications</a>
+            <a href="#documents" class="nav-link"><span class="num">18</span> Documents</a>
+            <a href="#vendors-module" class="nav-link"><span class="num">19</span> Vendor Management</a>
+            <a href="#users-module" class="nav-link"><span class="num">20</span> User Management</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Reference</div>
+            <a href="#supplier-portal" class="nav-link"><span class="num">21</span> Supplier Portal</a>
+            <a href="#troubleshooting" class="nav-link"><span class="num">22</span> Troubleshooting</a>
+            <a href="#glossary" class="nav-link"><span class="num">23</span> Glossary</a>
+        </div>
+    </nav>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="main">
+
+    <!-- Hero Banner -->
+    <div class="hero">
+        <div class="badge">📘 Official User Manual</div>
+        <h1>UWU Smart Procurement System</h1>
+        <p>
+            Complete user guide for the AI-Driven Smart Procurement System of Uva Wellassa University.
+            GOSL compliant, multi-tenant SaaS platform covering the full 15-stage procurement lifecycle.
+        </p>
+        <div class="meta-row">
+            <div class="meta-item">
+                <span class="meta-label">Version</span>
+                <span class="meta-value">1.0.0</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Last Updated</span>
+                <span class="meta-value">July 2026</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">User Roles</span>
+                <span class="meta-value">15 Roles</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Compliance</span>
+                <span class="meta-value">GOSL NPA Guidelines</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 1. INTRODUCTION                                      -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="introduction">
+            <h2><span class="section-num">1</span> Introduction</h2>
+            <p class="section-desc">Welcome to the UWU Smart Procurement System — an enterprise-grade platform designed to digitise and automate the entire procurement lifecycle for Uva Wellassa University.</p>
+
+            <h3>What is this System?</h3>
+            <p>The UWU Smart Procurement System is a web-based Software-as-a-Service (SaaS) application that manages procurement from initial need identification through to final payment and audit. It is built with AI-driven intelligence, role-based access control (RBAC) for 15 distinct user roles, and full compliance with Government of Sri Lanka (GOSL) National Procurement Agency (NPA) guidelines.</p>
+
+            <h3>Key Capabilities</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon">📋</div>
+                    <h4>End-to-End Procurement</h4>
+                    <p>From requisition creation to final payment — all 15 stages digitised in one platform.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🤖</div>
+                    <h4>AI Intelligence</h4>
+                    <p>Market price analysis, bid verification, risk assessment, and smart recommendations powered by Gemini AI.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🔐</div>
+                    <h4>15 User Roles</h4>
+                    <p>Granular role-based access control from Super Admin to Guest Viewer — each with tailored dashboards.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h4>Reports &amp; Audit</h4>
+                    <p>Comprehensive audit trails, spend analysis, vendor performance tracking, and compliance reports.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📄</div>
+                    <h4>Document Management</h4>
+                    <p>Centralised repository for tender documents, contracts, invoices, and GRNs with cloud storage.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">💬</div>
+                    <h4>Communications Hub</h4>
+                    <p>Built-in messaging between officers and vendors with real-time notifications.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 2. PREREQUISITES                                     -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="prerequisites">
+            <h2><span class="section-num">2</span> Prerequisites</h2>
+            <p class="section-desc">System requirements and what you need before using or hosting the application.</p>
+
+            <h3>For End Users (Web Browser)</h3>
+            <ul>
+                <li><strong>Browser:</strong> Google Chrome (v100+), Mozilla Firefox (v100+), Microsoft Edge (v100+), or Safari (v16+)</li>
+                <li><strong>Screen Resolution:</strong> Minimum 1280×720 (responsive design supports mobile)</li>
+                <li><strong>Internet Connection:</strong> Stable broadband connection</li>
+                <li><strong>Credentials:</strong> Institutional email and password provided by your administrator</li>
+            </ul>
+
+            <h3>For Hosting / Developers</h3>
+            <ul>
+                <li><strong>Node.js:</strong> v18 or later</li>
+                <li><strong>npm:</strong> v9+ (comes with Node.js)</li>
+                <li><strong>MongoDB:</strong> v6+ (local or MongoDB Atlas cloud)</li>
+                <li><strong>Git:</strong> For version control</li>
+                <li><strong>API Keys:</strong> Gemini AI API key, Cloudinary credentials, SMTP credentials</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 3. INSTALLATION & SETUP                              -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="installation">
+            <h2><span class="section-num">3</span> Installation &amp; Setup</h2>
+            <p class="section-desc">Step-by-step guide to set up the system from scratch on your machine or server.</p>
+
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Clone the Repository</h4>
+                        <p>Download the project source code using Git:</p>
+                        <pre><code><span class="cmd-comment"># Clone the repository</span>
+<span class="cmd-highlight">git clone</span> https://github.com/your-org/smart-procurement-system.git
+<span class="cmd-highlight">cd</span> smart-procurement-system</code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Install Dependencies</h4>
+                        <p>Install all packages for both frontend and backend (monorepo):</p>
+                        <pre><code><span class="cmd-comment"># Install all dependencies at root (workspaces)</span>
+<span class="cmd-highlight">npm install</span></code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Configure Environment Variables</h4>
+                        <p>Copy the example environment file and fill in your credentials:</p>
+                        <pre><code><span class="cmd-comment"># Copy the example .env file</span>
+<span class="cmd-highlight">cp</span> .env.example .env</code></pre>
+                        <p>Open the <code>.env</code> file and configure the following variables:</p>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr><th>Variable</th><th>Description</th><th>Example</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>MONGODB_URI</code></td><td>MongoDB connection string</td><td><code>mongodb+srv://user:pass@cluster.mongodb.net/uwu_procurement</code></td></tr>
+                                    <tr><td><code>JWT_SECRET</code></td><td>Secret key for JWT tokens</td><td><code>your-super-secret-key-here</code></td></tr>
+                                    <tr><td><code>GEMINI_API_KEY</code></td><td>Google Gemini AI API key</td><td><code>AIza...</code></td></tr>
+                                    <tr><td><code>SMTP_HOST</code></td><td>Email SMTP server</td><td><code>smtp.gmail.com</code></td></tr>
+                                    <tr><td><code>SMTP_USER</code></td><td>Email address for sending</td><td><code>noreply@uwu.ac.lk</code></td></tr>
+                                    <tr><td><code>SMTP_PASS</code></td><td>Email password or App Password</td><td><code>xxxx-xxxx-xxxx-xxxx</code></td></tr>
+                                    <tr><td><code>CLOUDINARY_CLOUD_NAME</code></td><td>Cloudinary cloud name</td><td><code>your_cloud_name</code></td></tr>
+                                    <tr><td><code>CLIENT_URL</code></td><td>Frontend URL</td><td><code>http://localhost:5173</code></td></tr>
+                                    <tr><td><code>VITE_API_URL</code></td><td>Backend API base URL</td><td><code>http://localhost:5000/api/v1</code></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <div>
+                        <h4>Seed the Database (Optional)</h4>
+                        <p>Populate the database with demo users and sample data for testing:</p>
+                        <pre><code><span class="cmd-comment"># Seed 15 demo users and sample data</span>
+<span class="cmd-highlight">cd</span> apps/api
+<span class="cmd-highlight">node</span> seed.js</code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">5</div>
+                    <div>
+                        <h4>Start Development Servers</h4>
+                        <p>Launch both the frontend and backend servers:</p>
+                        <pre><code><span class="cmd-comment"># Option 1: Start both servers (from project root)</span>
+<span class="cmd-highlight">npm run dev</span>
+
+<span class="cmd-comment"># Option 2: Start individually</span>
+<span class="cmd-highlight">npm run dev:api</span>   <span class="cmd-comment"># Backend on port 5000</span>
+<span class="cmd-highlight">npm run dev:web</span>   <span class="cmd-comment"># Frontend on port 5173</span></code></pre>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">6</div>
+                    <div>
+                        <h4>Access the Application</h4>
+                        <p>Open your web browser and navigate to:</p>
+                        <pre><code><span class="cmd-comment"># Frontend (Web Application)</span>
+<span class="cmd-highlight">http://localhost:5173</span>
+
+<span class="cmd-comment"># Backend API (for verification)</span>
+<span class="cmd-highlight">http://localhost:5000/api/v1</span></code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <div class="icon">💡</div>
+                <div>
+                    <strong>Tip:</strong> When deploying to production, build the frontend with <code>npm run build</code> and serve the <code>apps/web/dist</code> folder with a web server like Nginx or deploy to Vercel/Netlify. The API can be deployed on services like Render, Railway, or AWS EC2.
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 4. YOUR FIRST LOGIN                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="first-login">
+            <h2><span class="section-num">4</span> Your First Login</h2>
+            <p class="section-desc">How to access the system for the first time and explore the dashboard.</p>
+
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Open the Landing Page</h4>
+                        <p>Navigate to the application URL (e.g., <code>http://localhost:5173</code>). You'll see the public landing page with key stats like Active Tenders, Registered Vendors, and Compliance Score. Click <strong>"Login"</strong> in the top-right corner, or the <strong>"Access Dashboard"</strong> button.</p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Enter Your Credentials</h4>
+                        <p>On the login page, enter your <strong>Institutional Email</strong> and <strong>Password</strong>. If you're using demo accounts after seeding, click <strong>"Demo Accounts (15 Roles)"</strong> to see all available test accounts.</p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Sign In</h4>
+                        <p>Click the <strong>"Sign In to Portal"</strong> button. You'll be redirected to your role-specific dashboard automatically.</p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <div>
+                        <h4>Explore Your Dashboard</h4>
+                        <p>Your dashboard displays widgets and data relevant to your role. Use the left sidebar to navigate between modules. The sidebar automatically shows only the sections you have access to based on your role.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box important">
+                <div class="icon">ℹ️</div>
+                <div>
+                    <strong>Demo Accounts:</strong> All demo accounts use the password <code>Demo@1234</code>. You can log in as any of the 15 roles to explore the system from different perspectives.
+                </div>
+            </div>
+
+            <h3>Demo Account Quick Reference</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Role</th><th>Email</th><th>Password</th><th>Primary Area</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="role-badge rose">Super Admin</span></td><td><code>superadmin@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>SaaS Management Console</td></tr>
+                        <tr><td><span class="role-badge rose">Procurement Admin</span></td><td><code>admin@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Master Data Management</td></tr>
+                        <tr><td><span class="role-badge purple">Vice-Chancellor</span></td><td><code>vc@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Executive Dashboard</td></tr>
+                        <tr><td><span class="role-badge purple">Faculty Dean</span></td><td><code>dean@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Faculty Approvals</td></tr>
+                        <tr><td><span class="role-badge blue">Chief Bursar</span></td><td><code>bursar@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Financial Reconciliation</td></tr>
+                        <tr><td><span class="role-badge blue">Finance Officer</span></td><td><code>finance@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Accounts Payable</td></tr>
+                        <tr><td><span class="role-badge emerald">Procurement Officer</span></td><td><code>procurement@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Tendering Lifecycle</td></tr>
+                        <tr><td><span class="role-badge emerald">Contract Manager</span></td><td><code>contracts@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Contract Lifecycle</td></tr>
+                        <tr><td><span class="role-badge emerald">TEC Member</span></td><td><code>tec@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Technical Evaluation</td></tr>
+                        <tr><td><span class="role-badge amber">Department Head</span></td><td><code>hod@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Requisition Queue</td></tr>
+                        <tr><td><span class="role-badge amber">Department User</span></td><td><code>staff@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Procurement Intake</td></tr>
+                        <tr><td><span class="role-badge teal">Store Manager</span></td><td><code>stores@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Inventory & Logistics</td></tr>
+                        <tr><td><span class="role-badge indigo">Supplier</span></td><td><code>supplier@vendor.lk</code></td><td><code>Demo@1234</code></td><td>Vendor Portal</td></tr>
+                        <tr><td><span class="role-badge slate">Auditor</span></td><td><code>auditor@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Audit & Compliance</td></tr>
+                        <tr><td><span class="role-badge slate">Guest Viewer</span></td><td><code>guest@uwu.ac.lk</code></td><td><code>Demo@1234</code></td><td>Public Transparency</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 5. USER ROLES                                        -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="roles">
+            <h2><span class="section-num">5</span> User Roles (15 Roles)</h2>
+            <p class="section-desc">The system enforces Role-Based Access Control (RBAC) with 15 distinct roles, each with tailored permissions and dashboards.</p>
+
+            <h3>🔴 System &amp; Administrative</h3>
+            <details>
+                <summary><span class="role-badge rose">Super Admin</span> — Unrestricted Platform Access</summary>
+                <div class="details-content">
+                    <p>Full unrestricted access to the entire platform. Manages SaaS settings, tenant onboarding, system configuration, and all modules. Can perform any action in the system.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge rose">Procurement Admin</span> — Master Data &amp; Workflow</summary>
+                <div class="details-content">
+                    <p>University supplies division administrator. Manages Master Data, Standard Procurement Document (SPD) templates, DAPP management, and workflow routing rules.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+
+            <h3>🟣 Executive Leadership</h3>
+            <details>
+                <summary><span class="role-badge purple">Vice-Chancellor (VC)</span> — Accounting Officer</summary>
+                <div class="details-content">
+                    <p>The Accounting Officer (AO) with full read-access across all modules. Accesses Executive Dashboards, digitally signs high-value contracts and Letters of Award (LOA). Provides final approval for major procurements.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge purple">Faculty Dean</span> — Faculty-Scoped Approvals</summary>
+                <div class="details-content">
+                    <p>Faculty-scoped approval authority. Approves requisitions from their faculty, monitors Faculty Budget Utilisation. Can only see data scoped to their assigned faculty.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+
+            <h3>🔵 Finance &amp; Budgetary Control</h3>
+            <details>
+                <summary><span class="role-badge blue">Chief Bursar</span> — Financial Integrity</summary>
+                <div class="details-content">
+                    <p>Ensures global financial integrity. Manages Financial Reconciliation, approves high-value budget commitments, and verifies the 3-way match (Purchase Order / Invoice / GRN).</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge blue">Finance Committee</span> — High-Value Oversight</summary>
+                <div class="details-content">
+                    <p>High-level financial oversight committee. Reviews and approves large acquisitions that exceed threshold limits.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge blue">Finance Officer</span> — Daily AP Operations</summary>
+                <div class="details-content">
+                    <p>Handles daily Accounts Payable operations. Verifies budget codes (Vote Particulars), tax details, processes invoices, and disburses payments.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+
+            <h3>🟢 Procurement &amp; Evaluation</h3>
+            <details>
+                <summary><span class="role-badge emerald">Procurement Officer (PMD)</span> — Tendering Lifecycle</summary>
+                <div class="details-content">
+                    <p>Manages the complete tendering lifecycle. Drafts Standard Procurement Notices (SPN), manages the Digital Bid Box, coordinates Bid Opening Committee (BOC) activities, and oversees evaluations.</p>
+                    <p><strong>Landing Page:</strong> Dashboard</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge emerald">Contract Manager</span> — CLM</summary>
+                <div class="details-content">
+                    <p>Contract Lifecycle Management (CLM). Manages milestones, SLA compliance, performance security expiration alerts, and contract amendments.</p>
+                    <p><strong>Landing Page:</strong> Contracts</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge emerald">TEC Member</span> — Technical Evaluation</summary>
+                <div class="details-content">
+                    <p>Technical Evaluation Committee member. Uses the Technical Evaluation Workspace for assigned tenders. Has no access to financial data until the proper evaluation stage.</p>
+                    <p><strong>Landing Page:</strong> Evaluation</p>
+                </div>
+            </details>
+
+            <h3>🟠 Departmental &amp; User</h3>
+            <details>
+                <summary><span class="role-badge amber">Department Head</span> — First-Level Approval</summary>
+                <div class="details-content">
+                    <p>First level of institutional approval. Manages the Departmental Requisition Queue, verifies necessity and technical validity of requests from department users.</p>
+                    <p><strong>Landing Page:</strong> Approvals</p>
+                </div>
+            </details>
+            <details>
+                <summary><span class="role-badge amber">Department User</span> — Requisition Creator</summary>
+                <div class="details-content">
+                    <p>Staff and lab coordinators. Uses the Procurement Intake Portal to draft requisitions, get AI specification suggestions from Gemini AI, and upload Bills of Quantities (BOQs).</p>
+                    <p><strong>Landing Page:</strong> Procurements</p>
+                </div>
+            </details>
+
+            <h3>🩵 Operations &amp; Logistics</h3>
+            <details>
+                <summary><span class="role-badge teal">Store Manager</span> — Inventory &amp; GRN</summary>
+                <div class="details-content">
+                    <p>Manages Inventory &amp; Logistics. Records physical receipt of goods, generates Goods Received Notes (GRN), updates asset inventory, and issues items to departments.</p>
+                    <p><strong>Landing Page:</strong> Delivery</p>
+                </div>
+            </details>
+
+            <h3>🟤 External</h3>
+            <details>
+                <summary><span class="role-badge indigo">Supplier</span> — Vendor Portal</summary>
+                <div class="details-content">
+                    <p>External Vendor Portal. Manages registration and KYC/CIDA certifications, submits bids to the Digital Bid Box, tracks payment status, and communicates with procurement officers.</p>
+                    <p><strong>Landing Page:</strong> Dashboard (Supplier-specific)</p>
+                </div>
+            </details>
+
+            <h3>⚫ Oversight</h3>
+            <details>
+                <summary><span class="role-badge slate">System Auditor</span> — Read-Only Compliance</summary>
+                <div class="details-content">
+                    <p>Full read-only access to every module, decision log, and audit trail. Exports compliance reports and investigates AI-flagged anomalies. Cannot modify any data.</p>
+                    <p><strong>Landing Page:</strong> Reports</p>
+                </div>
+            </details>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 6. NAVIGATION & LAYOUT                               -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="navigation">
+            <h2><span class="section-num">6</span> Navigation &amp; Layout</h2>
+            <p class="section-desc">Understanding the dashboard layout and how to navigate between modules.</p>
+
+            <h3>Dashboard Layout</h3>
+            <p>The application uses a fixed sidebar navigation layout with the following structure:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon">📌</div>
+                    <h4>Left Sidebar (Fixed)</h4>
+                    <p>Dark-themed navigation with sections grouped by function: Procurement Lifecycle, Tendering, Awards, Strategic Planning, AI, and Administration. Only visible sections matching your role appear.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🔝</div>
+                    <h4>Top Header Bar</h4>
+                    <p>Shows current page title, filter controls (on dashboard), notification bell with unread count, and quick-action buttons like "New Requisition".</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📄</div>
+                    <h4>Main Content Area</h4>
+                    <p>The primary workspace where forms, tables, charts, and detailed views are displayed for the current module.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">👤</div>
+                    <h4>User Profile Footer</h4>
+                    <p>At the bottom of the sidebar — shows your name, role badge, and a sign-out button. Your initials are colour-coded by role category.</p>
+                </div>
+            </div>
+
+            <h3>Sidebar Navigation Sections</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Section</th><th>Menu Items</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>Dashboard</strong></td><td>Dashboard (main overview with KPIs)</td></tr>
+                        <tr><td><strong>Procurement Lifecycle</strong></td><td>Requisitions, Approvals, Budget Lock</td></tr>
+                        <tr><td><strong>Tendering</strong></td><td>Bid Preparation, Digital Bid Box, Bid Opening, Evaluation</td></tr>
+                        <tr><td><strong>Awards &amp; Contracts</strong></td><td>Award &amp; Standstill, Contracts</td></tr>
+                        <tr><td><strong>Strategic Planning</strong></td><td>45-Step Lifecycle, Planning Hub, Master Plans, Annual Plans, Budget Distribution</td></tr>
+                        <tr><td><strong>Delivery &amp; Finance</strong></td><td>3-Way Match, Payments</td></tr>
+                        <tr><td><strong>Store &amp; Inventory</strong></td><td>Store Hub, Create GRN, Issue Items</td></tr>
+                        <tr><td><strong>Hubs &amp; Operations</strong></td><td>Communications, Documents</td></tr>
+                        <tr><td><strong>AI Intelligence</strong></td><td>AI Hub (central hub for all AI tools)</td></tr>
+                        <tr><td><strong>Administration</strong></td><td>Supplier Dashboard, User Management, Vendors, Reports &amp; Audit, Archive</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="info-box tip">
+                <div class="icon">💡</div>
+                <div>
+                    <strong>Role-Based Visibility:</strong> You will only see sidebar items that your role has permission to access. For example, a Department User will see Requisitions and AI Hub, but not Budget Lock or User Management.
+                </div>
+            </div>
+
+            <h3>Notifications</h3>
+            <p>The <strong>notification bell</strong> 🔔 in the top-right header shows your unread notification count. Click it to view:</p>
+            <ul>
+                <li>Approval requests pending your action</li>
+                <li>Status updates on your procurement requests</li>
+                <li>Tender deadline reminders</li>
+                <li>New messages from vendors or officers</li>
+                <li>System alerts and SLA warnings</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 7. 15-STAGE LIFECYCLE                                -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="lifecycle">
+            <h2><span class="section-num">7</span> The 15-Stage Procurement Lifecycle</h2>
+            <p class="section-desc">The complete GOSL-compliant procurement process from need identification to audit.</p>
+
+            <div class="lifecycle-flow">
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">1</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Requisition Phase</div>
+                        <h4>Need Identification &amp; Requisition</h4>
+                        <p>Department User creates a procurement requisition specifying items, quantities, estimated costs, and justification.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">2</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Requisition Phase</div>
+                        <h4>Specification &amp; BOQ Preparation</h4>
+                        <p>Detailed technical specifications and Bill of Quantities (BOQ) are prepared, with AI suggestions for specifications.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">3</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Approval Phase</div>
+                        <h4>Multi-Level Approval Chain</h4>
+                        <p>Request goes through Dept. Head → Dean → Procurement Officer → Bursar/VC based on value thresholds.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">4</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Finance Phase</div>
+                        <h4>Financial Validation &amp; Budget Lock</h4>
+                        <p>Finance Officer verifies Vote Particulars, budget availability, and locks the committed budget amount.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">5</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Tender Phase</div>
+                        <h4>Procurement Strategy</h4>
+                        <p>Determine procurement method (NCB, ICB, Shopping, Direct) based on estimated value and NPA guidelines.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">6</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Tender Phase</div>
+                        <h4>Document Preparation &amp; Solicitation</h4>
+                        <p>Standard Procurement Documents (SPD) prepared and tender notice published to registered vendors.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">7</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Bidding Phase</div>
+                        <h4>Secure Digital Bidding</h4>
+                        <p>Vendors submit sealed bids through the encrypted Digital Bid Box before the deadline.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">8</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Bidding Phase</div>
+                        <h4>Public Bid Opening</h4>
+                        <p>Bids are opened publicly by the Bid Opening Committee (BOC) with full audit logging.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">9</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Evaluation Phase</div>
+                        <h4>Technical &amp; Financial Evaluation</h4>
+                        <p>TEC Members evaluate technical proposals; financial evaluation follows for technically qualified bidders.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">10</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Award Phase</div>
+                        <h4>Award Decision</h4>
+                        <p>Best-evaluated bid is selected and award recommendation prepared for approval authority.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">11</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Award Phase</div>
+                        <h4>Standstill Period &amp; Appeals</h4>
+                        <p>Mandatory standstill period for unsuccessful bidders to request debriefing or submit appeals.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">12</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Contract Phase</div>
+                        <h4>Contract Finalization</h4>
+                        <p>Formal contract signed between university and awarded vendor with milestones and SLA terms.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">13</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Delivery Phase</div>
+                        <h4>Delivery &amp; 3-Way Match</h4>
+                        <p>Goods received, GRN generated, and 3-way match performed (Purchase Order ↔ Invoice ↔ GRN).</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">14</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Payment Phase</div>
+                        <h4>Payment Processing</h4>
+                        <p>Invoice verified, payment approved and disbursed to vendor through Accounts Payable.</p>
+                    </div>
+                </div>
+                <div class="lifecycle-stage">
+                    <div class="lifecycle-dot">15</div>
+                    <div class="lifecycle-info">
+                        <div class="stage-label">Audit Phase</div>
+                        <h4>Reporting &amp; Audit</h4>
+                        <p>Complete audit trail, spend analysis, vendor performance reports, and compliance verification.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 8. PROCUREMENT MODULE                                -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="procurement">
+            <h2><span class="section-num">8</span> Procurement (Requisitions)</h2>
+            <p class="section-desc">Creating, managing, and tracking procurement requisitions.</p>
+
+            <h3>Creating a New Requisition</h3>
+            <p>Roles that can create requisitions: <span class="role-badge amber">Department User</span> <span class="role-badge amber">Department Head</span> <span class="role-badge emerald">Procurement Officer</span> <span class="role-badge rose">Admin</span></p>
+
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Navigate to Requisitions</h4>
+                        <p>Click <strong>"Requisitions"</strong> in the sidebar under Procurement Lifecycle, or click the green <strong>"+ New Requisition"</strong> button in the sidebar or top header.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Fill in Request Details</h4>
+                        <p>Complete the form with:</p>
+                        <ul>
+                            <li><strong>Title:</strong> Descriptive name for the procurement</li>
+                            <li><strong>Category:</strong> Goods, Works, or Services</li>
+                            <li><strong>Description:</strong> Detailed justification and specifications</li>
+                            <li><strong>Estimated Value:</strong> Total estimated cost in LKR</li>
+                            <li><strong>Priority:</strong> Low, Medium, High, or Urgent</li>
+                            <li><strong>Items:</strong> Add individual line items with quantities and unit prices</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>AI Market Price Analysis</h4>
+                        <p>Use the <strong>AI Market Price</strong> feature to get real-time market pricing suggestions for your items. The system compares your estimated prices with current market rates.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <div>
+                        <h4>Submit for Approval</h4>
+                        <p>Click <strong>"Submit"</strong> to send the requisition through the approval chain. Track its status in the Requisitions list.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Viewing Requisition Details</h3>
+            <p>Click on any requisition in the list to view its full details including:</p>
+            <ul>
+                <li>Current approval status and chain progress</li>
+                <li>Item breakdown with quantities and prices</li>
+                <li>Attached documents and BOQs</li>
+                <li>AI risk assessment results</li>
+                <li>Approval history and comments</li>
+            </ul>
+
+            <h3>Editing a Requisition</h3>
+            <p>Requisitions can be edited while in <strong>Draft</strong> or <strong>Returned</strong> status. Navigate to the requisition and click <strong>"Edit"</strong>. Once submitted for approval, editing is locked.</p>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 9. APPROVALS MODULE                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="approvals">
+            <h2><span class="section-num">9</span> Approvals</h2>
+            <p class="section-desc">Multi-level approval workflow for procurement requisitions.</p>
+
+            <p>Roles with approval authority: <span class="role-badge amber">Department Head</span> <span class="role-badge purple">Dean</span> <span class="role-badge emerald">Procurement Officer</span> <span class="role-badge blue">Bursar</span> <span class="role-badge blue">Finance Committee</span> <span class="role-badge purple">Vice-Chancellor</span></p>
+
+            <h3>Approval Queue</h3>
+            <p>Navigate to <strong>"Approvals"</strong> in the sidebar. You'll see a queue of requisitions pending your approval action. Each item shows:</p>
+            <ul>
+                <li>Requisition title and reference number</li>
+                <li>Requester name and department</li>
+                <li>Estimated value and category</li>
+                <li>Priority level and submission date</li>
+                <li>Current stage in the approval chain</li>
+            </ul>
+
+            <h3>Approving or Rejecting</h3>
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Review the Request</h4>
+                        <p>Click on a pending request to view full details, attached documents, and AI analysis.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Take Action</h4>
+                        <p>Click <strong>"Approve"</strong> to advance the request to the next approver, or <strong>"Reject"</strong> to return it to the requester with comments. You can also <strong>"Return for Revision"</strong> with specific feedback.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Budget Lock</h3>
+            <p>After all approvals are granted, the <span class="role-badge blue">Finance Officer</span> or <span class="role-badge blue">Bursar</span> verifies budget availability and locks the committed amount under the <strong>"Budget Lock"</strong> section. This ensures funds are reserved for the procurement.</p>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 10. TENDERING MODULE                                 -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="tendering">
+            <h2><span class="section-num">10</span> Tendering</h2>
+            <p class="section-desc">Managing the complete tender lifecycle from preparation to evaluation.</p>
+
+            <h3>Bid Preparation (Creating Tenders)</h3>
+            <p>Roles: <span class="role-badge emerald">Procurement Officer</span> <span class="role-badge rose">Admin</span></p>
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Navigate to Bid Preparation</h4>
+                        <p>Go to <strong>"Bid Preparation"</strong> under Tendering in the sidebar. Click <strong>"Create Tender"</strong>.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Configure Tender Details</h4>
+                        <p>Link to an approved procurement request, set the tender method (NCB/ICB/Shopping), bid submission deadline, bid opening date, and evaluation criteria.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Publish the Tender</h4>
+                        <p>Once all documents are ready, publish the tender to make it visible to registered vendors in the Digital Bid Box.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Digital Bid Box</h3>
+            <p>The <strong>Digital Bid Box</strong> is a secure, encrypted submission system. Vendors submit sealed bids before the deadline. No one can view bids until the official opening.</p>
+            <ul>
+                <li><span class="role-badge indigo">Supplier</span> — Submit bids with technical and financial proposals</li>
+                <li><span class="role-badge emerald">Procurement Officer</span> — Manage bid box, monitor submission counts</li>
+            </ul>
+
+            <h3>Bid Opening</h3>
+            <p>The <span class="role-badge emerald">Procurement Officer</span> initiates the formal bid opening process. All bids are unsealed simultaneously with full audit logging.</p>
+
+            <h3>Technical &amp; Financial Evaluation</h3>
+            <p><span class="role-badge emerald">TEC Members</span> access the Evaluation Workspace to:</p>
+            <ul>
+                <li>Score technical proposals against predefined criteria</li>
+                <li>Review AI-powered bid verification results</li>
+                <li>Access AI Comparative Analysis for side-by-side bid comparison</li>
+                <li>View AI Smart Recommendations for vendor selection</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 11. CONTRACTS MODULE                                 -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="contracts">
+            <h2><span class="section-num">11</span> Contracts</h2>
+            <p class="section-desc">Award management, contract creation, and lifecycle tracking.</p>
+
+            <h3>Award &amp; Standstill</h3>
+            <p>After evaluation, the <strong>Awards</strong> page shows the recommended winner. The system enforces a mandatory <strong>standstill period</strong> (configurable, default 10 days) during which unsuccessful bidders can:</p>
+            <ul>
+                <li>Request a debriefing (within 3 days)</li>
+                <li>Submit a formal appeal</li>
+            </ul>
+
+            <h3>Creating a Contract</h3>
+            <p>Navigate to <strong>"Contracts"</strong> → <strong>"New Contract"</strong>. Link to the awarded tender and configure:</p>
+            <ul>
+                <li>Contract value and payment terms</li>
+                <li>Milestones and deliverables</li>
+                <li>SLA requirements and penalties</li>
+                <li>Performance security details</li>
+                <li>Contract duration and renewal terms</li>
+            </ul>
+
+            <h3>Contract Details &amp; Tracking</h3>
+            <p>Each contract has a detailed view showing current status, milestone progress, delivery status, and linked payments. The <span class="role-badge emerald">Contract Manager</span> receives alerts for:</p>
+            <ul>
+                <li>Approaching milestone deadlines</li>
+                <li>Performance security expiration</li>
+                <li>SLA compliance breaches</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 12. DELIVERY & PAYMENTS                              -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="delivery">
+            <h2><span class="section-num">12</span> Delivery &amp; Payments</h2>
+            <p class="section-desc">Goods receipt, 3-way matching, and payment processing.</p>
+
+            <h3>3-Way Match (Delivery)</h3>
+            <p>The <strong>3-Way Match</strong> page ensures financial integrity by cross-referencing three documents:</p>
+            <ol>
+                <li><strong>Purchase Order (PO):</strong> What was ordered</li>
+                <li><strong>Vendor Invoice:</strong> What the vendor billed</li>
+                <li><strong>Goods Received Note (GRN):</strong> What was actually received</li>
+            </ol>
+            <p>Discrepancies are automatically flagged for review by the <span class="role-badge blue">Finance Officer</span> or <span class="role-badge blue">Bursar</span>.</p>
+
+            <h3>Payment Processing</h3>
+            <p>Navigate to <strong>"Payments"</strong> to view all pending and processed payments:</p>
+            <ul>
+                <li>View payment details linked to contracts and invoices</li>
+                <li>Process payment approvals (Finance Officer/Bursar)</li>
+                <li>Track payment history and disbursement status</li>
+                <li>Suppliers can track their payment status through the Vendor Portal</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 13. STRATEGIC PLANNING                               -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="planning">
+            <h2><span class="section-num">13</span> Strategic Planning</h2>
+            <p class="section-desc">Long-term procurement planning with Master Plans and Annual Plans.</p>
+
+            <h3>Planning Hub</h3>
+            <p>The <strong>Strategic Planning Hub</strong> provides an overview of all planning activities. Access it from <strong>"Planning Hub"</strong> in the sidebar.</p>
+
+            <h3>Master Plans (3-Year)</h3>
+            <p>Create and manage 3-year procurement master plans that align with university strategic objectives:</p>
+            <ul>
+                <li>Define procurement categories and expected volumes</li>
+                <li>Set budget allocation targets per year</li>
+                <li>Map procurement items to strategic goals</li>
+            </ul>
+
+            <h3>Annual Plans</h3>
+            <p>Break down master plans into annual procurement plans:</p>
+            <ul>
+                <li>Define specific items to be procured in the year</li>
+                <li>Set quarterly procurement schedules</li>
+                <li>Align with approved budgets</li>
+            </ul>
+
+            <h3>Budget Distribution</h3>
+            <p>View and manage budget allocation across faculties and departments. The <span class="role-badge blue">Bursar</span> and <span class="role-badge blue">Finance Committee</span> can review and approve budget distributions.</p>
+
+            <h3>45-Step Lifecycle Workflow</h3>
+            <p>The <strong>"45-Step Lifecycle"</strong> page provides a visual overview of all workflow steps in the procurement process, showing the current status and progress of each step.</p>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 14. STORE & INVENTORY                                -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="store">
+            <h2><span class="section-num">14</span> Store &amp; Inventory</h2>
+            <p class="section-desc">Inventory management, GRN creation, and item issuance.</p>
+
+            <h3>Store Hub</h3>
+            <p>The central inventory management dashboard. View current stock levels, pending deliveries, and recent GRNs.</p>
+
+            <h3>Creating a GRN (Goods Received Note)</h3>
+            <p>Role: <span class="role-badge teal">Store Manager</span></p>
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Navigate to Create GRN</h4>
+                        <p>Go to <strong>"Store &amp; Inventory"</strong> → <strong>"Create GRN"</strong> in the sidebar.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Link to Purchase Order</h4>
+                        <p>Select the relevant Purchase Order and verify items received against the delivery note.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Record Quantities</h4>
+                        <p>Enter actual quantities received. Flag any damaged or missing items.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <div>
+                        <h4>Submit GRN</h4>
+                        <p>Submit the GRN to update inventory records and trigger the 3-way match process.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Issuing Items</h3>
+            <p>Navigate to <strong>"Issue Items"</strong> to distribute received goods to requesting departments. Record the recipient, quantity issued, and purpose.</p>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 15. AI INTELLIGENCE                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="ai">
+            <h2><span class="section-num">15</span> AI Intelligence Hub</h2>
+            <p class="section-desc">AI-powered tools for intelligent procurement decision-making.</p>
+
+            <p>Access the <strong>AI Hub</strong> from the sidebar. It serves as the central gateway to all AI features.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon">💰</div>
+                    <h4>AI Market Price Analysis</h4>
+                    <p>Get real-time market pricing intelligence for procurement items. Compare estimated costs with current market rates and historical data.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">✅</div>
+                    <h4>AI Bid Verification</h4>
+                    <p>Automatically verify bid submissions for completeness, compliance with tender requirements, and potential anomalies.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h4>AI Comparative Analysis</h4>
+                    <p>Side-by-side comparison of bids with weighted scoring across technical, financial, and experience criteria.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🎯</div>
+                    <h4>AI Smart Recommendations</h4>
+                    <p>Intelligent vendor recommendations based on past performance, pricing, delivery history, and risk profile.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📈</div>
+                    <h4>AI Market Monitoring</h4>
+                    <p>Continuous monitoring of market trends, price fluctuations, and supply chain risks with predictive alerts.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">⚠️</div>
+                    <h4>AI Risk Assessment</h4>
+                    <p>Risk scoring for procurement requests considering vendor reliability, market volatility, and budget impact.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🔍</div>
+                    <h4>AI Historical Match</h4>
+                    <p>Find similar past procurements to leverage historical data for better pricing and vendor selection decisions.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🧠</div>
+                    <h4>AI Explainability</h4>
+                    <p>Transparent audit trail of all AI decisions. Every AI recommendation comes with a detailed explanation of the reasoning.</p>
+                </div>
+            </div>
+
+            <div class="info-box important">
+                <div class="icon">ℹ️</div>
+                <div>
+                    <strong>AI Transparency:</strong> All AI-generated insights and recommendations include an explainability log that auditors can review. The system never makes autonomous decisions — it provides recommendations for human decision-makers.
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 16. REPORTS & AUDIT                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="reports">
+            <h2><span class="section-num">16</span> Reports &amp; Audit</h2>
+            <p class="section-desc">Comprehensive reporting, analytics, and compliance auditing.</p>
+
+            <h3>Reports Dashboard</h3>
+            <p>Navigate to <strong>"Reports &amp; Audit"</strong> in the sidebar to access the central reporting hub:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon">💸</div>
+                    <h4>Spend Analysis</h4>
+                    <p>Detailed breakdown of procurement spending by category, department, vendor, and time period.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">⭐</div>
+                    <h4>Vendor Performance</h4>
+                    <p>Performance metrics for registered vendors including delivery timeliness, quality scores, and compliance rates.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">👤</div>
+                    <h4>User Audit Trail</h4>
+                    <p>Complete log of all user actions — logins, approvals, rejections, edits, and system interactions.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📦</div>
+                    <h4>Archive</h4>
+                    <p>Browse completed and archived procurement records with full lifecycle history.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 17. COMMUNICATIONS                                   -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="communications">
+            <h2><span class="section-num">17</span> Communications Hub</h2>
+            <p class="section-desc">Built-in messaging and collaboration tools.</p>
+
+            <p>The Communications Hub provides internal messaging between all system users. Access it from <strong>"Communications"</strong> in the sidebar.</p>
+
+            <h3>Features</h3>
+            <ul>
+                <li><strong>Direct Messaging:</strong> Send messages to specific users or roles</li>
+                <li><strong>Thread-Based:</strong> Organize conversations around specific procurement items</li>
+                <li><strong>Unread Counter:</strong> Badge showing unread message count in sidebar</li>
+                <li><strong>Vendor Communication:</strong> Communicate with registered vendors about tenders and contracts</li>
+                <li><strong>Notification Integration:</strong> Messages trigger real-time notifications</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 18. DOCUMENTS                                        -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="documents">
+            <h2><span class="section-num">18</span> Document Repository</h2>
+            <p class="section-desc">Centralised document management and file storage.</p>
+
+            <p>The Document Repository serves as the central file management system for all procurement-related documents. Navigate to <strong>"Documents"</strong> in the sidebar.</p>
+
+            <h3>Document Types Managed</h3>
+            <ul>
+                <li>Procurement requisition attachments</li>
+                <li>Standard Procurement Documents (SPDs)</li>
+                <li>Vendor registration certificates (KYC, CIDA)</li>
+                <li>Bid submissions and technical proposals</li>
+                <li>Contracts and Letters of Award</li>
+                <li>Invoices and payment vouchers</li>
+                <li>Goods Received Notes (GRNs)</li>
+                <li>Audit reports and compliance documents</li>
+            </ul>
+
+            <div class="info-box tip">
+                <div class="icon">💡</div>
+                <div>
+                    <strong>Cloud Storage:</strong> All documents are securely stored in Cloudinary with automatic backup. Files are organised by procurement lifecycle stage and linked to their respective records.
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 19. VENDOR MANAGEMENT                                -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="vendors-module">
+            <h2><span class="section-num">19</span> Vendor Management</h2>
+            <p class="section-desc">Vendor registration, profiles, and performance tracking.</p>
+
+            <h3>Vendor Registration</h3>
+            <p>New vendors can register through the public <strong>"Vendor Registration"</strong> page accessible from the landing page or login screen. The registration form collects:</p>
+            <ul>
+                <li>Company details (name, registration number, address)</li>
+                <li>Business category and specialisation</li>
+                <li>Financial information (annual turnover, banking details)</li>
+                <li>KYC documentation and certifications</li>
+                <li>CIDA registration (for construction works)</li>
+                <li>Contact information and authorised representatives</li>
+            </ul>
+
+            <h3>Vendor List</h3>
+            <p>Internal users can view the registered vendor directory at <strong>"Vendors"</strong> in the sidebar. Search and filter vendors by category, status, or performance rating.</p>
+
+            <h3>Vendor Details</h3>
+            <p>Click on any vendor to view their complete profile including registration history, bid history, contract performance, and compliance status.</p>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 20. USER MANAGEMENT                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="users-module">
+            <h2><span class="section-num">20</span> User Management</h2>
+            <p class="section-desc">Administering system users and role assignments.</p>
+
+            <p>Roles: <span class="role-badge rose">Super Admin</span> <span class="role-badge rose">Admin</span> <span class="role-badge purple">Vice-Chancellor</span> <span class="role-badge slate">Auditor</span> (read-only)</p>
+
+            <p>Navigate to <strong>"User Management"</strong> under Administration in the sidebar. This module allows administrators to:</p>
+            <ul>
+                <li><strong>View All Users:</strong> Searchable table of all registered system users</li>
+                <li><strong>Create Users:</strong> Add new users with specific roles and faculty assignments</li>
+                <li><strong>Edit Users:</strong> Modify user details, change roles, or update faculty associations</li>
+                <li><strong>Deactivate Users:</strong> Disable user accounts without deleting data</li>
+                <li><strong>Role Assignment:</strong> Assign any of the 15 available roles to users</li>
+                <li><strong>Faculty Scoping:</strong> Assign users (especially Deans) to specific faculties for scoped access</li>
+            </ul>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 21. SUPPLIER PORTAL                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="supplier-portal">
+            <h2><span class="section-num">21</span> Supplier Portal Guide</h2>
+            <p class="section-desc">Guide for vendors/suppliers using the system.</p>
+
+            <h3>Registering as a Supplier</h3>
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>Access Registration Page</h4>
+                        <p>Go to the landing page and click <strong>"Vendor Registration"</strong>, or navigate to <code>/vendor-register</code> directly.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>Complete Registration Form</h4>
+                        <p>Fill in company details, business category, financial information, and upload required certificates.</p>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>Await Approval</h4>
+                        <p>Your registration will be reviewed by the Procurement Admin. You'll receive an email notification once approved.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Submitting Bids</h3>
+            <p>Once registered and approved:</p>
+            <ol>
+                <li>Log in to the system with your vendor credentials</li>
+                <li>Navigate to <strong>"Digital Bid Box"</strong></li>
+                <li>Browse active tenders relevant to your business category</li>
+                <li>Click on a tender to view requirements and download bid documents</li>
+                <li>Prepare and upload your technical and financial proposals</li>
+                <li>Submit before the bid deadline — late submissions are blocked by the system</li>
+            </ol>
+
+            <h3>Tracking Status</h3>
+            <p>As a supplier, you can track:</p>
+            <ul>
+                <li><strong>Bid Status:</strong> Whether your bid was received, opened, and evaluated</li>
+                <li><strong>Award Notifications:</strong> Whether you were awarded or not</li>
+                <li><strong>Contracts:</strong> Active contracts, milestones, and deliverables</li>
+                <li><strong>Payments:</strong> Payment schedule and disbursement status</li>
+            </ul>
+
+            <div class="info-box warning">
+                <div class="icon">⚠️</div>
+                <div>
+                    <strong>Bid Deadline:</strong> The Digital Bid Box enforces strict submission deadlines. Ensure all bid documents are uploaded and submitted before the closing time. The system will automatically close the bid box at the scheduled deadline.
+                </div>
+            </div>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 22. TROUBLESHOOTING                                  -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="troubleshooting">
+            <h2><span class="section-num">22</span> Troubleshooting</h2>
+            <p class="section-desc">Common issues and how to resolve them.</p>
+
+            <details>
+                <summary>❌ Cannot log in — "Invalid credentials" error</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Double-check your email address (institutional email format: <code>username@uwu.ac.lk</code>)</li>
+                        <li>Ensure Caps Lock is not enabled</li>
+                        <li>For demo accounts, use password: <code>Demo@1234</code></li>
+                        <li>If you forgot your password, click <strong>"Forgot Password?"</strong> on the login page</li>
+                        <li>Contact your Super Admin if your account may be deactivated</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details>
+                <summary>🚫 "Access Restricted" — cannot access a module</summary>
+                <div class="details-content">
+                    <p>Your user role does not have permission to access this module. The system enforces strict RBAC — each role only sees modules they're authorised to use. Contact your Admin if you believe you need access.</p>
+                </div>
+            </details>
+
+            <details>
+                <summary>🔄 Page is loading indefinitely / API errors</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Check if the backend API server is running (port 5000)</li>
+                        <li>Verify your internet connection</li>
+                        <li>Check the browser console (F12) for error messages</li>
+                        <li>Clear browser cache and cookies, then try again</li>
+                        <li>If hosting locally, ensure MongoDB is connected</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details>
+                <summary>📄 File upload fails</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Ensure the file size is within the allowed limit</li>
+                        <li>Accepted file formats: PDF, DOCX, XLSX, PNG, JPG</li>
+                        <li>Check that Cloudinary credentials are properly configured in the <code>.env</code> file</li>
+                        <li>Try a different browser if the issue persists</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details>
+                <summary>📧 Not receiving email notifications</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Check your spam/junk folder</li>
+                        <li>Verify SMTP settings in the <code>.env</code> file</li>
+                        <li>Ensure <code>SMTP_USER</code> and <code>SMTP_PASS</code> are correct</li>
+                        <li>For Gmail, you may need to use an App Password (not your regular password)</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details>
+                <summary>🤖 AI features are not working</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Verify your <code>GEMINI_API_KEY</code> is valid and active</li>
+                        <li>Check that the API key has sufficient quota/credits</li>
+                        <li>Ensure the backend server can reach the Gemini API endpoint</li>
+                        <li>Review API server logs for detailed error messages</li>
+                    </ul>
+                </div>
+            </details>
+
+            <details>
+                <summary>🖥️ Development server won't start</summary>
+                <div class="details-content">
+                    <ul>
+                        <li>Ensure Node.js v18+ is installed: <code>node --version</code></li>
+                        <li>Run <code>npm install</code> from the project root</li>
+                        <li>Check that ports 5000 (API) and 5173 (Web) are not already in use</li>
+                        <li>Verify the <code>.env</code> file exists and has valid MongoDB URI</li>
+                        <li>Check MongoDB connection — ensure the Atlas cluster is accessible or local MongoDB is running</li>
+                    </ul>
+                </div>
+            </details>
+        </section>
+
+        <hr>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- 23. GLOSSARY                                         -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <section class="section" id="glossary">
+            <h2><span class="section-num">23</span> Glossary</h2>
+            <p class="section-desc">Key terms and abbreviations used throughout the system.</p>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th style="width: 200px;">Term</th><th>Definition</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>AO</strong></td><td>Accounting Officer — typically the Vice-Chancellor</td></tr>
+                        <tr><td><strong>BOC</strong></td><td>Bid Opening Committee — committee responsible for opening sealed bids</td></tr>
+                        <tr><td><strong>BOQ</strong></td><td>Bill of Quantities — itemised list of materials and costs</td></tr>
+                        <tr><td><strong>CIDA</strong></td><td>Construction Industry Development Authority — certification for construction vendors</td></tr>
+                        <tr><td><strong>CLM</strong></td><td>Contract Lifecycle Management</td></tr>
+                        <tr><td><strong>DAPP</strong></td><td>Departmental Annual Procurement Plan</td></tr>
+                        <tr><td><strong>GOSL</strong></td><td>Government of Sri Lanka</td></tr>
+                        <tr><td><strong>GRN</strong></td><td>Goods Received Note — document confirming physical receipt of goods</td></tr>
+                        <tr><td><strong>ICB</strong></td><td>International Competitive Bidding</td></tr>
+                        <tr><td><strong>KYC</strong></td><td>Know Your Customer — vendor verification documentation</td></tr>
+                        <tr><td><strong>LOA</strong></td><td>Letter of Award — formal notification to the winning bidder</td></tr>
+                        <tr><td><strong>MPP</strong></td><td>Master Procurement Plan (3-year)</td></tr>
+                        <tr><td><strong>NCB</strong></td><td>National Competitive Bidding</td></tr>
+                        <tr><td><strong>NPA</strong></td><td>National Procurement Agency — government body setting procurement guidelines</td></tr>
+                        <tr><td><strong>PMD</strong></td><td>Procurement Management Division</td></tr>
+                        <tr><td><strong>PO</strong></td><td>Purchase Order</td></tr>
+                        <tr><td><strong>RBAC</strong></td><td>Role-Based Access Control</td></tr>
+                        <tr><td><strong>SLA</strong></td><td>Service Level Agreement</td></tr>
+                        <tr><td><strong>SPD</strong></td><td>Standard Procurement Document</td></tr>
+                        <tr><td><strong>SPN</strong></td><td>Standard Procurement Notice — public tender announcement</td></tr>
+                        <tr><td><strong>TEC</strong></td><td>Technical Evaluation Committee</td></tr>
+                        <tr><td><strong>UWU</strong></td><td>Uva Wellassa University</td></tr>
+                        <tr><td><strong>3-Way Match</strong></td><td>Verification process matching Purchase Order, Invoice, and GRN</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ──────────────────────────────────────────────────── -->
+        <!-- FOOTER                                               -->
+        <!-- ──────────────────────────────────────────────────── -->
+        <footer class="footer">
+            <p style="margin: 0;"><strong>UWU Smart Procurement System</strong> — User Manual v1.0</p>
+            <p style="margin: 4px 0 0; font-size: 12px;">&copy; 2026 UWU Procurement Division, Uva Wellassa University. All rights reserved.</p>
+            <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">
+                Built with MERN Stack &bull; Powered by Gemini AI &bull; GOSL NPA Compliant
+            </p>
+        </footer>
+
+    </div>
+</div>
+
+</body>
+</html>
