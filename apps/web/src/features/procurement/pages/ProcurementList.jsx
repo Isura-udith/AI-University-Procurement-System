@@ -254,7 +254,7 @@ export default function ProcurementList() {
                           <Link to={`/procurements/${item._id || item.id}`} className="inline-flex items-center space-x-1 text-xs font-medium text-emerald-600 hover:text-emerald-700">
                             <FaEye size={11} /> <span>View</span>
                           </Link>
-                          {(item.status === 'draft' || item.status === 'rejected') && (
+                          {(item.status === 'draft' || item.status === 'rejected' || ['super_admin', 'admin', 'vc', 'dean'].includes(userRole)) && (
                             <button onClick={() => setDeleteTarget(item)} className="inline-flex items-center space-x-1 text-xs font-medium text-red-400 hover:text-red-600 transition-colors">
                               <FaTrash size={9} /> <span>Delete</span>
                             </button>

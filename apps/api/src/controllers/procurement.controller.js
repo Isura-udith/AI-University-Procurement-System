@@ -28,7 +28,7 @@ const getProcurement = async (req, res, next) => {
 
 const updateProcurement = async (req, res, next) => {
   try {
-    const result = await procurementService.update(req.params.id, req.body, req.user._id, req.tenantId);
+    const result = await procurementService.update(req.params.id, req.body, req.user._id, req.user.role, req.tenantId);
     return success(res, result, 'Updated');
   } catch (err) { next(err); }
 };
@@ -121,7 +121,7 @@ const checkBudgetCompliance = async (req, res, next) => {
 
 const deleteProcurement = async (req, res, next) => {
   try {
-    const result = await procurementService.deleteProcurement(req.params.id, req.user._id, req.tenantId);
+    const result = await procurementService.deleteProcurement(req.params.id, req.user._id, req.user.role, req.tenantId);
     return success(res, result, 'Deleted');
   } catch (err) { next(err); }
 };

@@ -63,12 +63,12 @@ router.post('/',
   createProcurement
 );
 router.put('/:id',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin', 'vc', 'dean'),
   readOnlyGuard,
   updateProcurement
 );
 router.delete('/:id',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin', 'vc', 'dean'),
   readOnlyGuard,
   deleteProcurement
 );

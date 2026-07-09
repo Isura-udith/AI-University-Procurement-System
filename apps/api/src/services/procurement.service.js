@@ -104,20 +104,38 @@ class ProcurementService {
     const procurement = await Procurement.findOne({ _id: id, tenantId })
       .populate('requestedBy', 'firstName lastName email role department')
       .populate('approvalChain.approver', 'firstName lastName email role')
+      .populate('revisionHistory.changedBy', 'firstName lastName email role')
       .populate('tenderId').populate('contractId');
     if (!procurement) throw Object.assign(new Error('Procurement not found'), { statusCode: 404 });
     return procurement;
   }
 
-  async update(id, data, userId, tenantId) {
+  async update(id, data, userId, userRole, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId });
     if (!procurement) throw Object.assign(new Error('Procurement not found'), { statusCode: 404 });
-    if (!['draft', 'rejected'].includes(procurement.status)) throw Object.assign(new Error('Cannot edit after submission'), { statusCode: 400 });
     
+    const isSystemOrExecutive = ['super_admin', 'admin', 'vc', 'dean'].includes(userRole);
+    if (!isSystemOrExecutive && !['draft', 'rejected'].includes(procurement.status)) {
+      throw Object.assign(new Error('Cannot edit after submission'), { statusCode: 400 });
+    }
+    
+    // Fetch editor user info to build descriptive changes message
+    const editor = await User.findById(userId).select('firstName lastName role');
+    const editorName = editor ? `${editor.firstName} ${editor.lastName}` : 'System/Executive';
+    const roleLabel = editor ? editor.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'User';
+    const changesMessage = `Edited by ${editorName} (${roleLabel})`;
+
     Object.assign(procurement, data);
-    procurement.revisionHistory.push({ version: procurement.version, changedBy: userId, changedAt: new Date(), changes: 'Updated' });
+    procurement.revisionHistory.push({
+      version: procurement.version,
+      changedBy: userId,
+      changedAt: new Date(),
+      changes: changesMessage
+    });
     procurement.version += 1;
     await procurement.save();
+    
+    logger.audit('PROCUREMENT_UPDATED', userId, { procurementId: id, role: userRole });
     return procurement;
   }
 
@@ -671,14 +689,16 @@ class ProcurementService {
     return data;
   }
 
-  async deleteProcurement(id, userId, tenantId) {
+  async deleteProcurement(id, userId, userRole, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId });
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    if (procurement.status !== 'draft') {
+    
+    const isSystemOrExecutive = ['super_admin', 'admin', 'vc', 'dean'].includes(userRole);
+    if (!isSystemOrExecutive && procurement.status !== 'draft') {
       throw Object.assign(new Error('Can only delete draft requisitions'), { statusCode: 400 });
     }
     await Procurement.deleteOne({ _id: id });
-    logger.audit('PROCUREMENT_DELETED', userId, { procurementId: id });
+    logger.audit('PROCUREMENT_DELETED', userId, { procurementId: id, deletedByRole: userRole });
     return { message: 'Requisition deleted' };
   }
   async publish(id, userId, tenantId) {

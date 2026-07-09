@@ -16,6 +16,7 @@ export default function RequestDetails() {
   const { user } = useSelector(state => state.auth);
   const userRole = user?.role || 'department_user';
   const canPublish = ['procurement_officer', 'admin', 'super_admin'].includes(userRole);
+  const isSystemOrExecutive = ['super_admin', 'admin', 'vc', 'dean'].includes(userRole);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -171,9 +172,11 @@ export default function RequestDetails() {
           {canPublish && ['pmd_review', 'budget_locked'].includes(data.status) && (
             <button onClick={() => setPublishModal(true)} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-500 transition-colors flex items-center space-x-1.5 shadow-sm"><FaBullhorn size={10} /><span>Publish to Suppliers</span></button>
           )}
-          <button onClick={() => navigate(`/procurements/${id}/edit`)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center space-x-1.5"><FaEdit size={11} /><span>Edit</span></button>
+          {(data.status === 'draft' || data.status === 'rejected' || isSystemOrExecutive) && (
+            <button onClick={() => navigate(`/procurements/${id}/edit`)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center space-x-1.5"><FaEdit size={11} /><span>Edit</span></button>
+          )}
           <button onClick={handlePrint} className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center space-x-1.5"><FaPrint size={11} /><span>Print</span></button>
-          {data.status === 'draft' && (
+          {(data.status === 'draft' || isSystemOrExecutive) && (
             <button onClick={() => setDeleteModal(true)} className="px-3 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors flex items-center space-x-1.5"><FaTrash size={10} /><span>Delete</span></button>
           )}
         </div>
@@ -482,6 +485,28 @@ export default function RequestDetails() {
               </div>
             </div>
           </div>
+
+          {/* Revision History */}
+          {data.revisionHistory && data.revisionHistory.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center space-x-2">
+                <FaClock className="text-slate-400" size={13} />
+                <h3 className="text-sm font-bold text-slate-800">Revision History</h3>
+              </div>
+              <div className="p-5 space-y-3 max-h-60 overflow-y-auto">
+                {data.revisionHistory.map((rev, idx) => {
+                  return (
+                    <div key={idx} className="border-l-2 border-emerald-500 pl-3 py-1 space-y-1">
+                      <p className="text-xs font-semibold text-slate-700">{rev.changes}</p>
+                      <p className="text-[10px] text-slate-400">
+                        Version {rev.version} · {rev.changedAt ? new Date(rev.changedAt).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Compliance */}
           <div className="bg-slate-50 rounded-xl border border-slate-200 p-5">
