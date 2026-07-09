@@ -114,16 +114,21 @@ const approveMasterPlan = async (req, res, next) => {
       finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
       council_review: 'council',
     };
-    let stage;
-    if (userRole === 'super_admin') {
-      stage = STATUS_TO_STAGE[plan.status];
-      if (!stage) return res.status(400).json({ message: 'This plan is not pending any approval stage.' });
-    } else {
-      stage = ROLE_TO_STAGE[userRole];
+    const requiredStage = STATUS_TO_STAGE[plan.status];
+    if (!requiredStage) {
+      return res.status(400).json({ message: 'This plan is not pending any approval stage.' });
     }
 
-    if (!stage && !['admin', 'super_admin'].includes(userRole)) {
-      return res.status(403).json({ message: 'Your role cannot approve Master Plans' });
+    let stage;
+    if (userRole === 'super_admin') {
+      stage = requiredStage;
+    } else {
+      stage = ROLE_TO_STAGE[userRole];
+      if (stage !== requiredStage) {
+        return res.status(403).json({
+          message: `Bypassing stages is not allowed. Awaiting approval from ${requiredStage.toUpperCase()}, but you are acting as ${stage ? stage.toUpperCase() : 'UNKNOWN'}.`
+        });
+      }
     }
 
     const stageEntry = {

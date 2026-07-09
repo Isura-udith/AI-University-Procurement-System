@@ -91,9 +91,10 @@ export default function DeliveryPage() {
 
   const stats = {
     matched: deliveries.filter(d => d.matchStatus === 'matched').length,
-    pending: deliveries.filter(d => d.matchStatus === 'pending').length,
+    pending: deliveries.filter(d => d.status === 'pending').length,
     discrepancy: deliveries.filter(d => d.matchStatus === 'discrepancy').length,
   };
+
 
   return (
     <div className="space-y-6">
@@ -168,7 +169,7 @@ export default function DeliveryPage() {
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       <div className="flex items-center justify-center space-x-2">
-                        {d.matchStatus === 'pending' && (hasPermission(PERMISSIONS.RECORD_GRN) || ['store_manager', 'contract_manager', 'procurement_officer', 'admin', 'super_admin'].includes(role)) && (
+                        {d.status === 'pending' && (hasPermission(PERMISSIONS.RECORD_GRN) || ['store_manager', 'contract_manager', 'procurement_officer', 'admin', 'super_admin'].includes(role)) && (
                           <button onClick={() => setGrnModal(d)} className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 transition-colors">
                             <FaClipboardCheck size={10} /><span>Record GRN</span>
                           </button>

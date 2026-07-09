@@ -34,17 +34,17 @@ const getBudgetAllocations = async (req, res, next) => {
       .sort({ budgetYear: -1 });
 
     // Filter by faculty/dept if scoped role
-    let result = allocations;
+    let result = allocations.map(a => a.toJSON());
     if (faculty) {
-      result = allocations.map(a => ({
-        ...a.toJSON(),
-        departmentAllocations: a.departmentAllocations.filter(d => !faculty || d.faculty === faculty),
+      result = result.map(a => ({
+        ...a,
+        departmentAllocations: a.departmentAllocations.filter(d => d.faculty === faculty),
       }));
     }
     if (department) {
-      result = allocations.map(a => ({
-        ...a.toJSON(),
-        departmentAllocations: a.departmentAllocations.filter(d => !department || d.department === department),
+      result = result.map(a => ({
+        ...a,
+        departmentAllocations: a.departmentAllocations.filter(d => d.department === department),
       }));
     }
     return success(res, result);
@@ -103,9 +103,14 @@ const getMyBudget = async (req, res, next) => {
     const allocations = await BudgetAllocation.find({ tenantId: req.tenantId, budgetYear: currentYear });
     let myAlloc = null;
     for (const alloc of allocations) {
-      const deptEntry = alloc.departmentAllocations.find(
-        d => d.department === userDept || d.faculty === userFaculty
-      );
+      const deptEntry = alloc.departmentAllocations.find(d => {
+        if (userDept && userFaculty) {
+          return d.department === userDept && d.faculty === userFaculty;
+        }
+        if (userDept) return d.department === userDept;
+        if (userFaculty) return d.faculty === userFaculty;
+        return false;
+      });
       if (deptEntry) { myAlloc = { ...deptEntry.toJSON(), allocationId: alloc._id }; break; }
     }
     return success(res, myAlloc || { allocatedAmount: 0, consumedAmount: 0, remainingAmount: 0 });

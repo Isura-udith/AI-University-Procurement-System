@@ -390,6 +390,10 @@ class TenderService {
     tender.standstillStartDate = new Date();
     tender.standstillEndDate = new Date(Date.now() + standstillDays * 24 * 60 * 60 * 1000);
     await tender.save();
+
+    // Update the winning bid status to 'awarded'
+    await Bid.updateOne({ _id: data.bidId, tenantId }, { status: 'awarded' });
+
     logger.audit('TENDER_AWARDED', userId, { tenderId, vendorId: data.vendorId, amount: data.amount });
     return tender;
   }
@@ -622,6 +626,7 @@ class TenderService {
 
       return {
         id: bid._id,
+        vendorId: bid.vendorId,
         name: bid.vendorId?.companyName || 'Unknown Vendor',
         techScores,
         quotedPrice: bid.totalBidAmount || 0,

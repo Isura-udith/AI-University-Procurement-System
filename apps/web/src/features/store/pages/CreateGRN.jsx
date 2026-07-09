@@ -51,10 +51,9 @@ export default function CreateGRN() {
         unitCost: Number(i.unitCost || 0),
       }));
       const payload = { ...data, items };
-      const res = await inventoryService.createGRN(payload);
-      const newId = res.data?.data?._id || res.data?._id;
+      await inventoryService.createGRN(payload);
       toast.success('GRN created successfully!');
-      navigate(newId ? `/store/grn/${newId}` : '/store');
+      navigate('/store');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to create GRN');
     } finally {

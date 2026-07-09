@@ -407,6 +407,9 @@ class ProcurementService {
           const nextRole = nextStageRoleMap[nextPending.stage];
           if (nextRole) {
             const approverFilter = { tenantId, role: nextRole, isActive: true };
+            if (nextRole === 'finance_committee') {
+              approverFilter.role = { $in: ['finance_committee', 'finance_officer'] };
+            }
             // Scope to same faculty for dean, same department for HOD
             if (nextRole === 'dean') {
               const targetFaculty = procurement.faculty || procurement.department;
@@ -579,6 +582,7 @@ class ProcurementService {
       dean: 'dean',
       bursar: 'bursar',
       finance_committee: 'finance_committee',
+      finance_officer: 'finance_committee',
       procurement_officer: 'pmd',
       vc: 'vice_chancellor',
     };
@@ -747,7 +751,12 @@ class ProcurementService {
   }
 
   async getPublicProcurements(tenantId) {
-    const data = await Procurement.find({ tenantId, status: { $ne: 'draft' } })
+    const publicStatuses = [
+      'published', 'bidding', 'evaluation', 'technical_evaluation', 'financial_evaluation',
+      'contract_award', 'contract_signing', 'in_progress', 'delivery_pending', 
+      'grn_pending', 'three_way_match', 'completed'
+    ];
+    const data = await Procurement.find({ tenantId, status: { $in: publicStatuses } })
       .populate('tenderId')
       .sort('-createdAt')
       .limit(50);

@@ -7,6 +7,7 @@ const User = require('../models/user.model');
 const { getPagination } = require('../utils/pagination');
 const { ROLE_PERMISSIONS } = require('../middlewares/role.middleware');
 const logger = require('../config/logger');
+const auditLogService = require('./audit.log.service');
 
 class UserService {
   /**
@@ -43,6 +44,21 @@ class UserService {
       email: user.email,
       role: user.role,
     });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        await auditLogService.log({
+          action: 'USER_CREATED_BY_ADMIN',
+          user: admin,
+          targetUser: user,
+          tenantId: user.tenantId,
+          metadata: { role: user.role }
+        });
+      } catch (err) {
+        logger.error('Failed to log USER_CREATED_BY_ADMIN audit event', { error: err.message });
+      }
+    }
 
     return this.sanitize(user);
   }
@@ -88,16 +104,67 @@ class UserService {
     const forbidden = ['password', 'mfaSecret', 'passwordResetToken', 'passwordResetExpires'];
     forbidden.forEach(f => delete updates[f]);
 
+    const existingUser = await User.findById(id);
+    if (!existingUser) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+
+    // Check for duplicate email if email is changing
+    if (updates.email && updates.email !== existingUser.email) {
+      const existing = await User.findOne({ email: updates.email, _id: { $ne: id } });
+      if (existing) {
+        throw Object.assign(new Error('A user with this email already exists.'), { statusCode: 400 });
+      }
+    }
+
+    // Check for duplicate employeeId if employeeId is changing
+    if (updates.employeeId && updates.employeeId !== existingUser.employeeId) {
+      const existingEmp = await User.findOne({ employeeId: updates.employeeId, _id: { $ne: id } });
+      if (existingEmp) {
+        throw Object.assign(new Error('A user with this employee ID already exists.'), { statusCode: 400 });
+      }
+    }
+
+    // Sync permissions if role changes and permissions not explicitly provided
+    if (updates.role && updates.role !== existingUser.role && (!updates.permissions || updates.permissions.length === 0)) {
+      updates.permissions = ROLE_PERMISSIONS[updates.role] || [];
+    }
+
+    const roleChanged = updates.role && updates.role !== existingUser.role;
+
     const user = await User.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
     }).select('-password -mfaSecret');
-    if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
 
     logger.audit('USER_UPDATED', adminId, {
       targetUserId: id,
       updates: Object.keys(updates),
     });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        if (roleChanged) {
+          await auditLogService.log({
+            action: 'USER_ROLE_CHANGED_BY_ADMIN',
+            user: admin,
+            targetUser: user,
+            tenantId: user.tenantId,
+            metadata: { oldRole: existingUser.role, newRole: user.role }
+          });
+        } else {
+          await auditLogService.log({
+            action: 'PROFILE_UPDATED',
+            user: admin,
+            targetUser: user,
+            tenantId: user.tenantId,
+            metadata: { updates: Object.keys(updates) }
+          });
+        }
+      } catch (err) {
+        logger.error('Failed to log USER_UPDATED audit event', { error: err.message });
+      }
+    }
+
     return user;
   }
 
@@ -108,6 +175,21 @@ class UserService {
     const user = await User.findByIdAndUpdate(id, { isActive: false }, { new: true });
     if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
     logger.audit('USER_DEACTIVATED', adminId, { targetUserId: id });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        await auditLogService.log({
+          action: 'ACCOUNT_DEACTIVATED',
+          user: admin,
+          targetUser: user,
+          tenantId: user.tenantId,
+        });
+      } catch (err) {
+        logger.error('Failed to log ACCOUNT_DEACTIVATED audit event', { error: err.message });
+      }
+    }
+
     return user;
   }
 
@@ -118,6 +200,21 @@ class UserService {
     const user = await User.findByIdAndUpdate(id, { isActive: true }, { new: true });
     if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
     logger.audit('USER_ACTIVATED', adminId, { targetUserId: id });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        await auditLogService.log({
+          action: 'ACCOUNT_ACTIVATED',
+          user: admin,
+          targetUser: user,
+          tenantId: user.tenantId,
+        });
+      } catch (err) {
+        logger.error('Failed to log ACCOUNT_ACTIVATED audit event', { error: err.message });
+      }
+    }
+
     return user;
   }
 
@@ -130,6 +227,21 @@ class UserService {
     user.password = newPassword;
     await user.save();
     logger.audit('USER_PASSWORD_RESET_BY_ADMIN', adminId, { targetUserId: id });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        await auditLogService.log({
+          action: 'PASSWORD_RESET_COMPLETED',
+          user: admin,
+          targetUser: user,
+          tenantId: user.tenantId,
+        });
+      } catch (err) {
+        logger.error('Failed to log PASSWORD_RESET_COMPLETED audit event', { error: err.message });
+      }
+    }
+
     return { message: 'Password reset successfully' };
   }
 
@@ -164,12 +276,41 @@ class UserService {
   async delegateAuthority(userId, delegateToId, startDate, endDate) {
     const user = await User.findById(userId);
     if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+
+    const delegateTo = await User.findById(delegateToId);
+    if (!delegateTo) {
+      throw Object.assign(new Error('Delegation target user not found.'), { statusCode: 404 });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw Object.assign(new Error('Invalid delegation start or end date.'), { statusCode: 400 });
+    }
+    if (end < start) {
+      throw Object.assign(new Error('Delegation end date must be after start date.'), { statusCode: 400 });
+    }
+
     user.delegatedTo = delegateToId;
     user.delegationStart = startDate;
     user.delegationEnd = endDate;
     user.isDelegating = true;
     await user.save();
+
     logger.audit('AUTHORITY_DELEGATED', userId, { delegateTo: delegateToId, startDate, endDate });
+
+    try {
+      await auditLogService.log({
+        action: 'DELEGATION_STARTED',
+        user,
+        targetUser: delegateTo,
+        tenantId: user.tenantId,
+        metadata: { startDate, endDate },
+      });
+    } catch (err) {
+      logger.error('Failed to log DELEGATION_STARTED audit event', { error: err.message });
+    }
+
     return user;
   }
 

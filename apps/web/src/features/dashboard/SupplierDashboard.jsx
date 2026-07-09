@@ -32,6 +32,25 @@ const SupplierDashboard = () => {
   const [sortField, setSortField] = useState('deadline');
   const [sortOrder, setSortOrder] = useState('asc');
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (cat) => {
+    setCategoryFilter(cat);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
   const getDownloadUrl = (filePath) => {
     if (!filePath) return '#';
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
@@ -164,6 +183,12 @@ const SupplierDashboard = () => {
       return 0;
     });
 
+  // Pagination logic
+  const totalItems = filteredTenders.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTenders = filteredTenders.slice(startIndex, startIndex + itemsPerPage);
+
   // Count active contracts and pending payments
   const activeContractsCount = myContracts.filter(c => c.status === 'active').length;
   const pendingPaymentsCount = myPayments.filter(p => p.status !== 'paid').length;
@@ -189,7 +214,7 @@ const SupplierDashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Card 1: Active Notices */}
         <div 
-          onClick={() => setActiveTab('notices')}
+          onClick={() => handleTabChange('notices')}
           className={`group rounded-3xl border p-6 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[128px] cursor-pointer ${
             activeTab === 'notices' 
               ? 'bg-blue-50/50 border-blue-200 ring-2 ring-blue-500/10' 
@@ -219,7 +244,7 @@ const SupplierDashboard = () => {
         {/* Card 2: My Submitted Bids */}
         <div 
           onClick={() => {
-            if (hasVendorProfile) setActiveTab('bids');
+            if (hasVendorProfile) handleTabChange('bids');
           }}
           className={`group rounded-3xl border p-6 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[128px] ${
             !hasVendorProfile 
@@ -253,7 +278,7 @@ const SupplierDashboard = () => {
         {/* Card 3: My Active Contracts */}
         <div 
           onClick={() => {
-            if (hasVendorProfile) setActiveTab('contracts');
+            if (hasVendorProfile) handleTabChange('contracts');
           }}
           className={`group rounded-3xl border p-6 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[128px] ${
             !hasVendorProfile 
@@ -287,7 +312,7 @@ const SupplierDashboard = () => {
         {/* Card 4: Pending Payments */}
         <div 
           onClick={() => {
-            if (hasVendorProfile) setActiveTab('payments');
+            if (hasVendorProfile) handleTabChange('payments');
           }}
           className={`group rounded-3xl border p-6 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[128px] ${
             !hasVendorProfile 
@@ -322,23 +347,23 @@ const SupplierDashboard = () => {
       {/* ── Tab Selector ── */}
       <div className="flex border-b border-slate-200 gap-6">
         <button
-          onClick={() => setActiveTab('notices')}
+          onClick={() => handleTabChange('notices')}
           className={`pb-4 text-sm font-extrabold transition-all border-b-2 px-1 ${
             activeTab === 'notices' 
-              ? 'border-blue-600 text-slate-950 font-black' 
+              ? 'border-blue-600 text-slate-955 font-black' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           <div className="flex items-center gap-2">
-            <FaBuilding size={14} className={activeTab === 'notices' ? 'text-blue-600' : ''} />
-            <span>Public Notices</span>
+            <FaBoxOpen size={14} className={activeTab === 'notices' ? 'text-blue-600' : ''} />
+            <span>Procurement Notices ({activeTenders.length})</span>
           </div>
         </button>
 
         {hasVendorProfile && (
           <>
             <button
-              onClick={() => setActiveTab('bids')}
+              onClick={() => handleTabChange('bids')}
               className={`pb-4 text-sm font-extrabold transition-all border-b-2 px-1 ${
                 activeTab === 'bids' 
                   ? 'border-amber-505 border-amber-500 text-slate-955 font-black' 
@@ -352,7 +377,7 @@ const SupplierDashboard = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('contracts')}
+              onClick={() => handleTabChange('contracts')}
               className={`pb-4 text-sm font-extrabold transition-all border-b-2 px-1 ${
                 activeTab === 'contracts' 
                   ? 'border-emerald-500 text-slate-955 font-black' 
@@ -366,7 +391,7 @@ const SupplierDashboard = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('payments')}
+              onClick={() => handleTabChange('payments')}
               className={`pb-4 text-sm font-extrabold transition-all border-b-2 px-1 ${
                 activeTab === 'payments' 
                   ? 'border-purple-500 text-slate-955 font-black' 
@@ -404,7 +429,7 @@ const SupplierDashboard = () => {
                   {['all', 'Goods', 'Services', 'Works'].map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => setCategoryFilter(cat)}
+                      onClick={() => handleCategoryChange(cat)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
                         categoryFilter === cat 
                           ? 'bg-white text-slate-900 shadow-sm' 
@@ -422,13 +447,13 @@ const SupplierDashboard = () => {
                     type="text"
                     placeholder="Search notice ref or title..."
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={e => handleSearchChange(e.target.value)}
                     className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                   />
                   <FaSearch className="absolute left-3 top-3 text-slate-400" size={11} />
                   {searchQuery && (
                     <button 
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => handleSearchChange('')}
                       className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
                     >
                       <FaTimes size={10} />
@@ -451,96 +476,103 @@ const SupplierDashboard = () => {
                   <p className="text-xs text-slate-505 mt-1 max-w-sm mx-auto">Try refining your search keyword or selecting a different category filter.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse bg-white">
+                <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-100 shadow-sm bg-white">
+                  <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-extrabold text-xs uppercase bg-slate-50/50">
-                        <th className="px-6 py-4 font-extrabold w-36">Tender Number</th>
-                        <th className="px-6 py-4 font-extrabold">Title & Category</th>
+                      <tr className="bg-slate-50/80 backdrop-blur-md border-b border-slate-100 text-slate-500 font-black text-[10px] uppercase tracking-widest">
+                        <th className="px-6 py-5 w-36 rounded-tl-2xl">Tender Number</th>
+                        <th className="px-6 py-5">Title & Category</th>
                         <th 
-                          className="px-6 py-4 font-extrabold text-right cursor-pointer hover:text-slate-900 transition-colors w-40"
+                          className="px-6 py-5 text-right cursor-pointer hover:text-blue-600 transition-colors w-40 group"
                           onClick={() => handleSort('estimatedValue')}
                         >
                           <div className="flex items-center justify-end gap-1.5">
                             <span>Est. Value (LKR)</span>
-                            <FaSort size={10} />
+                            <FaSort size={10} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                           </div>
                         </th>
                         <th 
-                          className="px-6 py-4 font-extrabold cursor-pointer hover:text-slate-900 transition-colors w-32"
+                          className="px-6 py-5 cursor-pointer hover:text-blue-600 transition-colors w-32 group"
                           onClick={() => handleSort('publishedAt')}
                         >
                           <div className="flex items-center gap-1.5">
                             <span>Published</span>
-                            <FaSort size={10} />
+                            <FaSort size={10} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                           </div>
                         </th>
-                        <th className="px-6 py-4 font-extrabold w-32">Method</th>
+                        <th className="px-6 py-5 w-32">Method</th>
                         <th 
-                          className="px-6 py-4 font-extrabold cursor-pointer hover:text-slate-900 transition-colors w-48"
+                          className="px-6 py-5 cursor-pointer hover:text-blue-600 transition-colors w-48 group"
                           onClick={() => handleSort('deadline')}
                         >
                           <div className="flex items-center gap-1.5">
                             <span>Deadline</span>
-                            <FaSort size={10} />
+                            <FaSort size={10} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                           </div>
                         </th>
-                        <th className="px-6 py-4 font-extrabold text-center w-28">Actions</th>
+                        <th className="px-6 py-5 text-center w-28 rounded-tr-2xl">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredTenders.map(t => {
+                    <tbody className="divide-y divide-slate-50">
+                      {paginatedTenders.map((t) => {
                         const tenderDeadline = t.tenderId?.bidSubmissionDeadline;
                         const isDeadlinePassed = tenderDeadline ? new Date(tenderDeadline) < new Date() : false;
                         const canBid = t.tenderId && !isDeadlinePassed;
 
                         return (
-                          <tr key={t._id} className="hover:bg-slate-55/40 hover:bg-slate-50/60 transition-colors group cursor-pointer" onClick={() => setSelectedTender(t)}>
-                            <td className="px-6 py-4.5 font-mono text-xs font-bold text-slate-550">
+                          <tr 
+                            key={t._id} 
+                            className="bg-white hover:bg-blue-50/30 transition-all duration-300 transform hover:-translate-y-1px hover:shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] group cursor-pointer relative z-0 hover:z-10" 
+                            onClick={() => setSelectedTender(t)}
+                          >
+                            <td className="px-6 py-5 font-mono text-[11px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors">
                               {t.tenderNumber || t.referenceNumber || t._id.substring(0, 8).toUpperCase()}
                             </td>
-                            <td className="px-6 py-4.5 max-w-xs md:max-w-md">
-                              <div className="font-extrabold text-slate-805 group-hover:text-blue-700 transition-colors truncate" title={t.title}>
+                            <td className="px-6 py-5 max-w-xs md:max-w-md">
+                              <div className="font-normal text-sm text-slate-800 group-hover:text-blue-700 transition-colors truncate" title={t.title}>
                                 {t.title}
                               </div>
-                              <span className="inline-flex items-center text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                                <FaTag size={8} className="mr-1" /> {t.category || 'Goods'}
-                              </span>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-[9px] font-normal text-slate-500 uppercase tracking-wider">
+                                  <FaTag size={8} className="mr-1 opacity-70" /> {t.category || 'Goods'}
+                                </span>
+                              </div>
                             </td>
-                            <td className="px-6 py-4.5 text-right font-extrabold text-slate-905 text-sm">
+                            <td className="px-6 py-5 text-right font-extrabold text-slate-900 text-sm">
                               {formatLKR(t.estimatedValue || t.tce || t.totalEstimatedCost)}
                             </td>
-                            <td className="px-6 py-4.5 text-xs font-semibold text-slate-600">
+                            <td className="px-6 py-5 text-xs font-bold text-slate-500">
                               {formatDateOnly(t.publishedAt)}
                             </td>
-                            <td className="px-6 py-4.5">
-                              <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                            <td className="px-6 py-5">
+                              <span className={`inline-flex px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
                                 t.procurementMethod === 'ICB' 
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-100' 
+                                  ? 'bg-purple-100/50 text-purple-700 border border-purple-200/50' 
                                   : t.procurementMethod === 'Shopping' 
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-100' 
-                                    : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                    ? 'bg-amber-100/50 text-amber-700 border border-amber-200/50' 
+                                    : 'bg-blue-100/50 text-blue-700 border border-blue-200/50'
                               }`}>
                                 {t.procurementMethod || 'NCB'}
                               </span>
                             </td>
-                            <td className="px-6 py-4.5">
+                            <td className="px-6 py-5">
                               {t.tenderId?.bidSubmissionDeadline ? (
-                                <div className="space-y-1">
-                                  <span className={`font-extrabold text-xs block ${isDeadlinePassed ? 'text-rose-500' : 'text-slate-700'}`}>
+                                <div className="space-y-1.5">
+                                  <span className={`font-extrabold text-[13px] flex items-center gap-1.5 ${isDeadlinePassed ? 'text-rose-500' : 'text-slate-700'}`}>
+                                    {isDeadlinePassed ? <FaExclamationTriangle size={12} className="text-rose-400" /> : <FaClock size={12} className="text-slate-400" />}
                                     {formatDateTime(t.tenderId.bidSubmissionDeadline)}
                                   </span>
                                   {!isDeadlinePassed && (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full inline-block">
+                                    <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full inline-block border border-emerald-100/50">
                                       Active Bidding
                                     </span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-slate-400 italic text-xs">Not Scheduled</span>
+                                <span className="text-slate-400 italic text-xs font-medium">Not Scheduled</span>
                               )}
                             </td>
-                            <td className="px-6 py-4.5 text-center relative action-menu-container">
+                            <td className="px-6 py-5 text-center relative action-menu-container">
                               <button
                                 onClick={(e) => { 
                                   e.stopPropagation(); 
@@ -592,6 +624,32 @@ const SupplierDashboard = () => {
                   </table>
                 </div>
               )}
+              {totalPages > 1 && filteredTenders.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/30 rounded-b-3xl">
+                  <span className="text-xs text-slate-500 font-medium">
+                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} entries
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white"
+                    >
+                      Previous
+                    </button>
+                    <div className="text-xs font-bold text-slate-700">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -613,75 +671,75 @@ const SupplierDashboard = () => {
                     Select a public notice to proceed with your proposal or click on "Bid Box" to submit.
                   </p>
                   <button 
-                    onClick={() => setActiveTab('notices')}
+                    onClick={() => handleTabChange('notices')}
                     className="mt-4 inline-flex items-center text-xs font-bold bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
                   >
                     Browse Notices
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-100 shadow-sm bg-white">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-extrabold text-xs uppercase bg-slate-50/50">
-                        <th className="px-6 py-4 font-extrabold">Bid Number</th>
-                        <th className="px-6 py-4 font-extrabold">Tender Reference & Title</th>
-                        <th className="px-6 py-4 font-extrabold text-right">My Bid Amount (LKR)</th>
-                        <th className="px-6 py-4 font-extrabold">Submitted On</th>
-                        <th className="px-6 py-4 font-extrabold">Sealed Status</th>
-                        <th className="px-6 py-4 font-extrabold">Combined Score / Rank</th>
-                        <th className="px-6 py-4 font-extrabold text-center">Action</th>
+                      <tr className="bg-slate-50/80 backdrop-blur-md border-b border-slate-100 text-slate-500 font-black text-[10px] uppercase tracking-widest">
+                        <th className="px-6 py-5 rounded-tl-2xl">Bid Number</th>
+                        <th className="px-6 py-5">Tender Reference & Title</th>
+                        <th className="px-6 py-5 text-right">My Bid Amount (LKR)</th>
+                        <th className="px-6 py-5">Submitted On</th>
+                        <th className="px-6 py-5">Sealed Status</th>
+                        <th className="px-6 py-5">Combined Score / Rank</th>
+                        <th className="px-6 py-5 text-center rounded-tr-2xl">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-50">
                       {myBids.map(b => (
-                        <tr key={b._id} className="hover:bg-slate-50/40">
-                          <td className="px-6 py-4 font-mono text-xs font-bold text-slate-550">
+                        <tr key={b._id} className="bg-white hover:bg-blue-50/30 transition-all duration-300 transform hover:-translate-y-1px hover:shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] group relative z-0 hover:z-10">
+                          <td className="px-6 py-5 font-mono text-[11px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors">
                             {b.bidNumber || `BID-${b._id.substring(0, 6).toUpperCase()}`}
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-800 truncate max-w-xs md:max-w-sm">
+                          <td className="px-6 py-5">
+                            <div className="font-extrabold text-sm text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-xs md:max-w-sm">
                               {b.tenderId?.title || 'Unknown Tender'}
                             </div>
-                            <span className="text-[10px] font-semibold text-slate-400 mt-1 block">
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 block tracking-wider">
                               {b.tenderId?.tenderNumber || 'N/A'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right font-extrabold text-slate-800 text-sm">
+                          <td className="px-6 py-5 text-right font-extrabold text-slate-900 text-sm">
                             {formatLKR(b.totalBidAmount)}
                           </td>
-                          <td className="px-6 py-4 text-xs font-semibold text-slate-600">
+                          <td className="px-6 py-5 text-xs font-bold text-slate-500">
                             {formatDateTime(b.submittedAt)}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
                               b.isSealed 
-                                ? 'bg-amber-50 text-amber-700 border-amber-100' 
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                ? 'bg-amber-100/50 text-amber-700 border-amber-200/50' 
+                                : 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50'
                             }`}>
                               {b.isSealed ? '🔐 Sealed' : '🔓 Unsealed'}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             {b.combinedScore != null ? (
                               <div className="flex items-center space-x-2">
-                                <span className="text-xs font-extrabold text-slate-800">{b.combinedScore}%</span>
+                                <span className="text-sm font-black text-slate-800">{b.combinedScore}%</span>
                                 {b.rank && (
-                                  <span className="text-[9px] bg-indigo-55 bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-100">
+                                  <span className="text-[10px] bg-indigo-50 text-indigo-600 font-black px-2 py-0.5 rounded-md border border-indigo-100/50">
                                     Rank #{b.rank}
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-400 italic font-medium">Awaiting evaluation</span>
+                              <span className="text-xs text-slate-400 italic font-medium">Awaiting eval</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-5 text-center">
                             <Link
                               to={`/bid-box?tenderId=${b.tenderId?._id}`}
-                              className="inline-flex items-center text-xs font-bold text-blue-600 hover:underline gap-0.5"
+                              className="inline-flex items-center text-[11px] font-black text-blue-600 hover:text-blue-700 hover:underline gap-1 bg-blue-50/50 px-3 py-1.5 rounded-lg transition-colors"
                             >
-                              Open Bid Box <FaChevronRight size={8} />
+                              Open Box <FaChevronRight size={10} />
                             </Link>
                           </td>
                         </tr>
@@ -710,65 +768,65 @@ const SupplierDashboard = () => {
                   <p className="text-xs text-slate-550 mt-1">Contracts will appear here once a tender is awarded and agreements are finalized.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-100 shadow-sm bg-white">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-extrabold text-xs uppercase bg-slate-50/50">
-                        <th className="px-6 py-4 font-extrabold">Contract #</th>
-                        <th className="px-6 py-4 font-extrabold">Title & Reference</th>
-                        <th className="px-6 py-4 font-extrabold text-right">Value (LKR)</th>
-                        <th className="px-6 py-4 font-extrabold">Duration</th>
-                        <th className="px-6 py-4 font-extrabold">SLA Score</th>
-                        <th className="px-6 py-4 font-extrabold">Status</th>
-                        <th className="px-6 py-4 font-extrabold text-center">Action</th>
+                      <tr className="bg-slate-50/80 backdrop-blur-md border-b border-slate-100 text-slate-500 font-black text-[10px] uppercase tracking-widest">
+                        <th className="px-6 py-5 rounded-tl-2xl">Contract #</th>
+                        <th className="px-6 py-5">Title & Reference</th>
+                        <th className="px-6 py-5 text-right">Value (LKR)</th>
+                        <th className="px-6 py-5">Duration</th>
+                        <th className="px-6 py-5">SLA Score</th>
+                        <th className="px-6 py-5">Status</th>
+                        <th className="px-6 py-5 text-center rounded-tr-2xl">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-50">
                       {myContracts.map(c => (
-                        <tr key={c._id} className="hover:bg-slate-55/40 hover:bg-slate-50/40">
-                          <td className="px-6 py-4 font-mono text-xs font-bold text-slate-550">
+                        <tr key={c._id} className="bg-white hover:bg-blue-50/30 transition-all duration-300 transform hover:-translate-y-1px hover:shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] group relative z-0 hover:z-10">
+                          <td className="px-6 py-5 font-mono text-[11px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors">
                             {c.contractNumber || c._id.substring(0, 8).toUpperCase()}
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-800 truncate max-w-xs">
+                          <td className="px-6 py-5">
+                            <div className="font-extrabold text-sm text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-xs">
                               {c.title}
                             </div>
-                            <span className="text-[10px] font-semibold text-slate-400 mt-1 block">
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 block tracking-wider">
                               Ref: {c.procurementId?.referenceNumber || 'N/A'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right font-extrabold text-slate-800 text-sm">
+                          <td className="px-6 py-5 text-right font-extrabold text-slate-900 text-sm">
                             {formatLKR(c.contractValue)}
                           </td>
-                          <td className="px-6 py-4 text-xs font-semibold text-slate-600">
-                            <div className="flex items-center space-x-1">
-                              <FaCalendarAlt size={10} className="text-slate-400" />
+                          <td className="px-6 py-5 text-xs font-bold text-slate-500">
+                            <div className="flex items-center space-x-1.5">
+                              <FaCalendarAlt size={12} className="text-slate-400" />
                               <span>{formatDateOnly(c.startDate)} - {formatDateOnly(c.endDate)}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-slate-700">
+                              <span className="text-sm font-black text-slate-800">
                                 {c.performanceMetrics?.overallRating || '95'}%
                               </span>
-                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                              <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
                               c.status === 'active' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                                ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' 
+                                : 'bg-slate-100/50 text-slate-700 border-slate-200/50'
                             }`}>
                               {c.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-5 text-center">
                             <Link
                               to={`/contracts/${c._id}`}
-                              className="inline-flex items-center text-xs font-bold text-blue-600 hover:underline"
+                              className="inline-flex items-center text-[11px] font-black text-blue-600 hover:text-blue-700 hover:underline gap-1 bg-blue-50/50 px-3 py-1.5 rounded-lg transition-colors"
                             >
-                              Manage <FaChevronRight size={8} className="ml-1" />
+                              Manage <FaChevronRight size={10} />
                             </Link>
                           </td>
                         </tr>
@@ -797,60 +855,60 @@ const SupplierDashboard = () => {
                   <p className="text-xs text-slate-505 mt-1">Invoices submitted against active contract milestones will generate payments here.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-100 shadow-sm bg-white">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-extrabold text-xs uppercase bg-slate-50/50">
-                        <th className="px-6 py-4 font-extrabold">Voucher Ref</th>
-                        <th className="px-6 py-4 font-extrabold">Invoice Number</th>
-                        <th className="px-6 py-4 font-extrabold text-right">Net Amount (LKR)</th>
-                        <th className="px-6 py-4 font-extrabold">3-Way Match</th>
-                        <th className="px-6 py-4 font-extrabold">Disbursed Date</th>
-                        <th className="px-6 py-4 font-extrabold">Status</th>
-                        <th className="px-6 py-4 font-extrabold text-center">Action</th>
+                      <tr className="bg-slate-50/80 backdrop-blur-md border-b border-slate-100 text-slate-500 font-black text-[10px] uppercase tracking-widest">
+                        <th className="px-6 py-5 rounded-tl-2xl">Voucher Ref</th>
+                        <th className="px-6 py-5">Invoice Number</th>
+                        <th className="px-6 py-5 text-right">Net Amount (LKR)</th>
+                        <th className="px-6 py-5">3-Way Match</th>
+                        <th className="px-6 py-5">Disbursed Date</th>
+                        <th className="px-6 py-5">Status</th>
+                        <th className="px-6 py-5 text-center rounded-tr-2xl">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-50">
                       {myPayments.map(p => (
-                        <tr key={p._id} className="hover:bg-slate-50/40">
-                          <td className="px-6 py-4 font-mono text-xs font-bold text-slate-550">
+                        <tr key={p._id} className="bg-white hover:bg-blue-50/30 transition-all duration-300 transform hover:-translate-y-1px hover:shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] group relative z-0 hover:z-10">
+                          <td className="px-6 py-5 font-mono text-[11px] font-bold text-slate-500 group-hover:text-blue-600 transition-colors">
                             {p.voucherNumber || `PV-${p._id.substring(0, 6).toUpperCase()}`}
                           </td>
-                          <td className="px-6 py-4 font-semibold text-slate-805 text-xs">
+                          <td className="px-6 py-5 font-extrabold text-slate-800 text-sm">
                             {p.invoice?.invoiceNumber || '—'}
                           </td>
-                          <td className="px-6 py-4 text-right font-extrabold text-slate-905 text-sm">
+                          <td className="px-6 py-5 text-right font-extrabold text-slate-900 text-sm">
                             {formatLKR(p.netAmount || p.totalBidAmount)}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
                               p.threeWayMatchStatus === 'matched' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                                ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' 
                                 : p.threeWayMatchStatus === 'discrepancy' 
-                                  ? 'bg-rose-50 text-rose-700 border-rose-100' 
-                                  : 'bg-slate-50 text-slate-600 border-slate-200'
+                                  ? 'bg-rose-100/50 text-rose-700 border-rose-200/50' 
+                                  : 'bg-slate-100/50 text-slate-600 border-slate-200/50'
                             }`}>
                               {p.threeWayMatchStatus || 'pending'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-xs font-semibold text-slate-600">
+                          <td className="px-6 py-5 text-xs font-bold text-slate-500">
                             {p.paidAt ? formatDateOnly(p.paidAt) : <span className="text-slate-400 italic">Processing</span>}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-5">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
                               p.status === 'paid' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                : 'bg-amber-50 text-amber-700 border-amber-100'
+                                ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' 
+                                : 'bg-amber-100/50 text-amber-700 border-amber-200/50'
                             }`}>
                               {p.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-5 text-center">
                             <Link
                               to={`/payments/${p._id}`}
-                              className="inline-flex items-center text-xs font-bold text-blue-650 hover:underline"
+                              className="inline-flex items-center text-[11px] font-black text-blue-600 hover:text-blue-700 hover:underline gap-1 bg-blue-50/50 px-3 py-1.5 rounded-lg transition-colors"
                             >
-                              View Details
+                              Details <FaChevronRight size={10} />
                             </Link>
                           </td>
                         </tr>

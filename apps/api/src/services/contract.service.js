@@ -155,15 +155,24 @@ class ContractService {
     return contract;
   }
 
-  async updateDeliverable(contractId, deliverableIndex, update, tenantId) {
+  async updateDeliverable(contractId, deliverableIdOrIndex, update, tenantId) {
     const contract = await Contract.findOne({ _id: contractId, tenantId });
     if (!contract) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    if (contract.deliverables[deliverableIndex]) {
-      Object.assign(contract.deliverables[deliverableIndex], update);
+    
+    let deliverable;
+    if (/^\d+$/.test(deliverableIdOrIndex)) {
+      deliverable = contract.deliverables[parseInt(deliverableIdOrIndex, 10)];
+    } else {
+      deliverable = contract.deliverables.id(deliverableIdOrIndex);
     }
+
+    if (!deliverable) throw Object.assign(new Error('Deliverable not found'), { statusCode: 404 });
+    
+    Object.assign(deliverable, update);
     await contract.save();
     return contract;
   }
+
 
   async updatePerformanceMetrics(id, data, tenantId) {
     const contract = await Contract.findOne({ _id: id, tenantId });
@@ -326,8 +335,10 @@ class ContractService {
       const accepted = parseInt(data.acceptedQty || received, 10);
       const isMatched = accepted === orderedQty;
 
+      const grnRefVal = data.grnRef || `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+
       contract.deliverables[deliverableIdx].status = isMatched ? 'accepted' : 'rejected';
-      contract.deliverables[deliverableIdx].acceptanceReport = data.grnRef || 'GRN recorded';
+      contract.deliverables[deliverableIdx].acceptanceReport = grnRefVal;
 
       // Automatically create a corresponding payment voucher in the database
       const Payment = require('../models/payment.model');
@@ -350,7 +361,7 @@ class ContractService {
           poAmount: contract.contractValue
         },
         goodsReceivedNote: {
-          grnNumber: data.grnRef,
+          grnNumber: grnRefVal,
           grnDate: new Date(),
           items: [{
             description: contract.deliverables[deliverableIdx].description,
@@ -361,13 +372,35 @@ class ContractService {
           }]
         },
         invoice: {
-          invoiceNumber: `INV-${data.grnRef.replace('GRN-', '')}`,
+          invoiceNumber: `INV-${grnRefVal.replace('GRN-', '')}`,
           invoiceDate: new Date(),
           invoiceAmount: contract.contractValue
         },
         deductions: [{ description: 'Retention (10%)', amount: contract.contractValue * 0.1, type: 'retention' }],
         netAmount: contract.contractValue * 0.9,
       });
+
+      // Trigger goodsAccepted notification if matched
+      if (isMatched) {
+        const Vendor = require('../models/vendor.model');
+        const User = require('../models/user.model');
+        const triggers = require('./workflow.triggers');
+        try {
+          const vendor = await Vendor.findById(contract.vendorId);
+          if (vendor && vendor.userId) {
+            const supplierUser = await User.findById(vendor.userId);
+            if (supplierUser) {
+              await triggers.goodsAccepted(tenantId, {
+                poNumber: contract.contractNumber.replace('CNT-', 'PO-'),
+                grnNumber: grnRefVal,
+                _id: contract._id,
+              }, supplierUser);
+            }
+          }
+        } catch (err) {
+          logger.error('Failed to trigger goodsAccepted notification', err);
+        }
+      }
     }
     await contract.save();
     return contract;
@@ -390,6 +423,26 @@ class ContractService {
         payment.status = 'pending_approval';
         payment.matchDiscrepancies = [];
         await payment.save();
+      }
+
+      // Trigger goodsAccepted notification
+      const Vendor = require('../models/vendor.model');
+      const User = require('../models/user.model');
+      const triggers = require('./workflow.triggers');
+      try {
+        const vendor = await Vendor.findById(contract.vendorId);
+        if (vendor && vendor.userId) {
+          const supplierUser = await User.findById(vendor.userId);
+          if (supplierUser) {
+            await triggers.goodsAccepted(tenantId, {
+              poNumber: contract.contractNumber.replace('CNT-', 'PO-'),
+              grnNumber: payment?.goodsReceivedNote?.grnNumber || contract.deliverables[deliverableIdx].acceptanceReport || 'GRN recorded',
+              _id: contract._id,
+            }, supplierUser);
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to trigger goodsAccepted notification', err);
       }
     }
     await contract.save();

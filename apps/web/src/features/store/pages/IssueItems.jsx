@@ -11,7 +11,7 @@ const FACULTIES = [
   'Faculty of Technology', 'ICT Centre', 'Library', 'Works Division', 'Administration',
 ];
 
-function IssuanceCard({ issuance, onIssue, onConfirm, userRole }) {
+function IssuanceCard({ issuance, onApprove, onIssue, onConfirm, userRole }) {
   const isStoreManager = ['store_manager', 'admin', 'super_admin'].includes(userRole);
   const isDeptUser = ['department_head', 'department_user'].includes(userRole);
 
@@ -49,6 +49,12 @@ function IssuanceCard({ issuance, onIssue, onConfirm, userRole }) {
       </div>
 
       <div className="flex gap-2 pt-1">
+        {isStoreManager && issuance.status === 'requested' && (
+          <button onClick={() => onApprove(issuance._id)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors">
+            <FaCheck size={10} /> Approve Request
+          </button>
+        )}
         {isStoreManager && issuance.status === 'approved' && (
           <button onClick={() => onIssue(issuance._id)}
             className="flex-1 flex items-center justify-center gap-2 py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-500 transition-colors">
@@ -99,6 +105,15 @@ export default function IssueItems() {
     })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleApprove = async (id) => {
+    try {
+      const res = await inventoryService.approveIssuance(id);
+      const updated = res.data?.data || res.data;
+      setIssuances(prev => prev.map(i => i._id === id ? (updated && updated._id === id ? updated : { ...i, status: 'approved' }) : i));
+      toast.success('Issuance request approved!');
+    } catch (err) { toast.error(err?.response?.data?.message || 'Failed to approve request'); }
+  };
 
   const handleIssue = async (id) => {
     try {
@@ -227,7 +242,7 @@ export default function IssueItems() {
             ) : byStatus(col.status).length === 0 ? (
               <div className="text-center text-slate-300 text-xs py-4 bg-white rounded-xl border border-dashed border-slate-200">Empty</div>
             ) : byStatus(col.status).map(iss => (
-              <IssuanceCard key={iss._id} issuance={iss} userRole={user?.role} onIssue={handleIssue} onConfirm={handleConfirm} />
+              <IssuanceCard key={iss._id} issuance={iss} userRole={user?.role} onApprove={handleApprove} onIssue={handleIssue} onConfirm={handleConfirm} />
             ))}
           </div>
         ))}

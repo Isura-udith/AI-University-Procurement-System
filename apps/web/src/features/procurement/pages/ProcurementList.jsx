@@ -34,6 +34,13 @@ const EXPORT_COLUMNS = [
   { key: 'date', label: 'Date' },
 ];
 
+const sortFieldMap = {
+  id: 'referenceNumber',
+  tce: 'totalEstimatedCost',
+  date: 'createdAt',
+  title: 'title'
+};
+
 const SortIcon = ({ field, sortField, sortDir }) => {
   if (sortField !== field) return null;
   return sortDir === 'asc' ? <FaSortAmountUp size={9} className="inline ml-1 text-emerald-600" /> : <FaSortAmountDown size={9} className="inline ml-1 text-emerald-600" />;
@@ -52,26 +59,56 @@ export default function ProcurementList() {
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, completed: 0 });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [publishTarget, setPublishTarget] = useState(null);
+
+  // Fetch dashboard stats from API
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await procurementService.getDashboardStats();
+      const statsData = res.data || res || {};
+      setStats({
+        total: statsData.total || 0,
+        pending: statsData.pending || 0,
+        active: statsData.active || 0,
+        completed: statsData.completed || 0,
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Fetch from API
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await procurementService.getAll({ page, limit: perPage, status: statusFilter !== 'all' ? statusFilter : undefined, search: search || undefined });
+      const sortParam = (sortDir === 'desc' ? '-' : '') + (sortFieldMap[sortField] || sortField);
+      const res = await procurementService.getAll({
+        page,
+        limit: perPage,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: search || undefined,
+        sort: sortParam
+      });
       setData(res.data || []);
+      setTotalItems(res.pagination?.total || res.total || 0);
     } catch {
       setData([]);
+      setTotalItems(0);
       toast.error('Failed to load procurement requisitions');
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, statusFilter, search]);
+  }, [page, perPage, statusFilter, search, sortField, sortDir]);
 
   useEffect(() => {
-    Promise.resolve().then(() => fetchData());
-  }, [fetchData]);
+    Promise.resolve().then(() => {
+      fetchData();
+      fetchStats();
+    });
+  }, [fetchData, fetchStats]);
 
   // Delete
   const handleDelete = async () => {
@@ -79,7 +116,8 @@ export default function ProcurementList() {
     try {
       await procurementService.delete(deleteTarget._id || deleteTarget.id);
       toast.success(`Requisition ${deleteTarget.referenceNumber || deleteTarget.id} deleted successfully`);
-      setData(prev => prev.filter(d => (d._id || d.id) !== (deleteTarget._id || deleteTarget.id)));
+      fetchData();
+      fetchStats();
     } catch {
       toast.error('Failed to delete requisition');
     }
@@ -90,8 +128,9 @@ export default function ProcurementList() {
     if (!publishTarget) return;
     try {
       await procurementService.publish(publishTarget._id || publishTarget.id);
-      toast.success(`\uD83D\uDE80 Requisition ${publishTarget.referenceNumber || publishTarget.id} published to suppliers.`);
+      toast.success(`🚀 Requisition ${publishTarget.referenceNumber || publishTarget.id} published to suppliers.`);
       fetchData();
+      fetchStats();
     } catch (err) {
       toast.error(err?.message || err?.error || 'Failed to publish');
     }
@@ -108,42 +147,9 @@ export default function ProcurementList() {
     }
   };
 
-  // Filter + Sort + Paginate locally
-  const filtered = data
-    .filter(item => {
-      const matchesSearch = !search || 
-        item.title?.toLowerCase().includes(search.toLowerCase()) || 
-        (item.referenceNumber || item.id)?.toLowerCase().includes(search.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || 
-        item.status === statusFilter ||
-        (statusFilter === 'pending-approval' && ['pending-approval', 'submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review'].includes(item.status)) ||
-        (statusFilter === 'budget-locked' && ['budget-locked', 'budget_locked'].includes(item.status)) ||
-        (statusFilter === 'tendering' && ['tendering', 'published', 'bidding', 'evaluation'].includes(item.status));
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      let sortF = sortField;
-      if (sortField === 'id') sortF = 'referenceNumber';
-      if (sortField === 'tce') sortF = 'totalEstimatedCost';
-
-      let aVal = a[sortF] !== undefined ? a[sortF] : a[sortField];
-      let bVal = b[sortF] !== undefined ? b[sortF] : b[sortField];
-
-      if (typeof aVal === 'number') return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
-      return sortDir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
-    });
-
-  const totalItems = filtered.length;
+  const filtered = data;
   const totalPages = Math.ceil(totalItems / perPage);
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
-
-  const stats = {
-    total: data.length,
-    pending: data.filter(d => ['pending-approval', 'submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review'].includes(d.status)).length,
-    active: data.filter(d => ['budget-locked', 'budget_locked', 'tendering', 'published', 'bidding', 'evaluation'].includes(d.status)).length,
-    completed: data.filter(d => d.status === 'completed').length,
-  };
+  const paged = data;
 
   return (
     <div className="space-y-6">

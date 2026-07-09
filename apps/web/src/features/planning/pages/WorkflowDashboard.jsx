@@ -47,11 +47,15 @@ export default function WorkflowDashboard() {
           planningService.getPendingAnnualPlans(),
           planningService.getMyBudget(),
         ]);
+        const mppTotal = mpps.pagination?.total ?? mpps.data?.pagination?.total ?? mpps.data?.total ?? 0;
+        const annualTotal = annual.pagination?.total ?? annual.data?.pagination?.total ?? annual.data?.total ?? 0;
+        const pendMPP = pendingMPP.data?.data || pendingMPP.data || [];
+        const pendAnn = pendingAnnual.data?.data || pendingAnnual.data || [];
         setStats({
-          masterPlans: mpps.pagination?.total || 0,
-          annualPlans: annual.pagination?.total || 0,
-          pendingApprovals: ((pendingMPP.data || []).length) + ((pendingAnnual.data || []).length),
-          budget: budget.data || {},
+          masterPlans: mppTotal,
+          annualPlans: annualTotal,
+          pendingApprovals: (Array.isArray(pendMPP) ? pendMPP.length : 0) + (Array.isArray(pendAnn) ? pendAnn.length : 0),
+          budget: budget.data?.data || budget.data || {},
         });
       } catch {
         // silent

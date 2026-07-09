@@ -32,30 +32,35 @@ export default function BudgetLockPage() {
     if (!lockTarget) return;
     try {
       await procurementService.lockBudget(lockTarget._id || lockTarget.id);
-    } catch { toast.error('Failed to lock budget'); }
-    
-    const tceVal = lockTarget.totalEstimatedCost || lockTarget.tce || 0;
-    setItems(prev => prev.map(item =>
-      (item._id || item.id) === (lockTarget._id || lockTarget.id)
-        ? { ...item, status: 'budget_locked', budgetLockedAt: new Date().toISOString().split('T')[0] }
-        : item
-    ));
-    toast.success(`🔒 Budget locked for "${lockTarget.title}" — LKR ${tceVal.toLocaleString()} reserved.`);
-    setLockTarget(null);
+      const tceVal = lockTarget.totalEstimatedCost || lockTarget.tce || 0;
+      setItems(prev => prev.map(item =>
+        (item._id || item.id) === (lockTarget._id || lockTarget.id)
+          ? { ...item, status: 'budget_locked', budgetLockedAt: new Date().toISOString().split('T')[0] }
+          : item
+      ));
+      toast.success(`🔒 Budget locked for "${lockTarget.title}" — LKR ${tceVal.toLocaleString()} reserved.`);
+    } catch {
+      toast.error('Failed to lock budget');
+    } finally {
+      setLockTarget(null);
+    }
   };
 
   const handleUnlock = async () => {
     if (!unlockTarget) return;
     try {
       await procurementService.unlockBudget(unlockTarget._id || unlockTarget.id);
-    } catch { toast.error('Failed to unlock budget'); }
-    setItems(prev => prev.map(item =>
-      (item._id || item.id) === (unlockTarget._id || unlockTarget.id)
-        ? { ...item, status: 'pmd_review', budgetLockedAt: null }
-        : item
-    ));
-    toast.info(`🔓 Budget unlocked for "${unlockTarget.title}" — Funds released back to DAPP pool.`);
-    setUnlockTarget(null);
+      setItems(prev => prev.map(item =>
+        (item._id || item.id) === (unlockTarget._id || unlockTarget.id)
+          ? { ...item, status: 'pmd_review', budgetLockedAt: null }
+          : item
+      ));
+      toast.info(`🔓 Budget unlocked for "${unlockTarget.title}" — Funds released back to DAPP pool.`);
+    } catch {
+      toast.error('Failed to unlock budget');
+    } finally {
+      setUnlockTarget(null);
+    }
   };
 
   const totalLocked = items.filter(i => ['locked', 'budget_locked'].includes(i.status)).reduce((s, i) => s + (i.totalEstimatedCost || i.tce || 0), 0);
@@ -84,7 +89,7 @@ export default function BudgetLockPage() {
             <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-lg"><FaLock size={16} /></div>
             <div>
               <p className="text-xl font-bold text-slate-900">LKR {totalLocked.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Total Locked ({items.filter(i => i.status === 'locked').length} items)</p>
+              <p className="text-xs text-slate-500">Total Locked ({items.filter(i => ['locked', 'budget_locked'].includes(i.status)).length} items)</p>
             </div>
           </div>
         </div>
@@ -93,7 +98,7 @@ export default function BudgetLockPage() {
             <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
             <div>
               <p className="text-xl font-bold text-slate-900">LKR {totalPending.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Pending Lock ({items.filter(i => i.status === 'pending').length} items)</p>
+              <p className="text-xs text-slate-500">Pending Lock ({items.filter(i => ['pending', 'pmd_review', 'submitted'].includes(i.status)).length} items)</p>
             </div>
           </div>
         </div>

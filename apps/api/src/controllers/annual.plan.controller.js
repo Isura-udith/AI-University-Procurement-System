@@ -129,14 +129,22 @@ const approveAnnualPlan = async (req, res, next) => {
       finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
       council_review: 'council',
     };
+    const requiredStage = STATUS_TO_STAGE[plan.status];
+    if (!requiredStage) {
+      return res.status(400).json({ message: 'This plan is not pending any internal approval stage.' });
+    }
+
     let stage;
     if (req.user.role === 'super_admin') {
-      stage = STATUS_TO_STAGE[plan.status];
-      if (!stage) return res.status(400).json({ message: 'This plan is not pending any approval stage.' });
+      stage = requiredStage;
     } else {
       stage = INTERNAL_ROLE_TO_STAGE[req.user.role];
+      if (stage !== requiredStage) {
+        return res.status(403).json({
+          message: `Bypassing stages is not allowed. Awaiting approval from ${requiredStage.toUpperCase()}, but you are acting as ${stage ? stage.toUpperCase() : 'UNKNOWN'}.`
+        });
+      }
     }
-    if (!stage) return res.status(403).json({ message: 'Your role cannot approve Annual Plans' });
 
     plan.internalApprovals.push({
       stage,

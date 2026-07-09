@@ -90,6 +90,7 @@ export default function EvaluationPage() {
         
         setBidders(bidsArr.map((bid, i) => ({
           id: bid._id,
+          vendorId: bid.vendorId,
           name: bid.vendorId?.companyName || 'Unknown Vendor',
           techScores: {},
           quotedPrice: bid.totalBidAmount || 0,
@@ -206,7 +207,7 @@ export default function EvaluationPage() {
   const handleSelectWinner = async (bidder) => {
     try {
       await tenderService.awardTender(selectedTenderId, {
-        vendorId: bidder.vendorId?._id || bidder.id,
+        vendorId: bidder.vendorId?._id || bidder.vendorId || bidder.id,
         bidId: bidder.id,
         amount: bidder.correctedPrice || bidder.quotedPrice
       });
@@ -265,7 +266,7 @@ export default function EvaluationPage() {
                 </button>
               )}
               {evaluated && (
-                <button onClick={() => setSubmitModal(true)} className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm">
+                <button onClick={() => setSubmitModal(true)} className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">
                   <FaClipboardCheck size={12} /><span>Submit to MPC</span>
                 </button>
               )}

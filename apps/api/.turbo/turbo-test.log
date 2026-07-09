@@ -3,7 +3,7 @@
 > jest --passWithNoTests
 
   console.log
-    ◇ injected env (24) from ..\..\.env // tip: ⌘ override existing { override: true }
+    ◇ injected env (24) from ..\..\.env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
 
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
@@ -15,19 +15,7 @@
           at Array.forEach (<anonymous>)
 
   console.log
-    ◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
-
-      at _log (../../node_modules/dotenv/lib/main.js:131:11)
-          at Array.forEach (<anonymous>)
-
-  console.log
-    ◇ injected env (26) from ..\..\.env // tip: ⌁ auth for agents [www.vestauth.com]
-
-      at _log (../../node_modules/dotenv/lib/main.js:131:11)
-          at Array.forEach (<anonymous>)
-
-  console.log
-    ◇ injected env (1) from .env // tip: ⌘ suppress logs { quiet: true }
+    ◇ injected env (26) from ..\..\.env // tip: ⌘ override existing { override: true }
 
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
@@ -38,15 +26,8 @@
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
 
-PASS tests/jwt.test.js
-  JWT Utility Tests
-    √ generateToken should sign a token with payload (8 ms)
-    √ generateRefreshToken should sign a token with payload (1 ms)
-    √ verifyToken should throw an error for invalid token (13 ms)
-    √ generateTokenPair should generate both access and refresh tokens with correct payload properties (5 ms)
-
   console.log
-    ◇ injected env (0) from ..\..\.env // tip: ⌁ auth for agents [www.vestauth.com]
+    ◇ injected env (1) from .env // tip: ⌁ auth for agents [www.vestauth.com]
 
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
@@ -57,8 +38,27 @@ PASS tests/jwt.test.js
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
 
+PASS tests/jwt.test.js
+  JWT Utility Tests
+    √ generateToken should sign a token with payload (10 ms)
+    √ generateRefreshToken should sign a token with payload (1 ms)
+    √ verifyToken should throw an error for invalid token (13 ms)
+    √ generateTokenPair should generate both access and refresh tokens with correct payload properties (3 ms)
+
   console.log
-    ◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+    ◇ injected env (0) from ..\..\.env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+      at _log (../../node_modules/dotenv/lib/main.js:131:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    ◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+      at _log (../../node_modules/dotenv/lib/main.js:131:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    ◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
 
       at _log (../../node_modules/dotenv/lib/main.js:131:11)
           at Array.forEach (<anonymous>)
@@ -67,30 +67,30 @@ PASS tests/auth.middleware.test.js
   Auth Middleware - protect
     √ should fail if no token is provided (6 ms)
     √ should verify valid token from Authorization header and populate request context (1 ms)
-    √ should verify valid token from cookies if no header is present (2 ms)
-    √ should fail if token verification fails (1 ms)
+    √ should verify valid token from cookies if no header is present (1 ms)
+    √ should fail if token verification fails
     √ should fail if token is expired
-    √ should fail if user is not found
+    √ should fail if user is not found (1 ms)
     √ should fail if user is inactive
-    √ should fail if user is locked
+    √ should fail if user is locked (1 ms)
     √ should fail if password has been changed after token was issued
     √ should handle delegation when delegate is active (1 ms)
   Auth Middleware - authorize
-    √ should fail with 401 if req.user is missing
-    √ should authorize if user role is in the list (1 ms)
-    √ should reject with 403 if user role is not in the list
-  Auth Middleware - requirePermission
     √ should fail with 401 if req.user is missing (1 ms)
-    √ should pass super_admin role without checking specific permissions
-    √ should pass if user has specific permission in their permission list (1 ms)
-    √ should reject with 403 if user does not have permission
+    √ should authorize if user role is in the list
+    √ should reject with 403 if user role is not in the list (1 ms)
+  Auth Middleware - requirePermission
+    √ should fail with 401 if req.user is missing
+    √ should pass super_admin role without checking specific permissions (1 ms)
+    √ should pass if user has specific permission in their permission list
+    √ should reject with 403 if user does not have permission (1 ms)
   Auth Middleware - tenantScope
     √ should set default tenantId if not provided
-    √ should set tenantId from headers if provided (1 ms)
+    √ should set tenantId from headers if provided
 
 Test Suites: 2 passed, 2 total
 Tests:       23 passed, 23 total
 Snapshots:   0 total
-Time:        1.844 s
+Time:        1.533 s, estimated 2 s
 Ran all test suites.
 Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

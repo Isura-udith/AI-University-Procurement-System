@@ -63,16 +63,28 @@ class PaymentService {
 
     payment.matchDiscrepancies = discrepancies;
     payment.threeWayMatchStatus = discrepancies.length === 0 ? 'matched' : 'discrepancy';
-    if (discrepancies.length === 0) payment.status = 'pending_approval';
+    if (discrepancies.length === 0) {
+      payment.status = 'pending_approval';
+      const triggers = require('./workflow.triggers');
+      try {
+        await triggers.threeWayMatchReconciled(tenantId, {
+          poNumber: payment.purchaseOrder?.poNumber,
+          paymentId: payment._id,
+          amount: payment.amount,
+        });
+      } catch (err) {
+        logger.error('Failed to trigger threeWayMatchReconciled notification', err);
+      }
+    }
     await payment.save();
     logger.audit('THREE_WAY_MATCH', 'system', { paymentId: payment._id, result: payment.threeWayMatchStatus });
     return payment;
   }
 
-  async approve(id, userId, comments, tenantId) {
+  async approve(id, userId, role, comments, tenantId) {
     const payment = await Payment.findOne({ _id: id, tenantId });
     if (!payment) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    payment.approvals.push({ approver: userId, status: 'approved', actionDate: new Date(), comments });
+    payment.approvals.push({ approver: userId, role, status: 'approved', actionDate: new Date(), comments });
     payment.status = 'approved';
     await payment.save();
     logger.audit('PAYMENT_APPROVED', userId, { paymentId: payment._id });
@@ -88,6 +100,22 @@ class PaymentService {
     payment.transactionRef = transactionRef;
     await payment.save();
     logger.audit('PAYMENT_PROCESSED', userId, { paymentId: payment._id, amount: payment.netAmount });
+
+    // Sync contract paymentSchedule status to paid
+    const Contract = require('../models/contract.model');
+    const contract = await Contract.findOne({ _id: payment.contractId, tenantId });
+    if (contract) {
+      const milestone = contract.paymentSchedule.find(m => 
+        m.status !== 'paid' && 
+        (m.milestone?.toLowerCase().includes(payment.paymentType || '') || Math.abs(m.amount - payment.amount) < 0.01)
+      ) || contract.paymentSchedule.find(m => m.status !== 'paid');
+
+      if (milestone) {
+        milestone.status = 'paid';
+        await contract.save();
+      }
+    }
+
     return payment;
   }
 }

@@ -4,7 +4,7 @@ import {
   FaUserLock, FaKey, FaUserEdit, FaSearch, FaFilter, FaDownload,
   FaChevronLeft, FaChevronRight, FaClock, FaGlobe, FaDesktop,
   FaCheckCircle, FaTimesCircle, FaBan, FaUsers, FaChartLine,
-  FaSync, FaEye
+  FaSync, FaEye, FaUserPlus, FaUserCheck, FaUserTimes
 } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import auditLogService from '../../../services/audit.log.service';
@@ -46,9 +46,17 @@ const ACTION_ICONS = {
   PASSWORD_RESET_COMPLETED: FaKey,
   ACCOUNT_LOCKED: FaUserLock,
   ACCOUNT_UNLOCKED: FaUserLock,
+  ACCOUNT_DEACTIVATED: FaUserTimes,
+  ACCOUNT_ACTIVATED: FaUserCheck,
   USER_REGISTERED: FaUsers,
   PROFILE_UPDATED: FaUserEdit,
   ROLE_CHANGED: FaShieldAlt,
+  USER_CREATED_BY_ADMIN: FaUserPlus,
+  USER_DELETED_BY_ADMIN: FaUserTimes,
+  USER_ROLE_CHANGED_BY_ADMIN: FaShieldAlt,
+  BULK_USER_IMPORT: FaUsers,
+  DELEGATION_STARTED: FaUsers,
+  DELEGATION_ENDED: FaUsers,
 };
 
 const ACTION_COLORS = {
@@ -62,9 +70,16 @@ const ACTION_COLORS = {
   ACCOUNT_LOCKED: { bg: 'bg-red-100', text: 'text-red-700', icon: 'text-red-500' },
   ACCOUNT_UNLOCKED: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'text-emerald-500' },
   ACCOUNT_DEACTIVATED: { bg: 'bg-red-100', text: 'text-red-700', icon: 'text-red-500' },
+  ACCOUNT_ACTIVATED: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'text-emerald-500' },
   USER_REGISTERED: { bg: 'bg-purple-100', text: 'text-purple-700', icon: 'text-purple-500' },
   PROFILE_UPDATED: { bg: 'bg-sky-100', text: 'text-sky-700', icon: 'text-sky-500' },
   ROLE_CHANGED: { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: 'text-indigo-500' },
+  USER_CREATED_BY_ADMIN: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'text-emerald-500' },
+  USER_DELETED_BY_ADMIN: { bg: 'bg-red-100', text: 'text-red-700', icon: 'text-red-500' },
+  USER_ROLE_CHANGED_BY_ADMIN: { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: 'text-indigo-500' },
+  BULK_USER_IMPORT: { bg: 'bg-purple-100', text: 'text-purple-700', icon: 'text-purple-500' },
+  DELEGATION_STARTED: { bg: 'bg-amber-100', text: 'text-amber-700', icon: 'text-amber-500' },
+  DELEGATION_ENDED: { bg: 'bg-slate-100', text: 'text-slate-700', icon: 'text-slate-500' },
 };
 
 const SEVERITY_CONFIG = {

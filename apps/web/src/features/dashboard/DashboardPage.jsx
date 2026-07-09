@@ -260,6 +260,14 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHasMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const triggerRefresh = () => setRefreshKey((k) => k + 1);
 
@@ -374,12 +382,27 @@ export default function DashboardPage() {
     ];
     const map = {};
     recentItems.forEach((item) => {
-      const key = months[new Date(item.createdAt).getMonth()];
-      if (!map[key]) map[key] = { month: key, spend: 0, count: 0 };
+      const date = item.createdAt ? new Date(item.createdAt) : new Date();
+      const monthIdx = date.getMonth();
+      const year = date.getFullYear();
+      const key = `${year}-${String(monthIdx).padStart(2, "0")}`;
+      if (!map[key]) {
+        map[key] = {
+          key,
+          month: months[monthIdx],
+          spend: 0,
+          count: 0,
+          monthIdx,
+          year,
+        };
+      }
       map[key].spend += (item.totalEstimatedCost || 0) / 1_000_000;
       map[key].count += 1;
     });
-    return Object.values(map);
+    return Object.values(map).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthIdx - b.monthIdx;
+    });
   })();
 
   // ── Pipeline (by status stage groups) ─────────────────────────────────────
@@ -598,7 +621,7 @@ export default function DashboardPage() {
           <div className="w-full" style={{ height: 260 }}>
             {loading ? (
               <ChartSkeleton />
-            ) : spendChartData.length > 0 ? (
+            ) : spendChartData.length > 0 && hasMounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={spendChartData}
@@ -682,7 +705,7 @@ export default function DashboardPage() {
           >
             {loading ? (
               <div className="w-36 h-36 rounded-full animate-pulse bg-slate-200 mx-auto" />
-            ) : statusDonutData.length > 0 ? (
+            ) : statusDonutData.length > 0 && hasMounted ? (
               <>
                 <div style={{ height: 190, width: "100%" }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -767,7 +790,7 @@ export default function DashboardPage() {
           <div style={{ height: 260, width: "100%" }}>
             {loading ? (
               <ChartSkeleton />
-            ) : pipelineData.length > 0 ? (
+            ) : pipelineData.length > 0 && hasMounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={pipelineData}
@@ -838,7 +861,7 @@ export default function DashboardPage() {
           <div style={{ height: 260, width: "100%" }}>
             {loading ? (
               <ChartSkeleton />
-            ) : facultySpend.length > 0 ? (
+            ) : facultySpend.length > 0 && hasMounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={facultySpend}
@@ -912,7 +935,7 @@ export default function DashboardPage() {
           >
             {loading ? (
               <div className="w-32 h-32 rounded-full animate-pulse bg-slate-200 mx-auto" />
-            ) : categoryData.length > 0 ? (
+            ) : categoryData.length > 0 && hasMounted ? (
               <>
                 <div style={{ height: 190, width: "100%" }}>
                   <ResponsiveContainer width="100%" height="100%">

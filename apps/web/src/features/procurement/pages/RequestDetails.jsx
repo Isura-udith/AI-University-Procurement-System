@@ -40,10 +40,15 @@ export default function RequestDetails() {
   }, [id]);
 
   const handleDelete = async () => {
-    try { await procurementService.delete(id); } catch { toast.error('Failed to delete'); }
-    toast.success('Procurement request deleted.');
-    setDeleteModal(false);
-    navigate('/procurements');
+    try {
+      await procurementService.delete(id);
+      toast.success('Procurement request deleted.');
+      navigate('/procurements');
+    } catch {
+      toast.error('Failed to delete');
+    } finally {
+      setDeleteModal(false);
+    }
   };
 
   const handleSubmitForApproval = async () => {

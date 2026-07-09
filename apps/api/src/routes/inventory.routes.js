@@ -4,7 +4,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const {
   getInventory, getInventoryItem, getInventoryStats,
   createGRN, getGRNs, getGRN, inspectGRN,
-  createIssuance, getIssuances, issueItems, confirmDeptReceipt,
+  createIssuance, getIssuances, issueItems, confirmDeptReceipt, approveIssuance,
 } = require('../controllers/inventory.controller');
 
 router.use(protect);
@@ -23,6 +23,7 @@ router.post('/grn/:id/inspect', inspectGRN);
 // Issuances (Phase 8: distribution to departments)
 router.get('/issuances', getIssuances);
 router.post('/issuances', createIssuance);
+router.post('/issuances/:id/approve', approveIssuance);
 router.post('/issuances/:id/issue', issueItems);
 router.post('/issuances/:id/confirm-receipt', confirmDeptReceipt);
 

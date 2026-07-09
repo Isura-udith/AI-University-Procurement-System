@@ -135,7 +135,14 @@ function computeOverallStep(procurement, linkedEntities = {}) {
 
   // Check procurement status itself
   const procStep = getWorkflowStep('Procurement', procurement.status);
-  if (procStep) highestStep = Math.max(highestStep, procStep);
+  if (procStep) {
+    highestStep = Math.max(highestStep, procStep);
+  } else {
+    const approvalStatuses = ['hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review', 'budget_locked'];
+    if (approvalStatuses.includes(procurement.status)) {
+      highestStep = Math.max(highestStep, 29);
+    }
+  }
 
   // Check linked tender
   if (linkedEntities.tender) {

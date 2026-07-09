@@ -50,8 +50,8 @@ export default function StrategicPlanningHub() {
         const pendMPP = pendingMPP.data?.data || pendingMPP.data || [];
         const pendAnn = pendingAnnual.data?.data || pendingAnnual.data || [];
         // Use pagination total if available
-        const mppTotal = mpps.data?.total ?? mppData.length;
-        const annualTotal = annual.data?.total ?? annualData.length;
+        const mppTotal = mpps.pagination?.total ?? mpps.data?.pagination?.total ?? mpps.data?.total ?? mppData.length;
+        const annualTotal = annual.pagination?.total ?? annual.data?.pagination?.total ?? annual.data?.total ?? annualData.length;
         setRecentMPPs(mppData.slice(0, 4));
         setRecentAnnual(annualData.slice(0, 4));
         setStats({

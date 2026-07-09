@@ -62,6 +62,54 @@ const createGRN = async (req, res, next) => {
       tenantId: req.tenantId,
       receivedBy: req.user._id,
     });
+
+    const overallStatus = grn.overallInspectionStatus || 'pending_inspection';
+
+    if (['passed', 'partially_passed'].includes(overallStatus)) {
+      grn.status = 'accepted';
+      // Update inventory for each accepted item
+      for (const item of grn.items) {
+        if (['passed', 'partially_passed'].includes(item.inspectionStatus)) {
+          const acceptedQty = item.receivedQuantity - (item.rejectedQuantity || 0);
+          let invItem = await InventoryItem.findOne({ tenantId: req.tenantId, description: item.description });
+          if (!invItem) {
+            invItem = new InventoryItem({
+              tenantId: req.tenantId,
+              description: item.description,
+              unit: item.unit,
+              unitCost: item.unitCost,
+              quantityOnHand: 0,
+              procurementId: grn.procurementId,
+              supplierId: grn.supplierId,
+            });
+          }
+          invItem.quantityOnHand += acceptedQty;
+          invItem.lastReceivedAt = new Date();
+          await invItem.save();
+          item.inventoryItemId = invItem._id;
+        }
+      }
+      grn.status = 'inventory_updated';
+
+      // Update procurement status and workflowStep to 41 (Stocked)
+      if (grn.procurementId) {
+        await Procurement.findByIdAndUpdate(grn.procurementId, {
+          status: 'delivery',
+          workflowStep: 41,
+        });
+      }
+    } else if (overallStatus === 'failed') {
+      grn.status = 'rejected';
+    } else {
+      grn.status = 'pending_inspection';
+      // If GRN is created but pending inspection, set workflowStep to 38 (GRN Created)
+      if (grn.procurementId) {
+        await Procurement.findByIdAndUpdate(grn.procurementId, {
+          workflowStep: 38,
+        });
+      }
+    }
+
     await grn.save();
     return created(res, grn, 'Goods Receipt Note created');
   } catch (err) { next(err); }
@@ -149,9 +197,12 @@ const inspectGRN = async (req, res, next) => {
       }
       grn.status = 'inventory_updated';
 
-      // Mark procurement as delivered if GRN is accepted
+      // Mark procurement as delivered/stocked if GRN is accepted (Step 41)
       if (grn.procurementId) {
-        await Procurement.findByIdAndUpdate(grn.procurementId, { status: 'delivery' });
+        await Procurement.findByIdAndUpdate(grn.procurementId, {
+          status: 'delivery',
+          workflowStep: 41,
+        });
       }
     } else {
       grn.status = 'rejected';
@@ -223,9 +274,11 @@ const issueItems = async (req, res, next) => {
     issuance.issuedAt = new Date();
     await issuance.save();
 
-    // Mark procurement as completed if linked
+    // Update procurement step to 43 (Issued)
     if (issuance.procurementId) {
-      await Procurement.findByIdAndUpdate(issuance.procurementId, { status: 'completed', completedAt: new Date() });
+      await Procurement.findByIdAndUpdate(issuance.procurementId, {
+        workflowStep: 43,
+      });
     }
 
     return success(res, issuance, 'Items issued to department');
@@ -255,8 +308,21 @@ const confirmDeptReceipt = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+/** POST /api/inventory/issuances/:id/approve — Store manager approves issuance request */
+const approveIssuance = async (req, res, next) => {
+  try {
+    const issuance = await Issuance.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!issuance) return res.status(404).json({ message: 'Issuance not found' });
+
+    issuance.status = 'approved';
+    await issuance.save();
+
+    return success(res, issuance, 'Issuance request approved');
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   getInventory, getInventoryItem, getInventoryStats,
   createGRN, getGRNs, getGRN, inspectGRN,
-  createIssuance, getIssuances, issueItems, confirmDeptReceipt,
+  createIssuance, getIssuances, issueItems, confirmDeptReceipt, approveIssuance,
 };

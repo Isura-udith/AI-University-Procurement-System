@@ -15,6 +15,7 @@ export const inventoryService = {
   // ── Department Issuances (Phase 8) ──────────────────────
   getIssuances: (params) => api.get('/inventory/issuances', { params }),
   createIssuance: (data) => api.post('/inventory/issuances', data),
+  approveIssuance: (id) => api.post(`/inventory/issuances/${id}/approve`),
   issueItems: (id) => api.post(`/inventory/issuances/${id}/issue`),
   confirmDeptReceipt: (id) => api.post(`/inventory/issuances/${id}/confirm-receipt`),
 };

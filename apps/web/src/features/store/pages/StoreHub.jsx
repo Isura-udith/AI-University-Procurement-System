@@ -73,7 +73,7 @@ export default function StoreHub() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = ['all', ...new Set(items.map(i => i.category).filter(Boolean))];
+  const categories = ['all', 'Goods', 'Equipment', 'Consumables', 'Furniture', 'IT', 'Lab', 'Other'];
 
   const filtered = items.filter(item => {
     const matchCat = categoryFilter === 'all' || item.category === categoryFilter;

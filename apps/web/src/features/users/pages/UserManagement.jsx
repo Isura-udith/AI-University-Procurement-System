@@ -10,7 +10,7 @@ import userService from '../../../services/user.service';
 import { getRoleLabel, getRoleColor } from '../../../constants/roles';
 
 const ROLE_OPTIONS = [
-  'super_admin','admin','vc','dean','bursar','finance_officer',
+  'super_admin','admin','vc','dean','bursar','finance_committee','finance_officer',
   'procurement_officer','contract_manager','tec_member',
   'department_head','department_user','store_manager',
   'supplier','auditor','guest',
@@ -251,7 +251,9 @@ export default function UserManagement() {
       await userService.deactivateUser(id);
       toast.success('User deactivated');
       refreshData();
-    } catch { toast.error('Failed to deactivate'); }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to deactivate');
+    }
   };
 
   const handleActivate = async (id) => {
@@ -259,7 +261,9 @@ export default function UserManagement() {
       await userService.activateUser(id);
       toast.success('User activated');
       refreshData();
-    } catch { toast.error('Failed to activate'); }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to activate');
+    }
   };
 
   const handleResetPassword = async () => {
@@ -268,7 +272,9 @@ export default function UserManagement() {
       await userService.resetPassword(resetPwId, newPw);
       toast.success('Password reset successfully');
       setResetPwId(null); setNewPw('');
-    } catch { toast.error('Failed to reset password'); }
+    } catch (err) {
+      toast.error(err?.message || 'Failed to reset password');
+    }
   };
 
   return (
