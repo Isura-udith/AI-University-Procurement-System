@@ -1,6 +1,6 @@
 {
   "name": "smart-procurement-system",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "UWU AI-Based Smart Procurement System - SaaS Multi-Tenant MERN Stack",
   "private": true,
   "packageManager": "npm@11.9.0",
