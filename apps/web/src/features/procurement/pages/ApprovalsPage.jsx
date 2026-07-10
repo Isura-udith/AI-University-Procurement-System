@@ -7,12 +7,12 @@ import WorkflowTracker from '../../../components/WorkflowTracker';
 import ConfirmModal from '../../../components/ConfirmModal';
 import procurementService from '../../../services/procurement.service';
 
-// Approval thresholds from Step 29
+// Approval thresholds from Step 29 — final authority per value tier
 const APPROVAL_THRESHOLDS = [
-  { max: 200000, label: 'Up to Rs. 200,000', authority: 'Faculty Dean', color: 'blue' },
-  { max: 500000, label: 'Rs. 200,001 – 500,000', authority: 'Bursar', color: 'indigo' },
-  { max: 1000000, label: 'Rs. 500,001 – 1,000,000', authority: 'Vice Chancellor', color: 'violet' },
-  { max: Infinity, label: 'Above Rs. 1,000,000', authority: 'Procurement Committee', color: 'rose' },
+  { max: 200000,   label: 'Up to Rs. 200,000',           authority: 'Faculty Dean',          chain: 'HOD → Dean → PMD',                        color: 'blue' },
+  { max: 500000,   label: 'Rs. 200,001 – 500,000',       authority: 'Bursar',                chain: 'HOD → Dean → PMD → Bursar',               color: 'indigo' },
+  { max: 1000000,  label: 'Rs. 500,001 – 1,000,000',     authority: 'Vice Chancellor',       chain: 'HOD → Dean → PMD → Bursar → FC → VC',    color: 'violet' },
+  { max: Infinity, label: 'Above Rs. 1,000,000',         authority: 'Procurement Committee', chain: 'HOD → Dean → PMD → Bursar → FC → VC',    color: 'rose' },
 ];
 
 function getApprovalAuthority(tce) {
@@ -536,15 +536,16 @@ export default function ApprovalsPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
           <h3 className="text-sm font-bold text-slate-800">Step 29: Value-Based Approval Authority Reference</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Procurement requests are automatically routed based on their Total Cost Estimate (TCE)</p>
+          <p className="text-xs text-slate-500 mt-0.5">Approval chain is built automatically based on the Total Cost Estimate (TCE). Each stage must be approved sequentially before the next approver can act.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Procurement Value Range</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Required Approval Authority</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Full Approval Chain</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Final Authority</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Match</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -553,8 +554,9 @@ export default function ApprovalsPage() {
                 const threshold = getApprovalAuthority(tce);
                 const isMatch = selected && threshold?.label === row.label;
                 return (
-                  <tr key={i} className={`transition-colors ${isMatch ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}>
+                  <tr key={i} className={`transition-colors ${isMatch ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-slate-50'}`}>
                     <td className="px-6 py-3 text-sm font-medium text-slate-700">{row.label}</td>
+                    <td className="px-6 py-3 text-xs text-slate-500 font-mono tracking-tight">{row.chain}</td>
                     <td className="px-6 py-3">
                       <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${row.color}-100 text-${row.color}-700`}>
                         {row.authority}
@@ -562,8 +564,8 @@ export default function ApprovalsPage() {
                     </td>
                     <td className="px-6 py-3">
                       {isMatch && (
-                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full">
-                          ← Selected
+                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full flex items-center gap-1 w-fit">
+                          <FaCheck size={9} /> Active
                         </span>
                       )}
                     </td>
@@ -572,6 +574,11 @@ export default function ApprovalsPage() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="px-6 py-3 border-t border-slate-100 bg-amber-50">
+          <p className="text-xs text-amber-800">
+            <span className="font-bold">ℹ Sequential Approval:</span> Each stage in the chain must be approved in order. You can only approve when it reaches your stage. Dean approval is only required for academic faculty procurements.
+          </p>
         </div>
       </div>
 

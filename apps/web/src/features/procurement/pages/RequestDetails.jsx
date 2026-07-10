@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn, FaTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn, FaTimesCircle, FaExclamationTriangle, FaUserEdit } from 'react-icons/fa';
 import WorkflowTracker from '../../../components/WorkflowTracker';
 import StatusBadge from '../../../components/StatusBadge';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -147,6 +147,15 @@ export default function RequestDetails() {
   const boqList = data?.items && data.items.length > 0 ? data.items : (data?.boq || []);
   const baseAmt = data?.items ? data.items.reduce((s, it) => s + (it.estimatedTotalPrice || (it.quantity * it.estimatedUnitPrice)), 0) : (data?.baseAmount || 0);
 
+  // Last editor from revision history
+  const lastRevision = data?.revisionHistory && data.revisionHistory.length > 0
+    ? data.revisionHistory[data.revisionHistory.length - 1]
+    : null;
+  const lastEditedByName = lastRevision?.changedBy
+    ? `${lastRevision.changedBy.firstName} ${lastRevision.changedBy.lastName}`
+    : (lastRevision?.changes ? lastRevision.changes.replace(/^Edited by /, '').replace(/ \(.*\)$/, '') : null);
+  const lastEditedAt = lastRevision?.changedAt ? new Date(lastRevision.changedAt).toLocaleString() : null;
+
   if (loading) return <div className="flex items-center justify-center py-24"><FaSpinner className="animate-spin text-emerald-600 mr-2" size={20} /><span className="text-slate-500">Loading...</span></div>;
   if (!data) return <div className="text-center py-24 text-slate-400">Request not found.</div>;
 
@@ -212,6 +221,23 @@ export default function RequestDetails() {
                   <p className="text-sm text-slate-800 font-medium mt-0.5">{f.value}</p>
                 </div>
               ))}
+              {/* Last Edited By — only show if the record has been edited */}
+              {lastEditedByName && (
+                <div className="sm:col-span-2">
+                  <div className="flex items-center gap-2 mt-1 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                    <FaUserEdit className="text-amber-500 shrink-0" size={13} />
+                    <div>
+                      <p className="text-xs font-semibold text-amber-800">Last Edited By</p>
+                      <p className="text-sm font-medium text-amber-900">
+                        {lastEditedByName}
+                        {lastEditedAt && (
+                          <span className="text-xs font-normal text-amber-600 ml-2">· {lastEditedAt}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -494,11 +520,25 @@ export default function RequestDetails() {
                 <h3 className="text-sm font-bold text-slate-800">Revision History</h3>
               </div>
               <div className="p-5 space-y-3 max-h-60 overflow-y-auto">
-                {data.revisionHistory.map((rev, idx) => {
+                {[...data.revisionHistory].reverse().map((rev, idx) => {
+                  const editorName = rev.changedBy
+                    ? `${rev.changedBy.firstName} ${rev.changedBy.lastName}`
+                    : null;
+                  const displayText = editorName
+                    ? `Edited by ${editorName}`
+                    : (rev.changes || 'Modified');
                   return (
-                    <div key={idx} className="border-l-2 border-emerald-500 pl-3 py-1 space-y-1">
-                      <p className="text-xs font-semibold text-slate-700">{rev.changes}</p>
-                      <p className="text-[10px] text-slate-400">
+                    <div key={idx} className="border-l-2 border-emerald-500 pl-3 py-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <FaUserEdit className="text-emerald-500 shrink-0" size={10} />
+                        <p className="text-xs font-semibold text-slate-700">{displayText}</p>
+                      </div>
+                      {rev.changedBy?.role && (
+                        <p className="text-[10px] text-slate-500 pl-4">
+                          {rev.changedBy.role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-400 pl-4">
                         Version {rev.version} · {rev.changedAt ? new Date(rev.changedAt).toLocaleString() : ''}
                       </p>
                     </div>

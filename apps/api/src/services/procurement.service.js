@@ -134,9 +134,14 @@ class ProcurementService {
     });
     procurement.version += 1;
     await procurement.save();
+
+    // Re-fetch with population so the response includes editor name details
+    const populated = await Procurement.findById(procurement._id)
+      .populate('requestedBy', 'firstName lastName email role department')
+      .populate('revisionHistory.changedBy', 'firstName lastName email role');
     
     logger.audit('PROCUREMENT_UPDATED', userId, { procurementId: id, role: userRole });
-    return procurement;
+    return populated;
   }
 
   async submit(id, userId, tenantId) {
@@ -268,8 +273,15 @@ class ProcurementService {
     }
 
     newApprovalChain.push({ stage: 'pmd', status: 'pending' });
-    
-    // Add higher-level approvals based on Phase 5 value thresholds
+
+    // Step 29: Build the higher-level approval chain stages based on TCE value thresholds.
+    // We derive the authority fresh from the TCE here (rather than the stored field) to ensure
+    // correctness even if items were edited after the last draft save.
+    // Thresholds (matching the model's pre-save hook):
+    //   TCE ≤ 200,000  → Dean is final authority  (HOD → [Dean] → PMD is sufficient)
+    //   TCE ≤ 500,000  → Bursar is final authority (+ Bursar stage added)
+    //   TCE ≤ 1,000,000 → VC is final authority   (+ Bursar + Finance Committee + VC)
+    //   TCE > 1,000,000 → Procurement Committee   (same chain as VC: + Bursar + FC + VC)
     const tce = procurement.totalEstimatedCost || 0;
     if (tce > 200000) {
       newApprovalChain.push({ stage: 'bursar', status: 'pending' });
@@ -610,7 +622,7 @@ class ProcurementService {
     if (role === 'admin' || role === 'super_admin') {
       return Procurement.find({
         tenantId,
-        status: { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved'] },
+        status: { $in: ['submitted', 'flagged_special_approval', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved'] },
         'approvalChain.status': 'pending',
       })
         .populate('requestedBy', 'firstName lastName email department')

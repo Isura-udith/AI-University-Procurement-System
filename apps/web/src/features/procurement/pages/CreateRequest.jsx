@@ -252,12 +252,13 @@ export default function CreateRequest() {
         setLoading(true);
         try {
           const res = await procurementService.getById(id);
-          const reqData = res.data;
-          
+          // API response shape: { success, message, data: <procurement> }
+          const reqData = res.data?.data || res.data;
+
           // Reverse-map faculty label back to code
           const mappedFaculty = Object.keys(FACULTY_MAP).find(key => FACULTY_MAP[key] === reqData.faculty) || '';
-          
-          // Map category to frontend value (lower case matching category value)
+
+          // Map category to frontend value
           let mappedCategory = 'goods';
           if (reqData.category === 'Works') mappedCategory = 'works';
           else if (reqData.category === 'Services' || reqData.category === 'Consulting') mappedCategory = 'non-consulting';
@@ -269,23 +270,36 @@ export default function CreateRequest() {
           else if (methodUpper === 'SHOPPING') mappedMethod = 'shopping';
           else if (methodUpper === 'DIRECT') mappedMethod = 'direct';
 
+          // Map priority to frontend value
+          let mappedPriority = 'normal';
+          if (reqData.priority === 'urgent' || reqData.priority === 'high') mappedPriority = 'urgent';
+          else if (reqData.priority === 'low') mappedPriority = 'normal';
+          else if (reqData.priority === 'medium') mappedPriority = 'normal';
+
+          // Compute base amount from items
+          const computedBaseAmount = reqData.items && reqData.items.length > 0
+            ? String(reqData.items.reduce((sum, item) => sum + (item.estimatedTotalPrice || (item.quantity * item.estimatedUnitPrice) || 0), 0))
+            : String(reqData.totalEstimatedCost || '');
+
           setForm({
-            refNo: reqData.referenceNumber,
+            refNo: reqData.referenceNumber || '',
             faculty: mappedFaculty,
-            officerName: reqData.requestedBy ? `${reqData.requestedBy.firstName} ${reqData.requestedBy.lastName}` : (reqData.officer || ''),
-            officerDesignation: reqData.requestedBy?.jobTitle || reqData.designation || '',
-            officerEmpId: reqData.requestedBy?.employeeId || reqData.empId || '',
-            contractTitle: reqData.title,
+            officerName: reqData.requestedBy
+              ? `${reqData.requestedBy.firstName} ${reqData.requestedBy.lastName}`
+              : (reqData.officer || (user ? `${user.firstName} ${user.lastName}` : '')),
+            officerDesignation: reqData.requestedBy?.jobTitle || reqData.designation || user?.jobTitle || '',
+            officerEmpId: reqData.requestedBy?.employeeId || reqData.empId || user?.employeeId || '',
+            contractTitle: reqData.title || '',
             dappItem: reqData.dappReference || '',
-            mppRef: reqData.mppReference || '',
+            mppRef: reqData.mppReference || `MPP/${currentYear}-${currentYear + 2}/REF-001`,
             fundingSource: reqData.fundingSource || '',
             programCode: reqData.programCode || '',
             projectCode: reqData.projectCode || '',
             objectItem: reqData.objectItem || '',
-            baseAmount: reqData.items ? String(reqData.items.reduce((sum, item) => sum + (item.estimatedTotalPrice || (item.quantity * item.estimatedUnitPrice)), 0)) : '',
-            provisionalSums: reqData.provisionalSums ? String(reqData.provisionalSums) : '',
-            contingencies: reqData.contingencies ? String(reqData.contingencies) : '',
-            vatAmount: reqData.vatAmount ? String(reqData.vatAmount) : '',
+            baseAmount: computedBaseAmount,
+            provisionalSums: reqData.provisionalSums != null ? String(reqData.provisionalSums) : '',
+            contingencies: reqData.contingencies != null ? String(reqData.contingencies) : '',
+            vatAmount: reqData.vatAmount != null ? String(reqData.vatAmount) : '',
             category: mappedCategory,
             techDescription: reqData.description || '',
             method: mappedMethod,
@@ -295,17 +309,17 @@ export default function CreateRequest() {
             bidClosingDate: reqData.bidClosingDate ? reqData.bidClosingDate.substring(0, 16) : '',
             deliveryDate: reqData.deliveryDate ? reqData.deliveryDate.split('T')[0] : '',
             deliveryLocation: reqData.deliveryLocation || 'UWU Supplies Division, Passara Road, Badulla',
-            priority: reqData.priority || 'normal',
+            priority: mappedPriority,
             conflictDeclared: true,
             ethicsDeclared: true,
           });
 
           if (reqData.items && reqData.items.length > 0) {
             setBoqItems(reqData.items.map(it => ({
-              description: it.description,
-              unit: it.unit,
-              qty: String(it.quantity),
-              unitPrice: String(it.estimatedUnitPrice)
+              description: it.description || '',
+              unit: it.unit || 'nos',
+              qty: String(it.quantity || 1),
+              unitPrice: String(it.estimatedUnitPrice || 0)
             })));
           }
         } catch (err) {
@@ -317,7 +331,7 @@ export default function CreateRequest() {
       };
       loadData();
     }
-  }, [id, isEditMode]);
+  }, [id, isEditMode, user]);
 
   const handleAiAssist = async () => {
     if (!aiPrompt.trim()) {
@@ -536,6 +550,10 @@ export default function CreateRequest() {
         const res = await procurementService.update(id, payload);
         savedDoc = res.data?.data || res.data;
         toast.success('Requisition updated successfully');
+        // Navigate to details page so user can see the updated record with "last edited by"
+        const docId = savedDoc._id || savedDoc.id;
+        navigate(`/procurements/${docId}`);
+        return;
       } else {
         const res = await procurementService.create(payload);
         savedDoc = res.data?.data || res.data;
