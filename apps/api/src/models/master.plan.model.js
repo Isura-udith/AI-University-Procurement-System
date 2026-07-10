@@ -10,6 +10,7 @@ const departmentRequirementSchema = new mongoose.Schema({
   faculty: { type: String, required: true },
   description: { type: String, required: true },
   category: { type: String, enum: ['Goods', 'Services', 'Works', 'Consulting'], required: true },
+  dappNumber: { type: String, trim: true },               // DAPP reference number e.g. UWU/DAPP/2026/001
   estimatedQuantity: Number,
   unit: String,
   estimatedUnitCost: Number,

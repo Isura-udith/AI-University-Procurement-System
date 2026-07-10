@@ -177,6 +177,7 @@ export default function CreateAnnualPlan() {
             <button type="button" onClick={() => append({
               description: '', faculty: '', category: 'Goods', estimatedQuantity: 1,
               unit: 'Units', estimatedUnitCost: 0, quarter: 1, priority: 'medium', department: '',
+              dappNumber: '',
             })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg hover:bg-blue-100 transition-colors">
               <FaPlus size={10} /> Add Item
@@ -207,6 +208,12 @@ export default function CreateAnnualPlan() {
                       <input {...register(`items.${index}.description`, { required: true })}
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                         placeholder="Item description" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">DAPP Number</label>
+                      <input {...register(`items.${index}.dappNumber`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        placeholder="e.g. UWU/DAPP/2026/001" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty</label>

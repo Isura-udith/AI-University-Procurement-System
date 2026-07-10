@@ -66,7 +66,7 @@ export default function CreateMasterPlan() {
   const addRequirement = () => append({
     department: '', faculty: user?.faculty || '', description: '', category: 'Goods',
     estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '',
-    plannedYear: 1, priority: 'medium', justification: '',
+    plannedYear: 1, priority: 'medium', justification: '', dappNumber: '',
   });
 
   return (
@@ -141,6 +141,12 @@ export default function CreateMasterPlan() {
                     <input {...register(`requirements.${index}.description`, { required: true })}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
                       placeholder="Item description" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">DAPP Number</label>
+                    <input {...register(`requirements.${index}.dappNumber`)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      placeholder="e.g. UWU/DAPP/2026/001" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty</label>

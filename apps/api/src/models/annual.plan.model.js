@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 
 const annualItemSchema = new mongoose.Schema({
   masterPlanRequirementId: mongoose.Schema.Types.ObjectId, // Reference to MPP requirement
+  dappNumber: { type: String, trim: true },                // DAPP reference number e.g. UWU/DAPP/2026/001
   department: { type: String, required: true },
   faculty: { type: String, required: true },
   description: { type: String, required: true },

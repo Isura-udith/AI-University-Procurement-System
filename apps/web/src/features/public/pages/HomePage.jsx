@@ -19,6 +19,12 @@ const HomePage = () => {
     topVendors: [],
     categorySpendData: [],
     recentAwards: [],
+    kpis: {
+      totalSpendYTD: 'LKR 452M',
+      activeTenders: '24',
+      registeredVendors: '1,248',
+      complianceScore: '98.5%'
+    }
   });
 
   useEffect(() => {
@@ -50,6 +56,12 @@ const HomePage = () => {
             topVendors: analyticsData.topVendors || [],
             categorySpendData: analyticsData.categorySpendData || [],
             recentAwards: analyticsData.recentAwards || [],
+            kpis: analyticsData.kpis || {
+              totalSpendYTD: 'LKR 452M',
+              activeTenders: '24',
+              registeredVendors: '1,248',
+              complianceScore: '98.5%'
+            }
           });
         }
       } catch (err) {
@@ -75,7 +87,7 @@ const HomePage = () => {
       type: (p.procurementMethod || 'NCB').split(' - ')[0],
       value: `LKR ${(p.totalEstimatedCost || 0).toLocaleString()}`,
       category: p.category || 'Goods',
-      publishedAt: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : '',
+      publishedAt: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ''),
     }));
 
   const {
@@ -141,10 +153,10 @@ const HomePage = () => {
       <section className="relative z-20 -mt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-8 grid grid-cols-1 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
           {[
-            { label: 'Total Spend (YTD)', value: 'LKR 452M', icon: FaMoneyBillWave, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-            { label: 'Active Tenders', value: '24', icon: FaBoxOpen, color: 'text-blue-600', bg: 'bg-blue-100' },
-            { label: 'Registered Vendors', value: '1,248', icon: FaUserTie, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-            { label: 'Compliance Score', value: '98.5%', icon: FaShieldAlt, color: 'text-purple-600', bg: 'bg-purple-100' }
+            { label: 'Total Spend (YTD)', value: analytics.kpis?.totalSpendYTD || 'LKR 452M', icon: FaMoneyBillWave, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+            { label: 'Active Tenders', value: String(analytics.kpis?.activeTenders ?? '24'), icon: FaBoxOpen, color: 'text-blue-600', bg: 'bg-blue-100' },
+            { label: 'Registered Vendors', value: String(analytics.kpis?.registeredVendors ?? '1,248'), icon: FaUserTie, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+            { label: 'Compliance Score', value: analytics.kpis?.complianceScore || '98.5%', icon: FaShieldAlt, color: 'text-purple-600', bg: 'bg-purple-100' }
           ].map((stat, i) => (
             <div key={i} className={`flex items-center space-x-4 ${i !== 0 ? 'pt-6 md:pt-0 md:pl-8' : ''}`}>
               <div className={`p-4 rounded-xl ${stat.bg} ${stat.color} shadow-inner`}><stat.icon size={24} /></div>

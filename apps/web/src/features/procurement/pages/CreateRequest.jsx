@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt } from 'react-icons/fa';
+import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch } from 'react-icons/fa';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
 import planningService from '../../../services/planning.service';
@@ -163,6 +163,7 @@ export default function CreateRequest() {
   const [annualPlans, setAnnualPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
+  const [dappSearch, setDappSearch] = useState('');
   const [myBudget, setMyBudget] = useState(null);
   // Budget compliance check state
   const [budgetCheck, setBudgetCheck] = useState(null);       // null | compliance result object
@@ -410,6 +411,7 @@ export default function CreateRequest() {
     if (field === 'faculty') {
       setSelectedItemId('');
       setBudgetCheck(null);
+      setDappSearch('');
       setForm(prev => ({ ...prev, dappItem: '' }));
     }
   };
@@ -647,7 +649,7 @@ export default function CreateRequest() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
                 <select
                   value={selectedPlanId}
-                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); }}
+                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); setDappSearch(''); }}
                   className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">— Select Annual Plan —</option>
@@ -658,6 +660,17 @@ export default function CreateRequest() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item</label>
+                <div className="relative mb-2">
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                  <input
+                    type="text"
+                    placeholder="Search DAPP Item..."
+                    value={dappSearch}
+                    onChange={e => setDappSearch(e.target.value)}
+                    disabled={!selectedPlanId}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                  />
+                </div>
                 <select
                   value={selectedItemId}
                   onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
@@ -665,11 +678,13 @@ export default function CreateRequest() {
                   className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
                 >
                   <option value="">— Select Item —</option>
-                  {annualPlans.find(p => p._id === selectedPlanId)?.items?.map(item => (
-                    <option key={item._id || item.id} value={item._id || item.id}>
-                      {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
-                    </option>
-                  ))}
+                  {annualPlans.find(p => p._id === selectedPlanId)?.items
+                    ?.filter(item => !dappSearch || item.description?.toLowerCase().includes(dappSearch.toLowerCase()))
+                    ?.map(item => (
+                      <option key={item._id || item.id} value={item._id || item.id}>
+                        {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
@@ -873,7 +888,7 @@ export default function CreateRequest() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
                 <select
                   value={selectedPlanId}
-                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); }}
+                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); setDappSearch(''); }}
                   disabled={!form.faculty}
                   className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
                 >
@@ -885,6 +900,17 @@ export default function CreateRequest() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item <span className="text-slate-400 font-normal">(filtered by selected faculty)</span></label>
+                <div className="relative mb-2">
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                  <input
+                    type="text"
+                    placeholder="Search DAPP Item..."
+                    value={dappSearch}
+                    onChange={e => setDappSearch(e.target.value)}
+                    disabled={!selectedPlanId || !form.faculty}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                  />
+                </div>
                 <select
                   value={selectedItemId}
                   onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
@@ -894,7 +920,12 @@ export default function CreateRequest() {
                   <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Item —'}</option>
                   {(() => {
                     const plan = annualPlans.find(p => p._id === selectedPlanId);
-                    const filtered = plan ? getFilteredDappItems(plan) : [];
+                    let filtered = plan ? getFilteredDappItems(plan) : [];
+                    if (dappSearch) {
+                      filtered = filtered.filter(item =>
+                        item.description?.toLowerCase().includes(dappSearch.toLowerCase())
+                      );
+                    }
                     return filtered.map(item => (
                       <option key={item._id || item.id} value={item._id || item.id}>
                         [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}

@@ -294,6 +294,7 @@ export default function AnnualPlanDetail() {
                   <thead>
                     <tr className="border-b border-slate-100">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500">Description</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">DAPP No.</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Category</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Faculty</th>
                       <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500">Q</th>
@@ -307,6 +308,11 @@ export default function AnnualPlanDetail() {
                           <p className="font-medium text-slate-800">{item.description}</p>
                           <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
                         </td>
+                        <td className="px-3 py-3">
+                          {item.dappNumber
+                            ? <span className="font-mono text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">{item.dappNumber}</span>
+                            : <span className="text-xs text-slate-300">—</span>}
+                        </td>
                         <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
                         <td className="px-3 py-3 text-xs text-slate-500">{item.faculty}</td>
                         <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter}</td>
@@ -316,7 +322,7 @@ export default function AnnualPlanDetail() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td colSpan={4} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
+                      <td colSpan={5} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
                       <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
                     </tr>
                   </tfoot>
