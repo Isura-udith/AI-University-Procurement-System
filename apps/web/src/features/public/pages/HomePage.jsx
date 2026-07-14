@@ -20,10 +20,10 @@ const HomePage = () => {
     categorySpendData: [],
     recentAwards: [],
     kpis: {
-      totalSpendYTD: 'LKR 452M',
-      activeTenders: '24',
-      registeredVendors: '1,248',
-      complianceScore: '98.5%'
+      totalSpendYTD: 'LKR 0.0M',
+      activeTenders: '0',
+      registeredVendors: '0',
+      complianceScore: '100.0%'
     }
   });
 
@@ -505,7 +505,7 @@ const HomePage = () => {
 
 
 
-  // Fetch published procurements and public analytics
+  // Fetch published procurements and public analytics with polling for real-time updates
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -527,10 +527,10 @@ const HomePage = () => {
             categorySpendData: analyticsData.categorySpendData || [],
             recentAwards: analyticsData.recentAwards || [],
             kpis: analyticsData.kpis || {
-              totalSpendYTD: 'LKR 452M',
-              activeTenders: '24',
-              registeredVendors: '1,248',
-              complianceScore: '98.5%'
+              totalSpendYTD: 'LKR 0.0M',
+              activeTenders: '0',
+              registeredVendors: '0',
+              complianceScore: '100.0%'
             }
           });
         }
@@ -541,7 +541,11 @@ const HomePage = () => {
         setLoadingNotices(false);
       }
     };
+
     fetchData();
+    const interval = setInterval(fetchData, 30000); // Poll every 30 seconds for real-time updates
+
+    return () => clearInterval(interval);
   }, []);
 
   const formatTime = (seconds) => {
@@ -630,22 +634,17 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center p-1.5">
-            <div className="w-1.5 h-2.5 bg-white/60 rounded-full"></div>
-          </div>
-        </div>
+
       </section>
 
-      {/* KPI Stats Bar - Pulled up to overlap hero */}
-      <section className="relative z-20 -mt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* KPI Stats Bar */}
+      <section className="relative z-20 mt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-8 grid grid-cols-1 md:grid-cols-4 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-200">
           {[
-            { label: 'Total Spend (YTD)', value: analytics.kpis?.totalSpendYTD || 'LKR 452M', icon: FaMoneyBillWave, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-            { label: 'Active Tenders', value: String(analytics.kpis?.activeTenders ?? '24'), icon: FaBoxOpen, color: 'text-blue-600', bg: 'bg-blue-100' },
-            { label: 'Registered Vendors', value: String(analytics.kpis?.registeredVendors ?? '1,248'), icon: FaUserTie, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-            { label: 'Compliance Score', value: analytics.kpis?.complianceScore || '98.5%', icon: FaShieldAlt, color: 'text-purple-600', bg: 'bg-purple-100' }
+            { label: 'Total Spend (YTD)', value: analytics.kpis?.totalSpendYTD || 'LKR 0.0M', icon: FaMoneyBillWave, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+            { label: 'Active Tenders', value: String(analytics.kpis?.activeTenders ?? '0'), icon: FaBoxOpen, color: 'text-blue-600', bg: 'bg-blue-100' },
+            { label: 'Registered Vendors', value: String(analytics.kpis?.registeredVendors ?? '0'), icon: FaUserTie, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+            { label: 'Compliance Score', value: analytics.kpis?.complianceScore || '100.0%', icon: FaShieldAlt, color: 'text-purple-600', bg: 'bg-purple-100' }
           ].map((stat, i) => (
             <div key={i} className={`flex items-center space-x-4 ${i !== 0 ? 'pt-6 md:pt-0 md:pl-8' : ''}`}>
               <div className={`p-4 rounded-xl ${stat.bg} ${stat.color} shadow-inner`}><stat.icon size={24} /></div>

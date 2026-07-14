@@ -210,13 +210,17 @@ class ReportService {
     }
 
     // 6. Overall KPIs
+    const startOfYear = new Date(currentYear, 0, 1);
+    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
     const spendSumAggr = await Procurement.aggregate([
       { 
         $match: { 
           tenantId: defaultTenant, 
           status: { 
             $nin: ['draft', 'submitted', 'under_review', 'rejected', 'cancelled', 'on_hold', 'flagged_special_approval'] 
-          } 
+          },
+          createdAt: { $gte: startOfYear, $lte: endOfYear }
         } 
       },
       { $group: { _id: null, total: { $sum: '$totalEstimatedCost' } } }
@@ -229,12 +233,26 @@ class ReportService {
     });
     
     const registeredVendorsCount = await Vendor.countDocuments({ tenantId: defaultTenant });
+
+    // Dynamic compliance score based on budgetComplianceCheck
+    const totalChecked = await Procurement.countDocuments({ 
+      tenantId: defaultTenant, 
+      'budgetComplianceCheck.checkedAt': { $exists: true } 
+    });
+    const passedComplianceCount = await Procurement.countDocuments({
+      tenantId: defaultTenant,
+      'budgetComplianceCheck.checkedAt': { $exists: true },
+      'budgetComplianceCheck.passed': true
+    });
+    const complianceScoreVal = totalChecked > 0 
+      ? (passedComplianceCount / totalChecked) * 100 
+      : 98.5; // default fallback if no checks performed yet
     
     const kpis = {
       totalSpendYTD: `LKR ${(totalSpend / 1000000).toFixed(1)}M`,
       activeTenders: activeTendersCount,
       registeredVendors: registeredVendorsCount,
-      complianceScore: '98.5%'
+      complianceScore: `${complianceScoreVal.toFixed(1)}%`
     };
 
     return { spendData, categoryData, monthlyStatusData, topVendors, categorySpendData, recentAwards, kpis };
