@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FaSignInAlt, FaUserTie, FaClock, FaMoneyBillWave, FaChartLine, FaShieldAlt, FaChevronRight, FaBoxOpen, FaStar, FaTrophy, FaArrowUp, FaArrowDown } from 'react-icons/fa';
@@ -26,6 +26,476 @@ const HomePage = () => {
       complianceScore: '98.5%'
     }
   });
+
+  // ---------- Cursor-sensitive procurement animation ----------
+  const heroCanvasRef = useRef(null);
+  const heroSectionRef = useRef(null);
+  const mouseRef = useRef({ x: -1000, y: -1000 });
+  const animFrameRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = heroCanvasRef.current;
+    const section = heroSectionRef.current;
+    if (!canvas || !section) return;
+
+    const ctx = canvas.getContext('2d');
+    const MOUSE_RADIUS = 250;
+    const CONNECTION_DISTANCE = 150;
+
+    // Procurement-themed icon paths drawn on canvas
+    const procurementIcons = [
+      // Document / requisition
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(16,185,129,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x - size * 0.4, y - size * 0.5, size * 0.8, size, size * 0.08);
+        ctx.stroke();
+        // lines on document
+        ctx.strokeStyle = 'rgba(16,185,129,0.4)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(x - size * 0.2, y - size * 0.2 + i * size * 0.2);
+          ctx.lineTo(x + size * 0.2, y - size * 0.2 + i * size * 0.2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+      // Money / budget
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(6,182,212,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
+        // Dollar sign
+        ctx.font = `bold ${size * 0.5}px sans-serif`;
+        ctx.fillStyle = 'rgba(6,182,212,0.7)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$', x, y);
+        ctx.restore();
+      },
+      // Shield / compliance
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(139,92,246,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y - size * 0.5);
+        ctx.lineTo(x + size * 0.4, y - size * 0.25);
+        ctx.lineTo(x + size * 0.4, y + size * 0.15);
+        ctx.quadraticCurveTo(x, y + size * 0.55, x, y + size * 0.55);
+        ctx.quadraticCurveTo(x, y + size * 0.55, x - size * 0.4, y + size * 0.15);
+        ctx.lineTo(x - size * 0.4, y - size * 0.25);
+        ctx.closePath();
+        ctx.stroke();
+        // Checkmark inside shield
+        ctx.strokeStyle = 'rgba(139,92,246,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.12, y);
+        ctx.lineTo(x - size * 0.02, y + size * 0.12);
+        ctx.lineTo(x + size * 0.15, y - size * 0.1);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Gear / process
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(245,158,11,0.7)';
+        ctx.lineWidth = 1.5;
+        const teeth = 6;
+        const outer = size * 0.45;
+        const inner = size * 0.3;
+        ctx.beginPath();
+        for (let i = 0; i < teeth; i++) {
+          const a1 = (i / teeth) * Math.PI * 2 - Math.PI / 2;
+          const a2 = ((i + 0.35) / teeth) * Math.PI * 2 - Math.PI / 2;
+          const a3 = ((i + 0.5) / teeth) * Math.PI * 2 - Math.PI / 2;
+          const a4 = ((i + 0.85) / teeth) * Math.PI * 2 - Math.PI / 2;
+          if (i === 0) ctx.moveTo(x + Math.cos(a1) * inner, y + Math.sin(a1) * inner);
+          ctx.lineTo(x + Math.cos(a1) * inner, y + Math.sin(a1) * inner);
+          ctx.lineTo(x + Math.cos(a2) * outer, y + Math.sin(a2) * outer);
+          ctx.lineTo(x + Math.cos(a3) * outer, y + Math.sin(a3) * outer);
+          ctx.lineTo(x + Math.cos(a4) * inner, y + Math.sin(a4) * inner);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Chart / analytics
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(59,130,246,0.7)';
+        ctx.lineWidth = 1.5;
+        // Axes
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.35, y - size * 0.35);
+        ctx.lineTo(x - size * 0.35, y + size * 0.35);
+        ctx.lineTo(x + size * 0.35, y + size * 0.35);
+        ctx.stroke();
+        // Bars
+        const bars = [0.6, 0.9, 0.45, 0.75];
+        const barW = size * 0.12;
+        bars.forEach((h, i) => {
+          ctx.fillStyle = `rgba(59,130,246,${0.3 + i * 0.1})`;
+          const bx = x - size * 0.25 + i * size * 0.17;
+          const bh = size * 0.6 * h;
+          ctx.fillRect(bx, y + size * 0.35 - bh, barW, bh);
+        });
+        ctx.restore();
+      },
+      // Handshake / contract
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(16,185,129,0.7)';
+        ctx.lineWidth = 1.5;
+        // Two curved hands meeting
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.4, y + size * 0.1);
+        ctx.quadraticCurveTo(x - size * 0.15, y - size * 0.25, x, y);
+        ctx.quadraticCurveTo(x + size * 0.15, y + size * 0.25, x + size * 0.4, y + size * 0.1);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.4, y + size * 0.15);
+        ctx.quadraticCurveTo(x - size * 0.1, y + size * 0.35, x + size * 0.05, y + size * 0.15);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Pie chart / distribution (Analytical)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(6,182,212,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - size * 0.45);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + size * 0.38, y + size * 0.22);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - Math.cos(Math.PI/6) * size * 0.45, y + Math.sin(Math.PI/6) * size * 0.45);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Line Graph / Growth Trend (Analytical)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(16,185,129,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.4, y + size * 0.3);
+        ctx.lineTo(x + size * 0.4, y + size * 0.3);
+        ctx.moveTo(x - size * 0.4, y + size * 0.3);
+        ctx.lineTo(x - size * 0.4, y - size * 0.4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.3, y + size * 0.2);
+        ctx.lineTo(x - size * 0.1, y - size * 0.05);
+        ctx.lineTo(x + size * 0.1, y + size * 0.1);
+        ctx.lineTo(x + size * 0.3, y - size * 0.25);
+        ctx.stroke();
+        const points = [
+          {px: x - size * 0.3, py: y + size * 0.2},
+          {px: x - size * 0.1, py: y - size * 0.05},
+          {px: x + size * 0.1, py: y + size * 0.1},
+          {px: x + size * 0.3, py: y - size * 0.25}
+        ];
+        ctx.fillStyle = 'rgba(16,185,129,0.8)';
+        points.forEach(pt => {
+          ctx.beginPath();
+          ctx.arc(pt.px, pt.py, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      },
+      // Target / Bullseye KPI (Analytical)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(236,72,153,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.28, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(236,72,153,0.6)';
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      },
+      // Database Cylinder (Analytical)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(245,158,11,0.8)';
+        ctx.lineWidth = 1.5;
+        const w = size * 0.6;
+        const h = size * 0.8;
+        ctx.beginPath();
+        ctx.ellipse(x, y - h/2 + 6, w/2, 5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(x, y, w/2, 5, 0, 0, Math.PI);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(x, y + h/2 - 6, w/2, 5, 0, 0, Math.PI);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - w/2, y - h/2 + 6);
+        ctx.lineTo(x - w/2, y + h/2 - 6);
+        ctx.moveTo(x + w/2, y - h/2 + 6);
+        ctx.lineTo(x + w/2, y + h/2 - 6);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Shopping Cart (Procurement purchase)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(16,185,129,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.4, y - size * 0.3);
+        ctx.lineTo(x - size * 0.25, y - size * 0.3);
+        ctx.lineTo(x - size * 0.1, y + size * 0.15);
+        ctx.lineTo(x + size * 0.3, y + size * 0.15);
+        ctx.lineTo(x + size * 0.4, y - size * 0.25);
+        ctx.lineTo(x - size * 0.2, y - size * 0.25);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x - size * 0.05, y + size * 0.28, 3, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.22, y + size * 0.28, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16,185,129,0.8)';
+        ctx.fill();
+        ctx.restore();
+      },
+      // Delivery Truck / Logistics (Stage 13 Delivery)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(59,130,246,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x - size * 0.45, y - size * 0.3, size * 0.55, size * 0.45, 2);
+        ctx.moveTo(x + size * 0.1, y + size * 0.15);
+        ctx.lineTo(x + size * 0.35, y + size * 0.15);
+        ctx.lineTo(x + size * 0.35, y - size * 0.1);
+        ctx.lineTo(x + size * 0.2, y - size * 0.22);
+        ctx.lineTo(x + size * 0.1, y - size * 0.22);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x - size * 0.22, y + size * 0.25, 3.5, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.22, y + size * 0.25, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(59,130,246,0.8)';
+        ctx.fill();
+        ctx.restore();
+      },
+      // Padlock / Secure Bid Box (Stage 7 secure lock)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(139,92,246,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x - size * 0.3, y - size * 0.05, size * 0.6, size * 0.45, 4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y - size * 0.05, size * 0.2, Math.PI, 0);
+        ctx.lineTo(x + size * 0.2, y - size * 0.05);
+        ctx.moveTo(x - size * 0.2, y - size * 0.05);
+        ctx.lineTo(x - size * 0.2, y - size * 0.05);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y + size * 0.1, 2, 0, Math.PI * 2);
+        ctx.moveTo(x, y + size * 0.12);
+        ctx.lineTo(x, y + size * 0.25);
+        ctx.stroke();
+        ctx.restore();
+      },
+      // Approval Stamp / Decision emblem (Stages 3 & 9)
+      (ctx, x, y, size, alpha) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'rgba(245,158,11,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - size * 0.15, y - size * 0.02);
+        ctx.lineTo(x - size * 0.02, y + size * 0.12);
+        ctx.lineTo(x + size * 0.18, y - size * 0.15);
+        ctx.stroke();
+        ctx.restore();
+      },
+    ];
+
+    let items = [];
+    const ITEM_COUNT = 45;
+
+    const resize = () => {
+      const rect = section.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Initialise procurement floating items
+    const initItems = () => {
+      items = [];
+      for (let i = 0; i < ITEM_COUNT; i++) {
+        items.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          size: Math.random() * 16 + 14,
+          baseAlpha: Math.random() * 0.25 + 0.08,
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.005,
+          iconIndex: Math.floor(Math.random() * procurementIcons.length),
+        });
+      }
+    };
+    initItems();
+
+    const cursor = { x: -1000, y: -1000 };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Ease cursor
+      cursor.x += (mouseRef.current.x - cursor.x) * 0.07;
+      cursor.y += (mouseRef.current.y - cursor.y) * 0.07;
+
+      // Draw radial cursor glow
+      if (cursor.x > 0 && cursor.y > 0) {
+        const glow = ctx.createRadialGradient(cursor.x, cursor.y, 0, cursor.x, cursor.y, 320);
+        glow.addColorStop(0, 'rgba(16,185,129,0.15)');
+        glow.addColorStop(0.35, 'rgba(6,182,212,0.08)');
+        glow.addColorStop(0.7, 'rgba(139,92,246,0.03)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Update & draw procurement items
+      for (let i = 0; i < items.length; i++) {
+        const p = items[i];
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotSpeed;
+
+        // Wrap around
+        if (p.x < -50) p.x = canvas.width + 50;
+        if (p.x > canvas.width + 50) p.x = -50;
+        if (p.y < -50) p.y = canvas.height + 50;
+        if (p.y > canvas.height + 50) p.y = -50;
+
+        // Mouse interaction — gentle attraction + scale up near cursor
+        const dx = cursor.x - p.x;
+        const dy = cursor.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < MOUSE_RADIUS && dist > 0) {
+          const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+          p.vx += (dx / dist) * force * 0.018;
+          p.vy += (dy / dist) * force * 0.018;
+        }
+
+        p.vx *= 0.99;
+        p.vy *= 0.99;
+
+        // Alpha boost near cursor
+        const alpha = dist < MOUSE_RADIUS
+          ? p.baseAlpha + (1 - dist / MOUSE_RADIUS) * 0.55
+          : p.baseAlpha;
+
+        const scale = dist < MOUSE_RADIUS
+          ? 1 + (1 - dist / MOUSE_RADIUS) * 0.4
+          : 1;
+
+        // Draw the procurement icon
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        procurementIcons[p.iconIndex](ctx, 0, 0, p.size * scale, alpha);
+        ctx.restore();
+
+        // Draw connection lines between nearby items
+        for (let j = i + 1; j < items.length; j++) {
+          const p2 = items[j];
+          const cdx = p.x - p2.x;
+          const cdy = p.y - p2.y;
+          const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+          if (cDist < CONNECTION_DISTANCE) {
+            // Only draw connections near cursor for a "network activating" feel
+            const midX = (p.x + p2.x) / 2;
+            const midY = (p.y + p2.y) / 2;
+            const cursorDist = Math.sqrt((cursor.x - midX) ** 2 + (cursor.y - midY) ** 2);
+            if (cursorDist < MOUSE_RADIUS * 1.5) {
+              const lineAlpha = (1 - cDist / CONNECTION_DISTANCE) * (1 - cursorDist / (MOUSE_RADIUS * 1.5)) * 0.25;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(16,185,129,${lineAlpha})`;
+              ctx.lineWidth = 0.8;
+              ctx.setLineDash([4, 4]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+          }
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(draw);
+    };
+
+    animFrameRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  const handleHeroMouseMove = useCallback((e) => {
+    const section = heroSectionRef.current;
+    if (!section) return;
+    const rect = section.getBoundingClientRect();
+    mouseRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  }, []);
+
+  const handleHeroMouseLeave = useCallback(() => {
+    mouseRef.current = { x: -1000, y: -1000 };
+  }, []);
+  // ---------- End cursor-sensitive animation ----------
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -122,29 +592,48 @@ const HomePage = () => {
         </div>
       </header>
 
-      {/* Hero Section with Dynamic Gradient & Glassmorphism */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-900">
+      {/* Hero Section — Full-Screen with Procurement Animation */}
+      <section
+        ref={heroSectionRef}
+        onMouseMove={handleHeroMouseMove}
+        onMouseLeave={handleHeroMouseLeave}
+        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-900"
+      >
+        {/* Cursor-sensitive procurement canvas */}
+        <canvas
+          ref={heroCanvasRef}
+          className="absolute inset-0 w-full h-full z-1 pointer-events-none"
+          style={{ mixBlendMode: 'screen' }}
+        />
         <div className="absolute inset-0 bg-linear-to-br from-slate-900 via-slate-800 to-emerald-900 opacity-90 z-0"></div>
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay z-0"></div>
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-10 animate-pulse" style={{ animationDelay: '4s' }}></div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-20">
           <div className="text-center max-w-4xl mx-auto">
-            <h2 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight mb-8 leading-tight drop-shadow-lg">
+            <h2 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-8 leading-tight drop-shadow-lg">
               AI DRIVEN <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-400 to-cyan-400">SMART PROCUREMENT SYSTEM</span>
             </h2>
-            <p className="text-lg md:text-xl text-slate-300 mb-10 leading-relaxed font-light max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-300 mb-12 leading-relaxed font-light max-w-3xl mx-auto">
               An AI driven, multi tenant SaaS platform accelerating value for money through intelligent automation, transparent e-tendering, and rigorous compliance management.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <Link to={isAuthenticated ? "/dashboard" : "/login"} className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold rounded-full shadow-xl hover:shadow-emerald-500/40 transition-all transform hover:-translate-y-1 flex items-center justify-center">
+              <Link to={isAuthenticated ? "/dashboard" : "/login"} className="w-full sm:w-auto px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold rounded-full shadow-xl hover:shadow-emerald-500/40 transition-all transform hover:-translate-y-1 flex items-center justify-center">
                 Access Dashboard
               </Link>
-              <Link to="/vendor-register" className="w-full sm:w-auto px-8 py-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-base font-bold rounded-full backdrop-blur-md transition-all flex items-center justify-center">
+              <Link to="/vendor-register" className="w-full sm:w-auto px-10 py-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-base font-bold rounded-full backdrop-blur-md transition-all flex items-center justify-center">
                 Vendor Registration
               </Link>
             </div>
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center p-1.5">
+            <div className="w-1.5 h-2.5 bg-white/60 rounded-full"></div>
           </div>
         </div>
       </section>
