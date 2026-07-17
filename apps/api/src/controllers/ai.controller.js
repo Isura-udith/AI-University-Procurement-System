@@ -504,6 +504,105 @@ const getAIStatus = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+/**
+ * Interactive AI Chat via Flowise
+ * POST /ai/chat
+ */
+const askFlowiseChat = async (req, res, next) => {
+  try {
+    const { question, sessionId } = req.body;
+    if (!question) {
+      throw Object.assign(new Error('Question is required'), { statusCode: 400 });
+    }
+
+    const result = await aiService.askFlowise(question, sessionId);
+
+    // Record explainability log
+    await explainabilityService.recordLog(result.explainabilityLog, {
+      userId: req.user._id,
+      tenantId: req.tenantId,
+    });
+
+    return success(res, {
+      text: result.text,
+      chatId: result.chatId,
+      sessionId: result.sessionId,
+    });
+  } catch (err) { next(err); }
+};
+
+/**
+ * Internal DB Query API for Flowise Custom Tool
+ * POST /ai/internal-query
+ */
+const runInternalQuery = async (req, res, next) => {
+  try {
+    const internalKey = req.headers['x-internal-key'];
+    const env = require('../config/env');
+    
+    if (!internalKey || internalKey !== env.INTERNAL_API_KEY) {
+      return res.status(401).json({ success: false, message: 'Unauthorized internal access key' });
+    }
+
+    const { model, queryText } = req.body;
+    if (!model) {
+      return res.status(400).json({ success: false, message: 'Model is required' });
+    }
+
+    let results = [];
+    const searchRegex = queryText ? new RegExp(queryText, 'i') : null;
+
+    if (model === 'procurement') {
+      const filter = { tenantId: 'uwu-main' };
+      if (searchRegex) {
+        filter.$or = [
+          { referenceNumber: searchRegex },
+          { title: searchRegex },
+          { description: searchRegex },
+          { status: searchRegex },
+        ];
+      }
+      results = await Procurement.find(filter)
+        .select('referenceNumber title category status estimatedTotalPrice items createdAt')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+    } else if (model === 'tender') {
+      const filter = { tenantId: 'uwu-main' };
+      if (searchRegex) {
+        filter.$or = [
+          { tenderNumber: searchRegex },
+          { title: searchRegex },
+          { status: searchRegex },
+        ];
+      }
+      results = await Tender.find(filter)
+        .select('tenderNumber title category status closingDate engineersEstimate createdAt')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+    } else if (model === 'vendor') {
+      const filter = { tenantId: 'uwu-main' };
+      if (searchRegex) {
+        filter.$or = [
+          { companyName: searchRegex },
+          { registrationNumber: searchRegex },
+          { ratingTier: searchRegex },
+        ];
+      }
+      results = await Vendor.find(filter)
+        .select('companyName registrationNumber performanceScore ratingTier isBlacklisted category')
+        .sort({ performanceScore: -1 })
+        .limit(10)
+        .lean();
+    } else {
+      return res.status(400).json({ success: false, message: `Unsupported model: ${model}` });
+    }
+
+    return success(res, results);
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   getMarketPrice,
   verifyQuotations,
@@ -519,4 +618,6 @@ module.exports = {
   getExplainabilityLog,
   acknowledgeAlert,
   getAIStatus,
+  askFlowiseChat,
+  runInternalQuery,
 };

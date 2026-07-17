@@ -191,5 +191,18 @@
     "email": "guest@uwu.ac.lk",
     "employeeId": "UWU-OVR-002",
     "permissions": []
+  },
+  {
+    "role": "finance_committee",
+    "firstName": "Finance",
+    "lastName": "Committee",
+    "email": "financecommittee@uwu.ac.lk",
+    "employeeId": "UWU-FIN-003",
+    "department": "Finance Division",
+    "permissions": [
+      "approve_requisition",
+      "reject_requisition",
+      "view_reports"
+    ]
   }
 ]

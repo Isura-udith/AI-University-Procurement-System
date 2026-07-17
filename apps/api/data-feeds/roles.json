@@ -229,5 +229,18 @@
     "maxApprovalAmount": 0,
     "committeeType": "none",
     "permissions": []
+  },
+  {
+    "name": "Finance Committee",
+    "slug": "finance_committee",
+    "hierarchy": 72,
+    "isSystem": true,
+    "description": "High level financial oversight and approvals for large acquisitions.",
+    "maxApprovalAmount": 25000000,
+    "committeeType": "none",
+    "permissions": [
+      { "resource": "requisitions", "actions": ["read", "approve", "reject"] },
+      { "resource": "reports",      "actions": ["read", "export"] }
+    ]
   }
 ]

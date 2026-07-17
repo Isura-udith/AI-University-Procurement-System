@@ -16,6 +16,13 @@ const bidSchema = new mongoose.Schema({
   discountOffered: Number,
   // Technical Proposal
   technicalProposal: { methodology: String, timeline: String, teamComposition: String, experience: String },
+  // Specification Votes (vendor votes yes/no on each procurement technical specification)
+  specificationVotes: [{
+    specNumber: Number,
+    specTitle: String,
+    vote: { type: String, enum: ['yes', 'no'], required: true },
+    reason: String,   // Required when vote is 'no'
+  }],
   // Bid Security
   bidSecurityType: { type: String, enum: ['bank_guarantee', 'insurance_bond', 'certified_cheque', 'demand_draft'] },
   bidSecurityAmount: Number,

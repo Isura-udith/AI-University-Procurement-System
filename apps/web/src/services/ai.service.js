@@ -34,6 +34,9 @@ export const aiService = {
 
   // System: AI status / health check
   getAIStatus: () => api.get('/ai/status'),
+
+  // Interactive Flowise Chat
+  askFlowiseChat: (question, sessionId) => api.post('/ai/chat', { question, sessionId }),
 };
 
 export default aiService;

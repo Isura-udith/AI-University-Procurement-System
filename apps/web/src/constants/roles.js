@@ -13,6 +13,7 @@ export const ROLES = {
   DEAN:                'dean',
   BURSAR:              'bursar',
   FINANCE_COMMITTEE:   'finance_committee',
+  PROCUREMENT_COMMITTEE: 'procurement_committee',
   FINANCE_OFFICER:     'finance_officer',
   PROCUREMENT_OFFICER: 'procurement_officer',
   CONTRACT_MANAGER:    'contract_manager',
@@ -92,6 +93,15 @@ export const ROLE_CONFIG = {
     hierarchy: 72,
     isCrossTenant: true,
     primaryArea: 'Financial Approvals',
+  },
+  [ROLES.PROCUREMENT_COMMITTEE]: {
+    label: 'Procurement Committee',
+    description: 'High level procurement oversight and approvals for acquisitions.',
+    category: ROLE_CATEGORIES.PROCUREMENT,
+    color: 'emerald',
+    hierarchy: 68,
+    isCrossTenant: true,
+    primaryArea: 'Procurement Approvals',
   },
   [ROLES.FINANCE_OFFICER]: {
     label: 'Finance Officer',

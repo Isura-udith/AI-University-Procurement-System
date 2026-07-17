@@ -74,6 +74,7 @@ import IssueItems from "../features/store/pages/IssueItems";
 
 // AI Intelligence Pages
 import AIIntelligenceHubPage from "../features/ai/pages/AIIntelligenceHubPage";
+import AIChatAssistantPage from "../features/ai/pages/AIChatAssistantPage";
 import AIMarketPricePage from "../features/procurement/pages/AIMarketPricePage";
 import AIBidVerificationPage from "../features/tenders/pages/AIBidVerificationPage";
 import AISmartRecommendationsPage from "../features/tenders/pages/AISmartRecommendationsPage";
@@ -221,6 +222,7 @@ export default function RoutesConfig() {
 
         {/* AI Intelligence Hub */}
         <Route path="/ai" element={<ProtectedRoute><AIIntelligenceHubPage /></ProtectedRoute>} />
+        <Route path="/ai/chat" element={<ProtectedRoute><AIChatAssistantPage /></ProtectedRoute>} />
 
         {/* AI Intelligence Feature Pages */}
         <Route path="/ai/market-price" element={<ProtectedRoute><AIMarketPricePage /></ProtectedRoute>} />

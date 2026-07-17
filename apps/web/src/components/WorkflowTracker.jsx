@@ -3,7 +3,7 @@ import { FaCheck, FaSpinner, FaLock, FaCircle } from 'react-icons/fa';
 const STAGES = [
   { id: 1, title: 'Requirement Identification', actor: 'Requester', short: 'Planning' },
   { id: 2, title: 'Smart Requisition Intake', actor: 'Requisitioning Officer', short: 'Requisition' },
-  { id: 3, title: 'Multi-Level Approval', actor: 'HOD → Dean → Bursar → Finance Com. → VC', short: 'Approval' },
+  { id: 3, title: 'Multi-Level Approval', actor: 'HOD → Dean → Bursar → Finance Com. → VC → Proc. Com.', short: 'Approval' },
   { id: 4, title: 'Financial Validation & Budget Lock', actor: 'Bursar', short: 'Budget Lock' },
   { id: 5, title: 'Strategy & Committee Routing', actor: 'Procurement Officer (PMD)', short: 'Committee' },
   { id: 6, title: 'Document Preparation & Solicitation', actor: 'Procurement Officer (PMD)', short: 'Solicitation' },

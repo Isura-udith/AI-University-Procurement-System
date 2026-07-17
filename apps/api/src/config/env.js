@@ -60,6 +60,11 @@ const env = {
   // Multi-Tenant
   DEFAULT_TENANT_ID: process.env.DEFAULT_TENANT_ID || 'uwu-main',
 
+  // Flowise Connection
+  FLOWISE_API_URL: process.env.FLOWISE_API_URL || 'http://localhost:3000/api/v1',
+  FLOWISE_CHATFLOW_ID: process.env.FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || 'uwu-flowise-secret-key-2026-gosl-compliant',
+
   isDev: () => env.NODE_ENV === 'development',
   isProd: () => env.NODE_ENV === 'production',
 };

@@ -95,10 +95,11 @@ export default function RequestDetails() {
       else if (a.stage === 'bursar') roleLabel = 'Bursar';
       else if (a.stage === 'finance_committee') roleLabel = 'Finance Committee';
       else if (a.stage === 'vice_chancellor') roleLabel = 'Vice-Chancellor';
+      else if (a.stage === 'procurement_committee') roleLabel = 'Procurement Committee';
 
       const approverName = a.approver
         ? `${a.approver.firstName} ${a.approver.lastName}`
-        : (a.stage === 'hod' ? 'Head of Department' : a.stage === 'dean' ? 'Faculty Dean' : a.stage === 'pmd' ? 'Procurement Officer (PMD)' : a.stage === 'bursar' ? 'Bursar' : a.stage === 'finance_committee' ? 'Finance Committee' : a.stage === 'vice_chancellor' ? 'Vice-Chancellor' : 'Approver');
+        : (a.stage === 'hod' ? 'Head of Department' : a.stage === 'dean' ? 'Faculty Dean' : a.stage === 'pmd' ? 'Procurement Officer (PMD)' : a.stage === 'bursar' ? 'Bursar' : a.stage === 'finance_committee' ? 'Finance Committee' : a.stage === 'vice_chancellor' ? 'Vice-Chancellor' : a.stage === 'procurement_committee' ? 'Procurement Committee' : 'Approver');
 
       return {
         role: roleLabel,
@@ -581,7 +582,7 @@ export default function RequestDetails() {
                 if (data.faculty) chain += ' → Dean';
                 chain += ' → PMD';
                 if (tce > 200000) chain += ' → Bursar';
-                if (tce > 500000) chain += ' → Finance Com. → VC';
+                if (tce > 500000) chain += ' → Finance Com. → VC → Proc. Com.';
                 return chain;
               })()}
             </span></div>

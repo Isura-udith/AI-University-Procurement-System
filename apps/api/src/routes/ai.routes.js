@@ -5,10 +5,13 @@ const {
   parseRequisition, getMarketAlerts, getRiskScore,
   getComparativeAnalysis, getHistoricalMatch, getDemandForecast,
   getExplainabilityLogs, getExplainabilityStats, getExplainabilityLog,
-  acknowledgeAlert, getAIStatus,
+  acknowledgeAlert, getAIStatus, askFlowiseChat, runInternalQuery,
 } = require('../controllers/ai.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
+
+// Public route for local Flowise server (authenticated via shared secret header)
+router.post('/internal-query', runInternalQuery);
 
 router.use(protect);
 
@@ -88,5 +91,8 @@ router.get('/explainability-logs/:id',
 
 // AI system status check (all authenticated users)
 router.get('/status', getAIStatus);
+
+// Interactive Flowise Chatbot (all authenticated users can query)
+router.post('/chat', askFlowiseChat);
 
 module.exports = router;

@@ -5,6 +5,7 @@ import {
   FaBoxOpen, FaLock, FaClock, FaUpload, FaFileAlt, FaTimes, FaCheckCircle,
   FaShieldAlt, FaSpinner, FaPlus, FaTrash, FaBan, FaChevronDown, FaChevronUp,
   FaHistory, FaTrophy, FaExclamationTriangle, FaSearch, FaChevronRight,
+  FaClipboardList, FaThumbsUp, FaThumbsDown,
 } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -300,13 +301,45 @@ export default function BidBoxPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
   const [useLineItems, setUseLineItems] = useState(false);
+  // Specification voting state
+  const [tenderSpecs, setTenderSpecs] = useState([]);  // specs from procurement
+  const [specVotes, setSpecVotes] = useState([]);       // vendor's votes
+  const [specsLoading, setSpecsLoading] = useState(false);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setBidAmount(''); setLineItems([{ itemDescription: '', quantity: 1, unit: 'units', unitPrice: '' }]);
     setVatAmount(''); setDiscount(''); setMethodology(''); setTimeline(''); setExperience('');
     setBidFiles([]); setSecurityFile(null); setSecurityType('bank_guarantee');
     setTermsAccepted(false); setShowTechnical(false); setUseLineItems(false);
-  };
+    setTenderSpecs([]); setSpecVotes([]);
+  }, []);
+
+  // Load technical specifications when submit modal opens
+  const openSubmitModal = useCallback(async (tender) => {
+    resetForm();
+    setSubmitModal(tender);
+    setSpecsLoading(true);
+    try {
+      const res = await tenderService.getById(tender._id);
+      const tenderDetail = res.data?.data || res.data || res;
+      const procurement = tenderDetail.procurementId;
+      const specs = procurement?.technicalSpecifications || [];
+      setTenderSpecs(specs);
+      // Initialize votes with empty values
+      setSpecVotes(specs.map(s => ({
+        specNumber: s.specNumber,
+        specTitle: s.title,
+        vote: '',
+        reason: '',
+      })));
+    } catch (err) {
+      console.error('Failed to load tender specs:', err);
+      setTenderSpecs([]);
+      setSpecVotes([]);
+    } finally {
+      setSpecsLoading(false);
+    }
+  }, [resetForm]);
 
   const lineItemsTotal = lineItems.reduce((sum, item) => {
     return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0);
@@ -335,7 +368,7 @@ export default function BidBoxPage() {
         if (targetId) {
           const target = mapped.find(t => t._id === targetId);
           if (target && new Date(target.deadline) > new Date()) {
-            setSubmitModal(target);
+            openSubmitModal(target);
             const next = new URLSearchParams(searchParams);
             next.delete('tenderId'); next.delete('tender');
             setSearchParams(next, { replace: true });
@@ -348,7 +381,7 @@ export default function BidBoxPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, openSubmitModal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -376,6 +409,24 @@ export default function BidBoxPage() {
     if (bidFiles.length === 0) { toast.error('Please upload at least one bid document.'); return; }
     if (submitModal?.bidSecurityRequired && !securityFile) { toast.error('Bid security document is required.'); return; }
 
+    // Validate specification votes
+    if (tenderSpecs.length > 0) {
+      const mandatorySpecs = tenderSpecs.filter(s => s.isMandatory);
+      for (const ms of mandatorySpecs) {
+        const vote = specVotes.find(v => v.specNumber === ms.specNumber);
+        if (!vote || !vote.vote) {
+          toast.error(`Please vote on mandatory specification #${ms.specNumber}: "${ms.title}"`);
+          return;
+        }
+      }
+      for (const v of specVotes) {
+        if (v.vote === 'no' && (!v.reason || !v.reason.trim())) {
+          toast.error(`Specification #${v.specNumber} "${v.specTitle}": please provide a reason for voting No.`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const bidData = {
@@ -397,6 +448,13 @@ export default function BidBoxPage() {
         bidSecurityExpiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
         bidSecurityValid: !!securityFile,
         currency: 'LKR',
+        // Specification votes
+        specificationVotes: specVotes.filter(v => v.vote).map(v => ({
+          specNumber: v.specNumber,
+          specTitle: v.specTitle,
+          vote: v.vote,
+          reason: v.vote === 'no' ? v.reason.trim() : '',
+        })),
       };
 
       await tenderService.submitBid(submitModal._id, bidData);
@@ -545,7 +603,7 @@ export default function BidBoxPage() {
                         <StatusBadge status={t.status} />
                         {isOpen && !isProcurement && (
                           <button
-                            onClick={() => { setSubmitModal(t); resetForm(); }}
+                            onClick={() => openSubmitModal(t)}
                             className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-500 flex items-center space-x-2 transition-colors shadow-sm"
                           >
                             <FaUpload size={12} /><span>Submit Bid</span>
@@ -726,6 +784,124 @@ export default function BidBoxPage() {
                   </div>
                 )}
               </div>
+
+              {/* ── Technical Specification Compliance (Voting) ── */}
+              {specsLoading ? (
+                <div className="flex items-center justify-center py-6 border border-slate-200 rounded-xl">
+                  <FaSpinner className="animate-spin text-emerald-500 mr-2" size={14} />
+                  <span className="text-xs text-slate-500">Loading technical specifications...</span>
+                </div>
+              ) : tenderSpecs.length > 0 && (
+                <div className="border border-blue-200 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FaClipboardList className="text-blue-600" size={14} />
+                      <span className="text-sm font-bold text-blue-800">Technical Specification Compliance</span>
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                        {tenderSpecs.length} specs · {tenderSpecs.filter(s => s.isMandatory).length} mandatory
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3 text-[10px]">
+                      <span className="flex items-center space-x-1 text-emerald-700">
+                        <FaThumbsUp size={9} />
+                        <span>{specVotes.filter(v => v.vote === 'yes').length} Yes</span>
+                      </span>
+                      <span className="flex items-center space-x-1 text-red-600">
+                        <FaThumbsDown size={9} />
+                        <span>{specVotes.filter(v => v.vote === 'no').length} No</span>
+                      </span>
+                      <span className="text-slate-400">
+                        {specVotes.filter(v => !v.vote).length} pending
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-4 space-y-3 max-h-[320px] overflow-y-auto">
+                    {tenderSpecs.map((spec, i) => {
+                      const vote = specVotes.find(v => v.specNumber === spec.specNumber) || {};
+                      return (
+                        <div key={spec.specNumber || i} className={`border rounded-lg p-3 transition-colors ${
+                          vote.vote === 'yes' ? 'border-emerald-200 bg-emerald-50/50'
+                          : vote.vote === 'no' ? 'border-red-200 bg-red-50/50'
+                          : 'border-slate-200 bg-white'
+                        }`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start space-x-2 flex-1">
+                              <span className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${
+                                vote.vote === 'yes' ? 'bg-emerald-500 text-white'
+                                : vote.vote === 'no' ? 'bg-red-500 text-white'
+                                : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {spec.specNumber || i + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs font-bold text-slate-800">{spec.title}</p>
+                                  {spec.isMandatory && (
+                                    <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">MANDATORY</span>
+                                  )}
+                                </div>
+                                {spec.description && (
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{spec.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSpecVotes(prev => prev.map(v =>
+                                    v.specNumber === spec.specNumber ? { ...v, vote: 'yes', reason: '' } : v
+                                  ));
+                                }}
+                                className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                  vote.vote === 'yes'
+                                    ? 'bg-emerald-500 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'
+                                }`}
+                              >
+                                <FaThumbsUp size={10} />
+                                <span>Yes</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSpecVotes(prev => prev.map(v =>
+                                    v.specNumber === spec.specNumber ? { ...v, vote: 'no' } : v
+                                  ));
+                                }}
+                                className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                  vote.vote === 'no'
+                                    ? 'bg-red-500 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600'
+                                }`}
+                              >
+                                <FaThumbsDown size={10} />
+                                <span>No</span>
+                              </button>
+                            </div>
+                          </div>
+                          {vote.vote === 'no' && (
+                            <div className="mt-2 ml-8">
+                              <label className="block text-[10px] font-semibold text-red-700 mb-1">Reason for Non-Compliance *</label>
+                              <textarea
+                                value={vote.reason || ''}
+                                onChange={e => {
+                                  setSpecVotes(prev => prev.map(v =>
+                                    v.specNumber === spec.specNumber ? { ...v, reason: e.target.value } : v
+                                  ));
+                                }}
+                                rows={2}
+                                placeholder="Explain why you cannot meet this specification..."
+                                className="w-full px-3 py-2 border border-red-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-red-400 resize-none bg-white"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Bid Documents */}
               <div>

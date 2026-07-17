@@ -124,8 +124,8 @@ class ReportService {
 
     let monthlyStatusData = [];
     if (statusAggr.length > 0) {
-      const pendingStatuses = ['draft', 'submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review', 'flagged_special_approval'];
-      const approvedStatuses = ['vc_approved', 'budget_locked', 'committee_assigned', 'tender_preparation', 'published', 'bidding', 'evaluation', 'standstill', 'contract_signing', 'in_progress', 'delivery', 'three_way_match', 'payment_pending', 'award_pending'];
+      const pendingStatuses = ['draft', 'submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review', 'flagged_special_approval'];
+      const approvedStatuses = ['budget_locked', 'committee_assigned', 'tender_preparation', 'published', 'bidding', 'evaluation', 'standstill', 'contract_signing', 'in_progress', 'delivery', 'three_way_match', 'payment_pending', 'award_pending'];
       const completedStatuses = ['completed'];
 
       monthlyStatusData = months.map((m, i) => {

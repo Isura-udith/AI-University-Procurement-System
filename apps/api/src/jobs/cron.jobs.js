@@ -3,7 +3,7 @@ const checkEscalations = async () => {
   const Procurement = require('../models/procurement.model');
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours
   const stalled = await Procurement.find({
-    status: { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_review'] },
+    status: { $in: ['submitted', 'hod_approved', 'dean_approved', 'vc_approved', 'pmd_review'] },
     updatedAt: { $lt: cutoff },
   });
   for (const proc of stalled) {

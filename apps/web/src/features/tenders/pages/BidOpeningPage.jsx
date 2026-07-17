@@ -19,6 +19,11 @@ import {
   FaPenFancy,
   FaBoxOpen,
   FaGavel,
+  FaClipboardList,
+  FaThumbsUp,
+  FaThumbsDown,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import tenderService from "../../../services/tender.service";
@@ -143,6 +148,7 @@ export default function BidOpeningPage() {
   const [unsealModal, setUnsealModal] = useState(null);
   const [completeModal, setCompleteModal] = useState(false);
   const [closeModal, setCloseModal] = useState(false);
+  const [expandedBids, setExpandedBids] = useState({});
 
   /* ── Load all tenders eligible for bid opening ── */
   useEffect(() => {
@@ -226,6 +232,7 @@ export default function BidOpeningPage() {
           status: b.status || "submitted",
           deviations: b.status === "rejected" ? ["MAJOR: Disqualified"] : [],
           isSealed: b.isSealed !== false,
+          specificationVotes: b.specificationVotes || [],
         })),
       );
 
@@ -799,6 +806,20 @@ export default function BidOpeningPage() {
                               </button>
                             )}
                             {isOpened && !isWithdrawn && (
+                              <button
+                                onClick={() => setExpandedBids(prev => ({ ...prev, [bid._id]: !prev[bid._id] }))}
+                                className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${
+                                  expandedBids[bid._id]
+                                    ? "bg-slate-900 border-slate-800 text-white shadow-sm"
+                                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                                }`}
+                              >
+                                <FaClipboardList size={11} />
+                                <span>Specs Response</span>
+                                {expandedBids[bid._id] ? <FaChevronUp size={9} /> : <FaChevronDown size={9} />}
+                              </button>
+                            )}
+                            {isOpened && !isWithdrawn && (
                               <div className="flex items-center space-x-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-xl text-xs font-bold animate-fade-in">
                                 <FaCheckCircle size={12} />
                                 <span>Unsealed</span>
@@ -811,6 +832,57 @@ export default function BidOpeningPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Collapsible Specification Compliance Section */}
+                        {isOpened && expandedBids[bid._id] && (
+                          <div className="mt-2 ml-13 border border-slate-150 bg-slate-50/50 rounded-xl p-4 animate-fade-in space-y-2.5">
+                            <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <FaClipboardList size={12} className="text-slate-500" />
+                                Technical Specification Compliance Verification
+                              </span>
+                              <span className="text-[10px] text-slate-405 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+                                {bid.specificationVotes?.length || 0} specifications responded
+                              </span>
+                            </div>
+                            {(!bid.specificationVotes || bid.specificationVotes.length === 0) ? (
+                              <p className="text-xs text-slate-450 italic py-1">No specification responses found for this bid.</p>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-2">
+                                {bid.specificationVotes.map((v, idx) => (
+                                  <div key={v._id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200/60">
+                                    <div className="flex items-start space-x-2">
+                                      <span className="w-5 h-5 rounded bg-slate-100 text-[10px] font-bold text-slate-500 flex items-center justify-center shrink-0 mt-0.5">
+                                        {v.specNumber || idx + 1}
+                                      </span>
+                                      <span className="text-xs font-bold text-slate-700">{v.specTitle}</span>
+                                    </div>
+                                    <div className="flex flex-col items-end shrink-0">
+                                      <div className="flex items-center space-x-1.5">
+                                        {v.vote === 'yes' ? (
+                                          <span className="inline-flex items-center space-x-1 text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full font-bold">
+                                            <FaThumbsUp size={8} />
+                                            <span>COMPLIANT</span>
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center space-x-1 text-[9px] text-red-700 bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full font-bold">
+                                            <FaThumbsDown size={8} />
+                                            <span>NON-COMPLIANT</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                      {v.vote === 'no' && v.reason && (
+                                        <p className="text-[10px] text-red-650 font-semibold mt-1 max-w-[320px] break-all">
+                                          Reason: {v.reason}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })

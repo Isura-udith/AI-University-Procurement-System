@@ -22,6 +22,7 @@ const FEATURE_LABELS = {
   BID_EVALUATION:               'Bid Evaluation',
   FRAUD_DETECTION:              'Fraud Detection',
   BUDGET_FORECAST:              'Budget Forecast',
+  INTERACTIVE_AI_CHAT:          'Interactive AI Chat',
 };
 
 const FEATURE_COLORS = {
@@ -39,6 +40,7 @@ const FEATURE_COLORS = {
   BID_EVALUATION:                 'bg-blue-100 text-blue-700',
   FRAUD_DETECTION:                'bg-red-100 text-red-700',
   BUDGET_FORECAST:                'bg-purple-100 text-purple-700',
+  INTERACTIVE_AI_CHAT:            'bg-emerald-100 text-emerald-700 border-emerald-200',
 };
 
 const limit = 15;

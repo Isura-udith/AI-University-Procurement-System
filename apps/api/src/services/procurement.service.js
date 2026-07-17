@@ -79,7 +79,7 @@ class ProcurementService {
 
     if (query.status) {
       if (query.status === 'pending-approval') {
-        filters.status = { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review'] };
+        filters.status = { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review'] };
       } else if (query.status === 'budget-locked') {
         filters.status = 'budget_locked';
       } else if (query.status === 'tendering') {
@@ -289,7 +289,8 @@ class ProcurementService {
     if (tce > 500000) {
       newApprovalChain.push(
         { stage: 'finance_committee', status: 'pending' },
-        { stage: 'vice_chancellor', status: 'pending' }
+        { stage: 'vice_chancellor', status: 'pending' },
+        { stage: 'procurement_committee', status: 'pending' }
       );
     }
     
@@ -304,6 +305,7 @@ class ProcurementService {
       if (s.stage === 'bursar') return 'Bursar';
       if (s.stage === 'finance_committee') return 'Finance Committee';
       if (s.stage === 'vice_chancellor') return 'VC';
+      if (s.stage === 'procurement_committee') return 'Procurement Committee';
       return s.stage.toUpperCase();
     }).join(' → ');
 
@@ -354,6 +356,7 @@ class ProcurementService {
       bursar: ['bursar', 'admin', 'super_admin'],
       finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
+      procurement_committee: ['procurement_committee', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
     if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -361,7 +364,7 @@ class ProcurementService {
     }
 
     // Enforce sequential approval order — only allow approving the NEXT pending stage
-    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor'];
+    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor', 'procurement_committee'];
     const currentStageIndex = approvalOrder.indexOf(stage);
     if (currentStageIndex > 0) {
       const previousStages = approvalOrder.slice(0, currentStageIndex);
@@ -396,6 +399,7 @@ class ProcurementService {
         if (s.stage === 'bursar') return 'Bursar';
         if (s.stage === 'finance_committee') return 'Finance Committee';
         if (s.stage === 'vice_chancellor') return 'VC';
+        if (s.stage === 'procurement_committee') return 'Procurement Committee';
         return s.stage.toUpperCase();
       }).join(' → ');
 
@@ -411,14 +415,14 @@ class ProcurementService {
       } catch (err) { logger.warn('Notification failed', { error: err.message }); }
     } else {
       // Progress status based on completed stage
-      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', pmd: 'pmd_approved', bursar: 'bursar_approved', finance_committee: 'finance_committee_approved' };
+      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', pmd: 'pmd_approved', bursar: 'bursar_approved', finance_committee: 'finance_committee_approved', vice_chancellor: 'vc_approved' };
       procurement.status = stageMap[stage] || procurement.status;
       procurement.currentStage = 3; // Still in approval phase
 
       // Find the next pending stage and notify
       const nextPending = procurement.approvalChain.find(s => s.status === 'pending');
       if (nextPending) {
-        const nextStageLabel = nextPending.stage === 'hod' ? 'HOD' : nextPending.stage === 'dean' ? 'Dean' : nextPending.stage === 'pmd' ? 'Procurement Officer (PMD)' : nextPending.stage === 'bursar' ? 'Bursar' : nextPending.stage === 'finance_committee' ? 'Finance Committee' : nextPending.stage === 'vice_chancellor' ? 'Vice Chancellor' : nextPending.stage;
+        const nextStageLabel = nextPending.stage === 'hod' ? 'HOD' : nextPending.stage === 'dean' ? 'Dean' : nextPending.stage === 'pmd' ? 'Procurement Officer (PMD)' : nextPending.stage === 'bursar' ? 'Bursar' : nextPending.stage === 'finance_committee' ? 'Finance Committee' : nextPending.stage === 'vice_chancellor' ? 'Vice Chancellor' : nextPending.stage === 'procurement_committee' ? 'Procurement Committee' : nextPending.stage;
         
         // Notify the requester about progress
         try {
@@ -433,7 +437,7 @@ class ProcurementService {
 
         // Notify the next-stage approvers
         try {
-          const nextStageRoleMap = { hod: 'department_head', dean: 'dean', pmd: 'procurement_officer', bursar: 'bursar', finance_committee: 'finance_committee', vice_chancellor: 'vc' };
+          const nextStageRoleMap = { hod: 'department_head', dean: 'dean', pmd: 'procurement_officer', bursar: 'bursar', finance_committee: 'finance_committee', vice_chancellor: 'vc', procurement_committee: 'procurement_committee' };
           const nextRole = nextStageRoleMap[nextPending.stage];
           if (nextRole) {
             const approverFilter = { tenantId, role: nextRole, isActive: true };
@@ -593,7 +597,7 @@ class ProcurementService {
     const [total, active, pending, completed, byCategory, byStatus, byDepartment, recentItems, totalSpendAgg] = await Promise.all([
       Procurement.countDocuments(baseFilter),
       Procurement.countDocuments({ ...baseFilter, status: { $nin: ['completed', 'cancelled', 'rejected', 'draft'] } }),
-      Procurement.countDocuments({ ...baseFilter, status: { $in: ['submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review'] } }),
+      Procurement.countDocuments({ ...baseFilter, status: { $in: ['submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review'] } }),
       Procurement.countDocuments({ ...baseFilter, status: 'completed' }),
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$category', count: { $sum: 1 }, totalValue: { $sum: '$totalEstimatedCost' } } }]),
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
@@ -615,6 +619,7 @@ class ProcurementService {
       finance_officer: 'finance_committee',
       procurement_officer: 'pmd',
       vc: 'vice_chancellor',
+      procurement_committee: 'procurement_committee',
     };
     const targetStage = roleToStage[role];
 
@@ -622,7 +627,7 @@ class ProcurementService {
     if (role === 'admin' || role === 'super_admin') {
       return Procurement.find({
         tenantId,
-        status: { $in: ['submitted', 'flagged_special_approval', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved'] },
+        status: { $in: ['submitted', 'flagged_special_approval', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved'] },
         'approvalChain.status': 'pending',
       })
         .populate('requestedBy', 'firstName lastName email department')
@@ -636,7 +641,7 @@ class ProcurementService {
 
     // Find procurements where this role's stage is pending AND all prior stages are approved
     // This ensures sequential order: HOD sees 'submitted', Dean sees 'hod_approved', PMD sees 'dean_approved'
-    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor'];
+    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor', 'procurement_committee'];
     const stageIndex = approvalOrder.indexOf(targetStage);
     const previousStages = approvalOrder.slice(0, stageIndex);
 
@@ -718,7 +723,7 @@ class ProcurementService {
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
     if (!['pmd_review', 'budget_locked'].includes(procurement.status)) {
       throw Object.assign(
-        new Error('Procurement must be fully approved by Vice Chancellor before publishing to suppliers.'),
+        new Error('Procurement must be fully approved by Procurement Committee before publishing to suppliers.'),
         { statusCode: 400 }
       );
     }
@@ -732,6 +737,40 @@ class ProcurementService {
       );
     }
 
+    // Check if a tender is already linked or exists
+    const Tender = require('../models/tender.model');
+    let tender = await Tender.findOne({ procurementId: procurement._id, tenantId });
+    if (!tender) {
+      // Auto-create a Tender to allow bidding
+      const bidSubmissionDeadline = procurement.bidClosingDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      const bidOpeningDate = new Date(bidSubmissionDeadline.getTime() + 30 * 60 * 1000); // 30 mins later
+      
+      tender = await Tender.create({
+        tenantId,
+        procurementId: procurement._id,
+        title: `Tender for ${procurement.title}`,
+        description: procurement.description,
+        category: procurement.category,
+        procurementMethod: procurement.procurementMethod || 'NCB',
+        estimatedValue: procurement.totalEstimatedCost,
+        status: 'published', // Automatically publish the tender since the procurement is published
+        publishedAt: new Date(),
+        publishedBy: userId,
+        bidSubmissionDeadline,
+        bidOpeningDate,
+        bidSecurityRequired: procurement.totalEstimatedCost > 2000000,
+        bidSecurityAmount: procurement.totalEstimatedCost > 2000000 ? Math.round(procurement.totalEstimatedCost * 0.02) : 0,
+        createdBy: userId,
+      });
+    } else if (tender.status !== 'published') {
+      // Publish the existing tender
+      tender.status = 'published';
+      tender.publishedAt = new Date();
+      tender.publishedBy = userId;
+      await tender.save();
+    }
+
+    procurement.tenderId = tender._id;
     procurement.status = 'published';
     procurement.publishedAt = new Date();
     procurement.publishedBy = userId;

@@ -255,6 +255,58 @@ class AIService {
   async generateDemandForecast(faculty, category, historicalData) {
     return this.forecastDemand(faculty, category, historicalData);
   }
+
+  /**
+   * Query the Flowise Chatflow.
+   */
+  async askFlowise(question, sessionId) {
+    const env = require('../config/env');
+    const url = `${env.FLOWISE_API_URL}/prediction/${env.FLOWISE_CHATFLOW_ID}`;
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, sessionId }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Flowise API error: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const text = data.text || '';
+      const processingTimeMs = Date.now() - startTime;
+
+      // Build explainability log structure
+      const explainabilityLog = {
+        feature: 'INTERACTIVE_AI_CHAT',
+        inputText: question,
+        inputData: { sessionId, chatId: data.chatId, chatMessageId: data.chatMessageId },
+        model: 'Flowise - Google Gemini Agent',
+        temperature: 0.7,
+        promptUsed: 'System Prompt defined in Flowise Agent config.',
+        scoringFormula: 'N/A (Flowise Agentic reasoning & Tool execution)',
+        dataSources: ['Flowise Local Database', 'Gemini Chat Models'],
+        result: text.substring(0, 500),
+        outputData: { fullResponse: text },
+        processingTimeMs,
+        disclaimer: 'Interactive AI response from Flowise. Subject to verification.',
+      };
+
+      return {
+        text,
+        chatId: data.chatId,
+        sessionId: data.sessionId,
+        explainabilityLog,
+      };
+    } catch (error) {
+      logger.error('Flowise prediction call failed.', { error: error.message });
+      throw error;
+    }
+  }
 }
 
 module.exports = new AIService();

@@ -48,6 +48,7 @@ const userSchema = new mongoose.Schema({
       'department_head',
       'department_user',
       'finance_committee',
+      'procurement_committee',
       'store_manager',
       'supplier',
       'auditor',

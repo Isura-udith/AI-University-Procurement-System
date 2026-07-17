@@ -177,6 +177,24 @@ const ROLES = [
     maxApprovalAmount: 0, committeeType: 'none',
     permissions: [],
   },
+  {
+    name: 'Finance Committee', slug: 'finance_committee', hierarchy: 72, isSystem: true,
+    description: 'High level financial oversight and approvals for large acquisitions.',
+    maxApprovalAmount: 25000000, committeeType: 'none',
+    permissions: [
+      { resource: 'requisitions', actions: ['read', 'approve', 'reject'] },
+      { resource: 'reports',      actions: ['read', 'export'] },
+    ],
+  },
+  {
+    name: 'Procurement Committee', slug: 'procurement_committee', hierarchy: 68, isSystem: true,
+    description: 'Procurement Committee. Final authority for VC approved procurements.',
+    maxApprovalAmount: Infinity, committeeType: 'DPC',
+    permissions: [
+      { resource: 'requisitions', actions: ['read', 'approve', 'reject'] },
+      { resource: 'reports',      actions: ['read', 'export'] },
+    ],
+  },
 ];
 
 const DEMO_USERS = [
@@ -241,6 +259,22 @@ const DEMO_USERS = [
     department: 'Finance Division',
     permissions: ROLE_PERMISSIONS['finance_officer'] || [
       'verify_budget', 'manage_budget', 'process_payment', 'view_reports',
+    ],
+  },
+  {
+    role: 'finance_committee', firstName: 'Finance', lastName: 'Committee',
+    email: 'financecommittee@uwu.ac.lk', employeeId: 'UWU-FIN-003',
+    department: 'Finance Division',
+    permissions: [
+      'approve_requisition', 'reject_requisition', 'view_reports',
+    ],
+  },
+  {
+    role: 'procurement_committee', firstName: 'Procurement', lastName: 'Committee',
+    email: 'procurementcommittee@uwu.ac.lk', employeeId: 'UWU-PRO-004',
+    department: 'Procurement Management Division',
+    permissions: [
+      'approve_requisition', 'reject_requisition', 'view_reports',
     ],
   },
   // ─── Procurement & Evaluation Roles ───

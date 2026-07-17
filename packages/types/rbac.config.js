@@ -21,6 +21,7 @@ const ROLES = {
   CONTRACT_MANAGER:    'contract_manager',
   TEC_MEMBER:          'tec_member',
   FINANCE_COMMITTEE:   'finance_committee',
+  PROCUREMENT_COMMITTEE: 'procurement_committee',
   DEPARTMENT_HEAD:     'department_head',
   DEPARTMENT_USER:     'department_user',
   STORE_MANAGER:       'store_manager',
@@ -87,6 +88,7 @@ const ROLE_HIERARCHY = {
   [ROLES.AUDITOR]:              80,  // High read authority for oversight
   [ROLES.BURSAR]:               75,
   [ROLES.DEAN]:                 70,
+  [ROLES.PROCUREMENT_COMMITTEE]: 72,
   [ROLES.PROCUREMENT_OFFICER]:  65,
   [ROLES.FINANCE_OFFICER]:      60,
   [ROLES.CONTRACT_MANAGER]:     55,
@@ -151,6 +153,11 @@ const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.FINANCE_COMMITTEE]: [
+    PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.PROCUREMENT_COMMITTEE]: [
     PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
     PERMISSIONS.VIEW_REPORTS,
   ],
@@ -229,6 +236,10 @@ const ROLE_ACCESS_MAP = {
     'dashboard', 'requisitions', 'approvals',
     'reports', 'communications', 'documents',
   ],
+  [ROLES.PROCUREMENT_COMMITTEE]: [
+    'dashboard', 'requisitions', 'approvals',
+    'reports', 'communications', 'documents',
+  ],
   [ROLES.DEPARTMENT_HEAD]: [
     'dashboard', 'departmental_queue', 'requisitions', 'approvals',
     'communications', 'documents',
@@ -263,6 +274,8 @@ const CROSS_TENANT_ROLES = [
   ROLES.BURSAR,
   ROLES.PROCUREMENT_OFFICER,
   ROLES.AUDITOR,
+  ROLES.FINANCE_COMMITTEE,
+  ROLES.PROCUREMENT_COMMITTEE,
 ];
 
 // ─── Read-Only Roles (cannot POST/PUT/DELETE resources) ────────
@@ -306,6 +319,7 @@ const WORKFLOW_PHASE_ROLES = {
   'bursar':              [ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN],
   'finance_committee':   [ROLES.FINANCE_COMMITTEE, ROLES.ADMIN, ROLES.SUPER_ADMIN],
   'vice_chancellor':     [ROLES.VC, ROLES.ADMIN, ROLES.SUPER_ADMIN],
+  'procurement_committee': [ROLES.PROCUREMENT_COMMITTEE, ROLES.ADMIN, ROLES.SUPER_ADMIN],
 
   // Approval status phases
   'hod_approved':        [ROLES.DEAN, ROLES.PROCUREMENT_OFFICER, ROLES.ADMIN, ROLES.SUPER_ADMIN],
@@ -313,6 +327,7 @@ const WORKFLOW_PHASE_ROLES = {
   'pmd_approved':        [ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN],
   'bursar_approved':     [ROLES.FINANCE_COMMITTEE, ROLES.ADMIN, ROLES.SUPER_ADMIN],
   'finance_committee_approved': [ROLES.VC, ROLES.ADMIN, ROLES.SUPER_ADMIN],
+  'vc_approved':         [ROLES.PROCUREMENT_COMMITTEE, ROLES.ADMIN, ROLES.SUPER_ADMIN],
 
   // Phase 3: Budget Verification & Fund Allocation
   'pending_finance':     [ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN],

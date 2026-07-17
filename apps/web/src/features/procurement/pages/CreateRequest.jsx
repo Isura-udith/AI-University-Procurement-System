@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch } from 'react-icons/fa';
+import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch, FaPlus, FaTrash, FaClipboardList } from 'react-icons/fa';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
 import planningService from '../../../services/planning.service';
@@ -155,6 +155,7 @@ export default function CreateRequest() {
     conflictDeclared: false, ethicsDeclared: false,
   });
   const [boqItems, setBoqItems] = useState([{ description: '', unit: '', qty: '', unitPrice: '' }]);
+  const [techSpecs, setTechSpecs] = useState([]);
   const [files, setFiles] = useState([]);
   const [aiWarning, setAiWarning] = useState('');
   const [errors, setErrors] = useState({});
@@ -321,6 +322,14 @@ export default function CreateRequest() {
               unit: it.unit || 'nos',
               qty: String(it.quantity || 1),
               unitPrice: String(it.estimatedUnitPrice || 0)
+            })));
+          }
+          // Load technical specifications for editing
+          if (reqData.technicalSpecifications && reqData.technicalSpecifications.length > 0) {
+            setTechSpecs(reqData.technicalSpecifications.map(s => ({
+              title: s.title || '',
+              description: s.description || '',
+              isMandatory: s.isMandatory !== false,
             })));
           }
         } catch (err) {
@@ -545,6 +554,13 @@ export default function CreateRequest() {
         // ── Workflow linkage (Phase 5 → 45-step lifecycle) ──
         annualPlanId: selectedPlanId || undefined,
         annualPlanItemId: selectedItemId || undefined,
+        // ── Technical Specifications for vendor voting ──
+        technicalSpecifications: techSpecs.filter(s => s.title.trim()).map((s, i) => ({
+          specNumber: i + 1,
+          title: s.title.trim(),
+          description: s.description.trim(),
+          isMandatory: s.isMandatory,
+        })),
       };
 
       let savedDoc;
@@ -1180,6 +1196,123 @@ export default function CreateRequest() {
           <FormField label="Bill of Quantities (BOQ) / Activity Schedule">
             <BOQTable items={boqItems} setItems={setBoqItems} />
           </FormField>
+
+          {/* ── Technical Specifications (Vendor Voting) ── */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <FaClipboardList className="text-emerald-600" size={16} />
+                <h3 className="text-sm font-bold text-slate-700">Technical Specifications</h3>
+                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold border border-blue-100">Vendors vote Yes/No on each</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true }])}
+                className="flex items-center space-x-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                <FaPlus size={10} />
+                <span>Add Specification</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">Define technical specifications that vendors must respond to (Yes/No compliance) when submitting bids. Mark mandatory specs that require a response.</p>
+
+            {techSpecs.length === 0 ? (
+              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
+                <FaClipboardList className="mx-auto text-slate-300 mb-2" size={24} />
+                <p className="text-sm text-slate-400 font-medium">No technical specifications added yet</p>
+                <p className="text-xs text-slate-400 mt-1">Click "Add Specification" to define requirements vendors will vote on</p>
+                <button
+                  type="button"
+                  onClick={() => setTechSpecs([{ title: '', description: '', isMandatory: true }])}
+                  className="mt-3 inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-200"
+                >
+                  <FaPlus size={10} />
+                  <span>Add First Specification</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {techSpecs.map((spec, i) => (
+                  <div key={i} className="border border-slate-200 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-bold border border-emerald-100">
+                          {i + 1}
+                        </span>
+                      </div>
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Title *</label>
+                          <input
+                            value={spec.title}
+                            onChange={e => {
+                              const updated = [...techSpecs];
+                              updated[i] = { ...updated[i], title: e.target.value };
+                              setTechSpecs(updated);
+                            }}
+                            placeholder="e.g. Print Speed"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+                          <input
+                            value={spec.description}
+                            onChange={e => {
+                              const updated = [...techSpecs];
+                              updated[i] = { ...updated[i], description: e.target.value };
+                              setTechSpecs(updated);
+                            }}
+                            placeholder="e.g. Minimum 30 ppm A4 mono"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 shrink-0 pt-5">
+                        <label className="flex items-center space-x-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={spec.isMandatory}
+                            onChange={e => {
+                              const updated = [...techSpecs];
+                              updated[i] = { ...updated[i], isMandatory: e.target.checked };
+                              setTechSpecs(updated);
+                            }}
+                            className="w-4 h-4 accent-emerald-600 rounded"
+                          />
+                          <span className="text-xs font-semibold text-slate-600">Mandatory</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setTechSpecs(techSpecs.filter((_, idx) => idx !== i))}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove specification"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {techSpecs.length > 0 && (
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true }])}
+                  className="inline-flex items-center space-x-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                >
+                  <FaPlus size={10} />
+                  <span>Add Another Specification</span>
+                </button>
+                <span className="text-xs text-slate-400">
+                  {techSpecs.length} specification{techSpecs.length !== 1 ? 's' : ''} · {techSpecs.filter(s => s.isMandatory).length} mandatory
+                </span>
+              </div>
+            )}
+          </div>
           {aiPriceRecommendation && (
             <div className="mt-5 border border-emerald-500/20 bg-slate-900 rounded-3xl p-6 relative overflow-hidden text-slate-100 shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>

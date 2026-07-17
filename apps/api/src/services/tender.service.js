@@ -11,6 +11,16 @@ class TenderService {
   async create(data, userId, tenantId) {
     const tender = await Tender.create({ ...data, createdBy: userId, tenantId });
     logger.audit('TENDER_CREATED', userId, { tenderId: tender._id });
+
+    // Link back to procurement
+    if (data.procurementId) {
+      const Procurement = require('../models/procurement.model');
+      await Procurement.findByIdAndUpdate(data.procurementId, {
+        tenderId: tender._id,
+        status: data.status === 'published' ? 'published' : 'tender_preparation'
+      });
+    }
+
     return tender;
   }
 
@@ -184,6 +194,16 @@ class TenderService {
     tender.publishedBy = userId;
     await tender.save();
     logger.audit('TENDER_PUBLISHED', userId, { tenderId: tender._id });
+
+    // Link back/update procurement status
+    if (tender.procurementId) {
+      const Procurement = require('../models/procurement.model');
+      await Procurement.findByIdAndUpdate(tender.procurementId, {
+        tenderId: tender._id,
+        status: 'published'
+      });
+    }
+
     return tender;
   }
 
@@ -304,6 +324,33 @@ class TenderService {
         new Error('You have already submitted a bid for this tender. Please withdraw your existing bid before submitting a new one.'),
         { statusCode: 409 }
       );
+    }
+
+    // ── Validate specification votes ──
+    if (data.specificationVotes && data.specificationVotes.length > 0) {
+      const Procurement = require('../models/procurement.model');
+      const procurement = await Procurement.findById(tender.procurementId);
+      if (procurement && procurement.technicalSpecifications && procurement.technicalSpecifications.length > 0) {
+        const mandatorySpecs = procurement.technicalSpecifications.filter(s => s.isMandatory);
+        for (const ms of mandatorySpecs) {
+          const vote = data.specificationVotes.find(v => v.specNumber === ms.specNumber);
+          if (!vote) {
+            throw Object.assign(
+              new Error(`Mandatory specification #${ms.specNumber} "${ms.title}" requires a vote.`),
+              { statusCode: 400 }
+            );
+          }
+        }
+      }
+      // Validate that 'no' votes have a reason
+      for (const v of data.specificationVotes) {
+        if (v.vote === 'no' && (!v.reason || !v.reason.trim())) {
+          throw Object.assign(
+            new Error(`Specification #${v.specNumber} "${v.specTitle}": a reason is required when voting No.`),
+            { statusCode: 400 }
+          );
+        }
+      }
     }
 
     const bidData = {

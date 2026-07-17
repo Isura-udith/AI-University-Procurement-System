@@ -30,6 +30,7 @@ const aiExplainabilityLogSchema = new mongoose.Schema({
       'BID_EVALUATION',
       'FRAUD_DETECTION',
       'BUDGET_FORECAST',
+      'INTERACTIVE_AI_CHAT',
     ],
     index: true,
   },

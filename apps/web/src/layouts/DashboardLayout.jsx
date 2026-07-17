@@ -7,7 +7,7 @@ import {
   FaFileContract, FaTruck, FaMoneyCheckAlt, FaChartBar,
   FaUsers, FaBars, FaTimes, FaSignOutAlt, FaPlus,
   FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
-  FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap,
+  FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot,
 } from 'react-icons/fa';
 import uwuLogo from '../assets/logos/Logo_uwu.jpg';
 import { logout } from '../app/store';
@@ -87,6 +87,7 @@ const navSections = [
     title: 'AI Intelligence',
     items: [
       { path: '/ai', label: 'AI Hub', icon: FaBrain, hint: 'AI' },
+      { path: '/ai/chat', label: 'AI Chat Assistant', icon: FaRobot },
     ]
   },
   {
@@ -145,6 +146,73 @@ export default function DashboardLayout() {
       };
     }
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    // Load Flowise Embed Chatbot script
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js';
+    script.async = true;
+    
+    script.onload = () => {
+      if (window.Chatbot) {
+        window.Chatbot.init({
+          chatflowid: 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+          apiHost: 'http://localhost:3000',
+          chatTriggerBtnFrame: {
+            style: {
+              bottom: '25px',
+              right: '25px',
+              backgroundColor: '#059669', // Emerald 600
+            }
+          },
+          theme: {
+            button: {
+              backgroundColor: '#059669',
+              right: 25,
+              bottom: 25,
+              size: 'medium',
+              iconSrc: 'https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/google-messages.svg',
+            },
+            chatWindow: {
+              showTitle: true,
+              title: 'AI Procurement Assistant',
+              titleAvatarSrc: 'https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/google-messages.svg',
+              welcomeMessage: 'Hello! I am your AI Procurement Assistant. How can I help you today?',
+              backgroundColor: '#ffffff',
+              height: 500,
+              width: 400,
+              fontSize: 14,
+              userMessage: {
+                backgroundColor: '#059669',
+                textColor: '#ffffff',
+              },
+              textInput: {
+                placeholder: 'Type your question...',
+                backgroundColor: '#ffffff',
+                textColor: '#334155',
+                sendButtonColor: '#059669',
+              }
+            }
+          }
+        });
+      }
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      // Clean up script on unmount
+      if (script && document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+      // Remove any chatbot elements that the library appended to the DOM
+      const chatbotContainer = document.querySelector('flowise-chatbot');
+      if (chatbotContainer) {
+        chatbotContainer.remove();
+      }
+    };
+  }, []);
 
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {

@@ -14,6 +14,20 @@ import tenderService from '../../../services/tender.service';
 // ─── Feature Registry ─────────────────────────────────────────────
 const AI_FEATURES = [
   {
+    id: 'chat-assistant',
+    feature: 'Interactive',
+    title: 'AI Procurement Assistant',
+    subtitle: 'Flowise & Gemini Conversational Agent',
+    description: 'Ask questions about procurement guidelines, specifications, policies, or compare quotations interactively using our customized AI agent.',
+    icon: FaRobot,
+    gradient: 'from-teal-500 to-emerald-600',
+    badgeColor: 'bg-teal-100 text-teal-700 border-teal-200',
+    path: '/ai/chat',
+    roles: ['department_user', 'department_head', 'procurement_officer', 'admin', 'vc', 'dean', 'super_admin'],
+    requiresId: false,
+    category: 'Requisition',
+  },
+  {
     id: 'market-price',
     feature: '1 & 4',
     title: 'Market Price Intelligence',

@@ -138,7 +138,7 @@ function computeOverallStep(procurement, linkedEntities = {}) {
   if (procStep) {
     highestStep = Math.max(highestStep, procStep);
   } else {
-    const approvalStatuses = ['hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'pmd_review', 'budget_locked'];
+    const approvalStatuses = ['hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review', 'budget_locked'];
     if (approvalStatuses.includes(procurement.status)) {
       highestStep = Math.max(highestStep, 29);
     }
