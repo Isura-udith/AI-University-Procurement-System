@@ -34,7 +34,7 @@ const bidSchema = new mongoose.Schema({
   submittedAt: { type: Date, default: Date.now },
   openedAt: Date,
   // Documents
-  documents: [{ name: String, url: String, type: String, hash: String, uploadedAt: { type: Date, default: Date.now } }],
+  documents: [{ name: String, url: String, type: { type: String }, hash: String, uploadedAt: { type: Date, default: Date.now } }],
   // Preliminary Examination
   preliminaryExam: { bidSecurityPresent: Boolean, formsSigned: Boolean, powerOfAttorney: Boolean, eligibilityMet: Boolean, majorDeviations: [String], result: { type: String, enum: ['pass', 'fail', 'pending'], default: 'pending' }, examDate: Date, examBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } },
   // Technical Evaluation
@@ -78,15 +78,30 @@ const bidSchema = new mongoose.Schema({
 bidSchema.index({ tenantId: 1, tenderId: 1 });
 bidSchema.index({ tenantId: 1, vendorId: 1 });
 
+bidSchema.pre('validate', function () {
+  // Auto-calculate line item totals
+  if (this.lineItems) {
+    this.lineItems.forEach(item => { item.totalPrice = item.quantity * item.unitPrice; });
+    this.totalBidAmount = this.lineItems.reduce((sum, item) => sum + item.totalPrice, 0) + (this.vatAmount || 0) - (this.discountOffered || 0);
+  }
+});
+
 bidSchema.pre('save', async function () {
   if (!this.bidNumber) {
     const count = await mongoose.model('Bid').countDocuments({ tenderId: this.tenderId });
     this.bidNumber = `BID-${Date.now().toString(36).toUpperCase()}-${String(count + 1).padStart(3, '0')}`;
   }
-  // Auto-calculate line item totals
-  if (this.lineItems) {
-    this.lineItems.forEach(item => { item.totalPrice = item.quantity * item.unitPrice; });
-    this.totalBidAmount = this.lineItems.reduce((sum, item) => sum + item.totalPrice, 0) + (this.vatAmount || 0) - (this.discountOffered || 0);
+  // Generate encryptionHash if sealed and not present
+  if (this.isSealed && !this.encryptionHash) {
+    const crypto = require('crypto');
+    const content = JSON.stringify({
+      totalBidAmount: this.totalBidAmount,
+      lineItems: this.lineItems?.map(i => ({ desc: i.itemDescription, qty: i.quantity, price: i.unitPrice })) || [],
+      vendorId: this.vendorId,
+      tenderId: this.tenderId,
+      submittedAt: this.submittedAt,
+    });
+    this.encryptionHash = crypto.createHash('sha256').update(content).digest('hex');
   }
 });
 

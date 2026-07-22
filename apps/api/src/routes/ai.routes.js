@@ -6,9 +6,15 @@ const {
   getComparativeAnalysis, getHistoricalMatch, getDemandForecast,
   getExplainabilityLogs, getExplainabilityStats, getExplainabilityLog,
   acknowledgeAlert, getAIStatus, askFlowiseChat, runInternalQuery,
+  uploadKnowledgeDocument, getKnowledgeDocuments, deleteKnowledgeDocument,
+  processKnowledgeBase, scanDocumentsFolder,
+  // New chat session endpoints
+  getChatSessions, getChatHistory, deleteChatSession, renameChatSession,
+  togglePinSession, rateChatMessage,
 } = require('../controllers/ai.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
+const { upload } = require('../integrations/file.storage');
 
 // Public route for local Flowise server (authenticated via shared secret header)
 router.post('/internal-query', runInternalQuery);
@@ -92,7 +98,42 @@ router.get('/explainability-logs/:id',
 // AI system status check (all authenticated users)
 router.get('/status', getAIStatus);
 
-// Interactive Flowise Chatbot (all authenticated users can query)
+// ─── Interactive Flowise Chatbot (all authenticated users) ────────
 router.post('/chat', askFlowiseChat);
+
+// ─── Chat Session Management ─────────────────────────────────────
+router.get('/chat/sessions', getChatSessions);
+router.get('/chat/sessions/:sessionId', getChatHistory);
+router.delete('/chat/sessions/:sessionId', deleteChatSession);
+router.patch('/chat/sessions/:sessionId', renameChatSession);
+router.post('/chat/sessions/:sessionId/pin', togglePinSession);
+router.post('/chat/sessions/:sessionId/rate', rateChatMessage);
+
+// ─── Flowise Knowledge Base Operations ────────────────────────────
+router.post('/knowledge/upload',
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  upload.single('file'),
+  uploadKnowledgeDocument
+);
+
+router.get('/knowledge/documents',
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  getKnowledgeDocuments
+);
+
+router.delete('/knowledge/documents/:id',
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  deleteKnowledgeDocument
+);
+
+router.post('/knowledge/process',
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  processKnowledgeBase
+);
+
+router.post('/knowledge/scan-folder',
+  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  scanDocumentsFolder
+);
 
 module.exports = router;

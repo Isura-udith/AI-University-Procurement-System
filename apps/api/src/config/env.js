@@ -28,7 +28,8 @@ const env = {
 
   // AI
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
   GEMINI_API_BASE_URL: process.env.GEMINI_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
 
   // Email
@@ -63,7 +64,13 @@ const env = {
   // Flowise Connection
   FLOWISE_API_URL: process.env.FLOWISE_API_URL || 'http://localhost:3000/api/v1',
   FLOWISE_CHATFLOW_ID: process.env.FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+  FLOWISE_API_KEY: process.env.FLOWISE_API_KEY || '',
+  FLOWISE_DOCUMENT_STORE_ID: process.env.FLOWISE_DOCUMENT_STORE_ID || '',
   INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || 'uwu-flowise-secret-key-2026-gosl-compliant',
+
+  // Flowise Advanced Configuration
+  FLOWISE_MEMORY_WINDOW_SIZE: parseInt(process.env.FLOWISE_MEMORY_WINDOW_SIZE, 10) || 10,
+  CHAT_SESSION_MAX_AGE_DAYS: parseInt(process.env.CHAT_SESSION_MAX_AGE_DAYS, 10) || 90,
 
   isDev: () => env.NODE_ENV === 'development',
   isProd: () => env.NODE_ENV === 'production',

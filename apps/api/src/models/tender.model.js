@@ -30,7 +30,7 @@ const tenderSchema = new mongoose.Schema({
   bidSecurityPercentage: Number,
   bidSecurityValidityDays: { type: Number, default: 180 },
   // Documents
-  tenderDocuments: [{ name: String, url: String, type: String, uploadedAt: { type: Date, default: Date.now } }],
+  tenderDocuments: [{ name: String, url: String, type: { type: String }, uploadedAt: { type: Date, default: Date.now } }],
   documentFee: Number,
   // Evaluation Criteria
   evaluationType: { type: String, enum: ['lowest_price', 'quality_cost_based', 'quality_based', 'fixed_budget', 'consultant_qualification'], default: 'lowest_price' },

@@ -21,8 +21,10 @@ const Notification = require('./src/models/notification.model');
 const Message = require('./src/models/message.model');
 const MarketAlert = require('./src/models/market.alert.model');
 const Document = require('./src/models/document.model');
+const KnowledgeDocument = require('./src/models/knowledge.document.model');
 const Report = require('./src/models/report.model');
 const AIExplainabilityLog = require('./src/models/ai.explainability.log.model');
+const aiService = require('./src/services/ai.service');
 
 // Helper to read JSON feed files
 const readFeedFile = (filename) => {
@@ -56,6 +58,7 @@ const feedDatabase = async () => {
     await Message.deleteMany({});
     await MarketAlert.deleteMany({});
     await Document.deleteMany({});
+    await KnowledgeDocument.deleteMany({});
     await Report.deleteMany({});
     await AIExplainabilityLog.deleteMany({});
     console.log('✓ Cleared database.');
@@ -466,6 +469,15 @@ const feedDatabase = async () => {
       });
     }
     console.log(`✓ Seeded ${aiLogsData.length} AI explainability logs.`);
+
+    // 19. Index Documents Directory for RAG
+    console.log('Indexing official procurement Documents folder for RAG...');
+    try {
+      const indexedDocs = await aiService.indexDocumentsFolder();
+      console.log(`✓ Indexed ${indexedDocs.length} procurement PDF/TXT documents into Knowledge Base RAG store.`);
+    } catch (ragErr) {
+      console.warn('⚠️  Knowledge document indexing warning:', ragErr.message);
+    }
 
     console.log('\n=============================================');
     console.log('🎉 Database Seeding & Feeding Complete!');

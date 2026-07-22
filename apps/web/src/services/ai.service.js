@@ -32,11 +32,33 @@ export const aiService = {
   getExplainabilityStats: () => api.get('/ai/explainability-logs/stats'),
   getExplainabilityLog: (id) => api.get(`/ai/explainability-logs/${id}`),
 
-  // System: AI status / health check
+  // System: AI status / health check (now returns combined Gemini + Flowise)
   getAIStatus: () => api.get('/ai/status'),
 
-  // Interactive Flowise Chat
+  // ─── Interactive Flowise Chat (Enhanced) ───────────────────────
   askFlowiseChat: (question, sessionId) => api.post('/ai/chat', { question, sessionId }),
+
+  // ─── Chat Session Management ──────────────────────────────────
+  getChatSessions: (params) => api.get('/ai/chat/sessions', { params }),
+  getChatHistory: (sessionId) => api.get(`/ai/chat/sessions/${sessionId}`),
+  deleteChatSession: (sessionId) => api.delete(`/ai/chat/sessions/${sessionId}`),
+  renameChatSession: (sessionId, title) => api.patch(`/ai/chat/sessions/${sessionId}`, { title }),
+  togglePinSession: (sessionId) => api.post(`/ai/chat/sessions/${sessionId}/pin`),
+  rateChatMessage: (sessionId, messageIndex, rating, feedback) =>
+    api.post(`/ai/chat/sessions/${sessionId}/rate`, { messageIndex, rating, feedback }),
+
+  // ─── Flowise Knowledge Base (Document Store) ──────────────────
+  uploadKnowledgeDocument: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/ai/knowledge/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getKnowledgeDocuments: () => api.get('/ai/knowledge/documents'),
+  deleteKnowledgeDocument: (id) => api.delete(`/ai/knowledge/documents/${id}`),
+  processKnowledgeBase: () => api.post('/ai/knowledge/process'),
+  scanDocumentsFolder: (folderPath) => api.post('/ai/knowledge/scan-folder', { folderPath }),
 };
 
 export default aiService;

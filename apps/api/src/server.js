@@ -25,6 +25,14 @@ const startServer = async () => {
       console.log(`   Environment: ${env.NODE_ENV.padEnd(33)}`);
       console.log(`   API: http://localhost:${env.PORT}/api/${env.API_VERSION}`);
       console.log(`\n`);
+
+      // Start Document Watcher for RAG auto-indexing
+      try {
+        const documentWatcherService = require('./services/document.watcher.service');
+        documentWatcherService.startWatching();
+      } catch (watcherErr) {
+        logger.warn(`Failed to start document watcher: ${watcherErr.message}`);
+      }
     }); 
 
     // Graceful shutdown
