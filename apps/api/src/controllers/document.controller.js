@@ -132,9 +132,32 @@ const updateDocumentStatus = async (req, res, next) => {
   }
 };
 
+const deleteDocument = async (req, res, next) => {
+  try {
+    const doc = await documentService.getById(req.params.id);
+    if (!doc) {
+      return notFound(res, 'Document not found.');
+    }
+
+    const userId = req.effectiveUser ? req.effectiveUser._id : req.user._id;
+    const isAuthor = String(doc.author?._id || doc.author) === String(userId);
+    const isAdmin = ['super_admin', 'admin', 'procurement_officer'].includes(req.user.role);
+
+    if (!isAuthor && !isAdmin) {
+      return badRequest(res, 'You are not authorized to delete this document.');
+    }
+
+    await documentService.deleteDocument(req.params.id);
+    return success(res, null, 'Document deleted successfully.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getDocuments,
   uploadDocument,
   updateDocumentFile,
   updateDocumentStatus,
+  deleteDocument,
 };

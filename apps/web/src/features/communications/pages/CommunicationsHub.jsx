@@ -3,13 +3,20 @@ import { useSelector } from 'react-redux';
 import {
   FaInbox, FaBell, FaBullhorn, FaComments, FaSearch,
   FaStar, FaReply, FaTimes, FaSpinner, FaPaperPlane, FaUser, FaBuilding, FaCheck, FaChevronRight,
-  FaExclamationTriangle, FaEnvelope, FaTrash } from 'react-icons/fa';
+  FaExclamationTriangle, FaEnvelope, FaTrash, FaPaperclip, FaDownload, FaFileAlt } from 'react-icons/fa';
 import messageService from '../../../services/message.service';
 import userService from '../../../services/user.service';
 import vendorService from '../../../services/vendor.service';
 import notificationService from '../../../services/notification.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
+const getDownloadUrl = (filePath) => {
+  if (!filePath) return '#';
+  if (filePath.startsWith('http')) return filePath;
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
+  return `${base}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+};
+
 const timeAgo = (date) => {
   if (!date) return '';
   const now = Date.now();
@@ -100,6 +107,7 @@ export default function CommunicationsHub() {
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
 
   // ─── Starred (local only) ───────────────────────────────────────────────
   const [starred, setStarred] = useState(() => {
@@ -149,7 +157,6 @@ export default function CommunicationsHub() {
     } catch {/*commit*/}
   }, []);
 
-  // ─── Fetch messages ────────────────────────────────────────────────────
   // ─── Fetch messages & notifications ────────────────────────────────────
   const fetchData = useCallback(async (showLoading = false, tab, search) => {
     if (showLoading) setLoading(true);
@@ -232,6 +239,7 @@ export default function CommunicationsHub() {
 
   const openCompose = () => {
     setFormData(INITIAL_FORM);
+    setAttachmentFiles([]);
     setFormError('');
     setFormSuccess('');
     setIsComposeOpen(true);
@@ -268,6 +276,7 @@ export default function CommunicationsHub() {
       body: `\n\n── Original Message ──\nFrom: ${getSenderName(msg)}\nSubject: ${msg.subject}\n\n${msg.body}`,
       replyTo: msg._id,
     });
+    setAttachmentFiles([]);
     setFormError('');
     setFormSuccess('');
     setIsComposeOpen(true);
@@ -285,19 +294,38 @@ export default function CommunicationsHub() {
       if (!formData.body.trim()) throw new Error('Message body is required.');
       if (formData.type === 'message' && !formData.recipient) throw new Error('Please select a recipient.');
 
-      const payload = {
-        type: formData.type,
-        category: formData.category,
-        subject: formData.subject.trim(),
-        body: formData.body.trim(),
-        replyTo: formData.replyTo || undefined,
-        recipient: formData.type === 'message' ? formData.recipient : undefined,
-        recipientRole: formData.type === 'announcement' ? (formData.recipientRole || undefined) : undefined,
-      };
+      let res;
+      if (attachmentFiles.length > 0) {
+        const formDataPayload = new FormData();
+        formDataPayload.append('type', formData.type);
+        formDataPayload.append('category', formData.category);
+        formDataPayload.append('subject', formData.subject.trim());
+        formDataPayload.append('body', formData.body.trim());
+        if (formData.replyTo) formDataPayload.append('replyTo', formData.replyTo);
+        if (formData.type === 'message' && formData.recipient) formDataPayload.append('recipient', formData.recipient);
+        if (formData.type === 'announcement' && formData.recipientRole) formDataPayload.append('recipientRole', formData.recipientRole);
 
-      const res = await messageService.sendMessage(payload);
+        attachmentFiles.forEach((file) => {
+          formDataPayload.append('attachments', file);
+        });
+
+        res = await messageService.sendMessage(formDataPayload);
+      } else {
+        const payload = {
+          type: formData.type,
+          category: formData.category,
+          subject: formData.subject.trim(),
+          body: formData.body.trim(),
+          replyTo: formData.replyTo || undefined,
+          recipient: formData.type === 'message' ? formData.recipient : undefined,
+          recipientRole: formData.type === 'announcement' ? (formData.recipientRole || undefined) : undefined,
+        };
+        res = await messageService.sendMessage(payload);
+      }
+
       if (res?.success) {
         setFormSuccess('Message sent successfully!');
+        setAttachmentFiles([]);
         fetchData(false, activeTab, searchQuery);
         setTimeout(() => setIsComposeOpen(false), 1400);
       }
@@ -428,7 +456,7 @@ export default function CommunicationsHub() {
                   <span>{tab.label}</span>
                 </div>
                 {tab.count > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center ${
                     activeTab === tab.id ? 'bg-white/25 text-white' : 'bg-red-100 text-red-700'
                   }`}>
                     {tab.count}
@@ -576,7 +604,7 @@ export default function CommunicationsHub() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className={`text-xs font-bold truncate max-w-[130px] ${color.text}`}>
+                      <span className={`text-xs font-bold truncate max-w-32.5 ${color.text}`}>
                         {isSentByMe ? `→ ${getRecipientName(msg)}` : getSenderName(msg)}
                       </span>
                       <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(msg.createdAt)}</span>
@@ -786,6 +814,41 @@ export default function CommunicationsHub() {
                     <p className="text-xs text-slate-500 mt-1 line-clamp-3 whitespace-pre-line">{selectedMsg.replyTo.body}</p>
                   </div>
                 )}
+
+                {/* Message Attachments */}
+                {selectedMsg.attachments && selectedMsg.attachments.length > 0 && (
+                  <div className="max-w-3xl mt-6 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <FaPaperclip size={12} className="text-blue-500" />
+                      Attached Documents ({selectedMsg.attachments.length})
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedMsg.attachments.map((att, idx) => (
+                        <a
+                          key={idx}
+                          href={getDownloadUrl(att.filePath)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-200 rounded-xl transition-all group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                              <FaFileAlt size={14} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 group-hover:text-blue-600 truncate">{att.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono mt-0.5">{att.size || 'File'}</p>
+                            </div>
+                          </div>
+                          <div className="p-2 text-slate-400 group-hover:text-blue-600 rounded-lg shrink-0">
+                            <FaDownload size={13} />
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -931,7 +994,9 @@ export default function CommunicationsHub() {
                                   </option>
                                 ))
                               : vendorsList.map((v) => (
-                                  <option key={v._id} value={v._id}>{v.name} — {v.businessRegisterNo}</option>
+                                  <option key={v._id} value={v.userId?._id || v.userId || v._id}>
+                                    {v.companyName || v.name || 'Vendor'} {v.registrationNumber || v.businessRegisterNo ? `— (${v.registrationNumber || v.businessRegisterNo})` : ''}
+                                  </option>
                                 ))
                             }
                           </select>
@@ -969,12 +1034,56 @@ export default function CommunicationsHub() {
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Message Body</label>
                 <textarea
-                  rows={formData.replyTo ? 6 : 8}
+                  rows={formData.replyTo ? 5 : 6}
                   value={formData.body}
                   onChange={(e) => setFormData((p) => ({ ...p, body: e.target.value }))}
                   placeholder="Write your message..."
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y font-sans"
                 />
+              </div>
+
+              {/* Attachments Upload */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Attach Documents (Optional)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition-colors">
+                    <FaPaperclip size={12} className="text-slate-500" />
+                    Attach Files
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length > 0) setAttachmentFiles((prev) => [...prev, ...files]);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {attachmentFiles.length > 0 && (
+                    <span className="text-xs font-bold text-blue-600">
+                      {attachmentFiles.length} file{attachmentFiles.length > 1 ? 's' : ''} attached
+                    </span>
+                  )}
+                </div>
+                {attachmentFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {attachmentFiles.map((f, idx) => (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg">
+                        <FaFileAlt size={12} className="text-blue-500" />
+                        <span className="truncate max-w-45">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setAttachmentFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-red-500 hover:text-red-700 font-bold ml-1"
+                        >
+                          <FaTimes size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Footer */}

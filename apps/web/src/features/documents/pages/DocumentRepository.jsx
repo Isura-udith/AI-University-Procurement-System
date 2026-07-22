@@ -5,6 +5,7 @@ import {
   FaFilePdf, FaFileWord, FaFileExcel, FaFileAlt, FaFileImage,
   FaCheckCircle, FaLock, FaTimes, FaSpinner, FaExchangeAlt, FaLink,
   FaFolderOpen, FaFolder, FaPlus, FaEdit, FaCloudUploadAlt,
+  FaTrash, FaEye, FaExternalLinkAlt,
 } from 'react-icons/fa';
 import documentService from '../../../services/document.service';
 import procurementService from '../../../services/procurement.service';
@@ -54,7 +55,11 @@ export default function DocumentRepository() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isUpdateVersionOpen, setIsUpdateVersionOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [selectedDetailDoc, setSelectedDetailDoc] = useState(null);
+  const [deleteDocId, setDeleteDocId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Related entity loaders
   const [relatedType, setRelatedType] = useState('');
@@ -80,8 +85,10 @@ export default function DocumentRepository() {
 
   // ─── API base for downloads ────────────────────────────────────────────
   const getDownloadUrl = (filePath) => {
+    if (!filePath) return '#';
+    if (filePath.startsWith('http')) return filePath;
     const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
-    return `${base}${filePath}`;
+    return `${base}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
   };
 
   // ─── Fetch documents ───────────────────────────────────────────────────
@@ -213,6 +220,26 @@ export default function DocumentRepository() {
     } catch { /* status update failure is silent */ }
   };
 
+  // ─── Delete document ───────────────────────────────────────────────────
+  const handleDeleteDocument = async (docId) => {
+    setDeleting(true);
+    try {
+      const res = await documentService.deleteDocument(docId);
+      if (res?.success) {
+        setDocuments((prev) => prev.filter((d) => d._id !== docId));
+        setDeleteDocId(null);
+        if (selectedDetailDoc?._id === docId) {
+          setSelectedDetailDoc(null);
+          setIsDetailOpen(false);
+        }
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to delete document.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // ─── Stats ────────────────────────────────────────────────────────────
   const stats = {
     total: documents.length,
@@ -336,7 +363,7 @@ export default function DocumentRepository() {
               </button>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[800px]">
+            <table className="w-full text-left border-collapse min-w-200">
               <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                 <tr>
                   {['Document', 'Category', 'Version', 'Status', 'Author', 'Linked To', 'Updated', 'Actions'].map((h) => (
@@ -358,7 +385,7 @@ export default function DocumentRepository() {
                         <div className="flex items-center gap-3">
                           {getFileIcon(doc.type)}
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate max-w-[180px]">
+                            <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate max-w-45">
                               {doc.name}
                             </p>
                             <p className="text-[10px] text-slate-400 font-mono mt-0.5">{doc.size}</p>
@@ -440,20 +467,27 @@ export default function DocumentRepository() {
                       {/* Actions */}
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { setSelectedDetailDoc(doc); setIsDetailOpen(true); }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="View Document Details & Preview"
+                          >
+                            <FaEye size={13} />
+                          </button>
                           <a
                             href={getDownloadUrl(doc.filePath)}
                             target="_blank"
                             rel="noopener noreferrer"
                             download
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Download"
+                            title="Download File"
                           >
                             <FaDownload size={13} />
                           </a>
                           <button
                             onClick={() => openUpdateVersion(doc)}
                             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Upload new version"
+                            title="Upload New Version"
                           >
                             <FaExchangeAlt size={13} />
                           </button>
@@ -464,6 +498,15 @@ export default function DocumentRepository() {
                               title="Approve document"
                             >
                               <FaCheckCircle size={13} />
+                            </button>
+                          )}
+                          {(user?.role === 'super_admin' || user?.role === 'admin' || String(doc.author?._id || doc.author) === String(user?._id)) && (
+                            <button
+                              onClick={() => setDeleteDocId(doc._id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Document"
+                            >
+                              <FaTrash size={13} />
                             </button>
                           )}
                         </div>
@@ -835,6 +878,161 @@ export default function DocumentRepository() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Document Detail & Preview Modal ─────────────────────────────── */}
+      {isDetailOpen && selectedDetailDoc && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white">
+                  {getFileIcon(selectedDetailDoc.type)}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white leading-tight">{selectedDetailDoc.name}</h3>
+                  <p className="text-xs text-white/80 font-mono mt-0.5">v{selectedDetailDoc.version} • {selectedDetailDoc.size}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsDetailOpen(false)} className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Metadata Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category</p>
+                  <p className="text-xs font-bold text-slate-800 mt-1">{selectedDetailDoc.category}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold mt-1 ${STATUS_META[selectedDetailDoc.status]?.bg} ${STATUS_META[selectedDetailDoc.status]?.text}`}>
+                    {selectedDetailDoc.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Author</p>
+                  <p className="text-xs font-bold text-slate-800 mt-1">
+                    {selectedDetailDoc.author ? `${selectedDetailDoc.author.firstName || ''} ${selectedDetailDoc.author.lastName || ''}`.trim() : 'System'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Type</p>
+                  <p className="text-xs font-bold text-slate-800 mt-1 uppercase font-mono">{selectedDetailDoc.type}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Created At</p>
+                  <p className="text-xs font-medium text-slate-600 mt-1">
+                    {new Date(selectedDetailDoc.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Modified</p>
+                  <p className="text-xs font-medium text-slate-600 mt-1">
+                    {new Date(selectedDetailDoc.updatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                </div>
+              </div>
+
+              {/* Linked Entity */}
+              {selectedDetailDoc.relatedEntity?.entityType && (
+                <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FaLink className="text-indigo-600" size={14} />
+                    <div>
+                      <p className="text-xs font-bold text-indigo-900">Linked to {selectedDetailDoc.relatedEntity.entityType}</p>
+                      <p className="text-[10px] text-indigo-700 font-mono">ID: {selectedDetailDoc.relatedEntity.entityId}</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`/${selectedDetailDoc.relatedEntity.entityType}s/${selectedDetailDoc.relatedEntity.entityId}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-500 transition-colors"
+                  >
+                    View Record <FaExternalLinkAlt size={10} />
+                  </a>
+                </div>
+              )}
+
+              {/* Version History preview */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Version History ({1 + (selectedDetailDoc.versionHistory?.length || 0)})</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-indigo-50/40 border border-indigo-100 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-mono font-bold rounded">v{selectedDetailDoc.version}</span>
+                      <span className="text-xs font-bold text-slate-800">Current Active Version</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">{selectedDetailDoc.size}</span>
+                  </div>
+                  {selectedDetailDoc.versionHistory?.map((vh, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-mono font-bold rounded">v{vh.version}</span>
+                        <span className="text-xs text-slate-600">Historical Version</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{vh.size}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => { setIsDetailOpen(false); setSelectedDoc(selectedDetailDoc); setIsVersionHistoryOpen(true); }}
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+              >
+                <FaHistory size={12} /> Full History
+              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={getDownloadUrl(selectedDetailDoc.filePath)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md transition-all"
+                >
+                  <FaDownload size={12} /> Download Document
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete Confirmation Modal ────────────────────────────────────── */}
+      {deleteDocId && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 text-center">
+            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FaTrash size={22} />
+            </div>
+            <h3 className="text-lg font-extrabold text-slate-900 mb-2">Delete Document</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Are you sure you want to delete this document? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setDeleteDocId(null)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteDocument(deleteDocId)}
+                disabled={deleting}
+                className="px-6 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+              >
+                {deleting ? <FaSpinner className="animate-spin" size={12} /> : <FaTrash size={12} />}
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

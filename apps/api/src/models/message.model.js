@@ -77,6 +77,12 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message',
   },
+  attachments: [{
+    name: String,
+    filePath: String,
+    size: String,
+    type: { type: String },
+  }],
 }, {
   timestamps: true,
 });

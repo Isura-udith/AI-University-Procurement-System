@@ -11,7 +11,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { getDocuments, uploadDocument, updateDocumentFile, updateDocumentStatus } = require('../controllers/document.controller');
+const { getDocuments, uploadDocument, updateDocumentFile, updateDocumentStatus, deleteDocument } = require('../controllers/document.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
 const { upload } = require('../integrations/file.storage');
@@ -57,6 +57,17 @@ router.put('/:id',
 router.patch('/:id/status',
   authorize('super_admin', 'admin', 'procurement_officer'),
   updateDocumentStatus
+);
+
+// Delete document (author or admin roles)
+router.delete('/:id',
+  authorize(
+    'super_admin', 'admin', 'procurement_officer', 'contract_manager',
+    'department_user', 'department_head', 'dean', 'finance_officer',
+    'bursar', 'store_manager', 'supplier', 'tec_member', 'vc'
+  ),
+  readOnlyGuard,
+  deleteDocument
 );
 
 module.exports = router;

@@ -18,6 +18,15 @@ const getMessages = async (req, res, next) => {
   }
 };
 
+const formatBytes = (bytes, decimals = 1) => {
+  if (!bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
 const createMessage = async (req, res, next) => {
   try {
     const { recipient, recipientRole, type, subject, body, category, referenceType, referenceId, replyTo } = req.body;
@@ -26,18 +35,62 @@ const createMessage = async (req, res, next) => {
       return badRequest(res, 'Subject and body are required.');
     }
 
+    const attachments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((f) => {
+        const ext = f.originalname.split('.').pop().toLowerCase();
+        let fType = 'other';
+        if (ext === 'pdf') fType = 'pdf';
+        else if (['doc', 'docx'].includes(ext)) fType = 'word';
+        else if (['xls', 'xlsx'].includes(ext)) fType = 'excel';
+        else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) fType = 'image';
+
+        attachments.push({
+          name: f.originalname,
+          filePath: `/uploads/${f.filename}`,
+          size: formatBytes(f.size),
+          type: fType,
+        });
+      });
+    } else if (req.file) {
+      const ext = req.file.originalname.split('.').pop().toLowerCase();
+      let fType = 'other';
+      if (ext === 'pdf') fType = 'pdf';
+      else if (['doc', 'docx'].includes(ext)) fType = 'word';
+      else if (['xls', 'xlsx'].includes(ext)) fType = 'excel';
+      else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) fType = 'image';
+
+      attachments.push({
+        name: req.file.originalname,
+        filePath: `/uploads/${req.file.filename}`,
+        size: formatBytes(req.file.size),
+        type: fType,
+      });
+    }
+
+    // If attachments passed in body as JSON string
+    if (req.body.attachments && typeof req.body.attachments === 'string') {
+      try {
+        const parsed = JSON.parse(req.body.attachments);
+        if (Array.isArray(parsed)) attachments.push(...parsed);
+      } catch { /* skip invalid JSON */ }
+    } else if (Array.isArray(req.body.attachments)) {
+      attachments.push(...req.body.attachments);
+    }
+
     const messageData = {
       tenantId: req.tenantId,
       sender: req.effectiveUser ? req.effectiveUser._id : req.user._id,
-      recipient,
-      recipientRole,
+      recipient: recipient || undefined,
+      recipientRole: recipientRole || undefined,
       type,
       subject,
       body,
       category,
-      referenceType,
-      referenceId,
-      replyTo,
+      referenceType: referenceType || undefined,
+      referenceId: referenceId || undefined,
+      replyTo: replyTo || undefined,
+      attachments,
     };
 
     const newMessage = await messageService.create(messageData);

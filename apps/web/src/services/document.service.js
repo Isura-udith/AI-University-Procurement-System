@@ -24,6 +24,9 @@ export const documentService = {
 
   /** Update document status (Draft, Approved, Signed, Locked, Active) */
   updateStatus: (id, status) => api.patch(`/documents/${id}/status`, { status }),
+
+  /** Delete a document */
+  deleteDocument: (id) => api.delete(`/documents/${id}`),
 };
 
 export default documentService;

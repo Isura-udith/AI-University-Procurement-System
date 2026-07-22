@@ -12,6 +12,7 @@ const router = express.Router();
 const { getMessages, createMessage, markRead, getUnreadCount, deleteMessage } = require('../controllers/message.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
+const { upload } = require('../integrations/file.storage');
 
 router.use(protect);
 
@@ -32,7 +33,7 @@ const WRITE_ROLES = [
 
 router.get('/', authorize(...READ_ROLES), getMessages);
 router.get('/unread-count', authorize(...READ_ROLES), getUnreadCount);
-router.post('/', authorize(...WRITE_ROLES), readOnlyGuard, createMessage);
+router.post('/', authorize(...WRITE_ROLES), readOnlyGuard, upload.array('attachments', 5), createMessage);
 router.put('/:id/read', authorize(...READ_ROLES), markRead);
 router.delete('/:id', authorize(...WRITE_ROLES), readOnlyGuard, deleteMessage);
 
