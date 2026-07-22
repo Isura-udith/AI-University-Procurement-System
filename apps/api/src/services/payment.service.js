@@ -15,8 +15,19 @@ class PaymentService {
   async getAll(query, tenantId, userContext = {}) {
     const { page, limit, skip, sort } = getPagination(query);
     const filters = { tenantId };
-    if (query.status) filters.status = query.status;
+    if (query.status && query.status !== 'all') filters.status = query.status;
+    if (query.paymentType && query.paymentType !== 'all') filters.paymentType = query.paymentType;
     if (query.vendorId) filters.vendorId = query.vendorId;
+
+    if (query.search) {
+      const regex = new RegExp(query.search, 'i');
+      filters.$or = [
+        { paymentNumber: regex },
+        { 'purchaseOrder.poNumber': regex },
+        { 'goodsReceivedNote.grnNumber': regex },
+        { 'invoice.invoiceNumber': regex },
+      ];
+    }
 
     // Supplier users can only see their own payments
     if (userContext.role === 'supplier' && userContext.userId) {
@@ -30,14 +41,26 @@ class PaymentService {
     }
 
     const [data, total] = await Promise.all([
-      Payment.find(filters).populate('vendorId', 'companyName').populate('contractId', 'contractNumber title').sort(sort).skip(skip).limit(limit),
+      Payment.find(filters)
+        .populate('vendorId', 'companyName registrationNumber')
+        .populate('contractId', 'contractNumber title contractValue')
+        .populate('createdBy', 'firstName lastName')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
       Payment.countDocuments(filters),
     ]);
     return { data, total, page, limit };
   }
 
   async getById(id, tenantId) {
-    const payment = await Payment.findOne({ _id: id, tenantId }).populate('vendorId').populate('contractId').populate('procurementId').populate('approvals.approver', 'firstName lastName');
+    const payment = await Payment.findOne({ _id: id, tenantId })
+      .populate('vendorId')
+      .populate('contractId')
+      .populate('procurementId')
+      .populate('createdBy', 'firstName lastName')
+      .populate('paidBy', 'firstName lastName')
+      .populate('approvals.approver', 'firstName lastName role');
     if (!payment) throw Object.assign(new Error('Payment not found'), { statusCode: 404 });
     return payment;
   }
@@ -51,12 +74,22 @@ class PaymentService {
     const inv = payment.invoice;
 
     if (po && inv && Math.abs(po.poAmount - inv.invoiceAmount) > 0.01) {
-      discrepancies.push({ field: 'amount', poValue: String(po.poAmount), invoiceValue: String(inv.invoiceAmount) });
+      discrepancies.push({
+        field: 'amount',
+        poValue: `LKR ${po.poAmount.toLocaleString()}`,
+        invoiceValue: `LKR ${inv.invoiceAmount.toLocaleString()}`,
+        resolution: 'Amount discrepancy requires Bursar or Finance Officer verification'
+      });
     }
     if (grn && grn.items) {
       grn.items.forEach(item => {
         if (item.orderedQty !== item.receivedQty) {
-          discrepancies.push({ field: `quantity_${item.description}`, poValue: String(item.orderedQty), grnValue: String(item.receivedQty) });
+          discrepancies.push({
+            field: `quantity_${item.description || 'item'}`,
+            poValue: `${item.orderedQty} units ordered`,
+            grnValue: `${item.receivedQty} units received`,
+            resolution: 'Quantity difference detected upon warehouse delivery'
+          });
         }
       });
     }
@@ -81,6 +114,27 @@ class PaymentService {
     return payment;
   }
 
+  async resolveDiscrepancy(id, userId, resolutionNotes, tenantId) {
+    const payment = await Payment.findOne({ _id: id, tenantId });
+    if (!payment) throw Object.assign(new Error('Not found'), { statusCode: 404 });
+
+    payment.threeWayMatchStatus = 'resolved';
+    payment.status = 'pending_approval';
+    if (payment.matchDiscrepancies && payment.matchDiscrepancies.length > 0) {
+      payment.matchDiscrepancies.forEach(d => {
+        d.resolution = resolutionNotes || 'Resolved and overridden by Finance/Bursar authority';
+      });
+    }
+    if (payment.goodsReceivedNote?.items) {
+      payment.goodsReceivedNote.items.forEach(item => {
+        item.acceptedQty = item.orderedQty || item.receivedQty;
+      });
+    }
+    await payment.save();
+    logger.audit('DISCREPANCY_RESOLVED', userId, { paymentId: payment._id, resolutionNotes });
+    return payment;
+  }
+
   async approve(id, userId, role, comments, tenantId) {
     const payment = await Payment.findOne({ _id: id, tenantId });
     if (!payment) throw Object.assign(new Error('Not found'), { statusCode: 404 });
@@ -91,15 +145,20 @@ class PaymentService {
     return payment;
   }
 
-  async markPaid(id, userId, transactionRef, tenantId) {
+  async markPaid(id, userId, payload, tenantId) {
     const payment = await Payment.findOne({ _id: id, tenantId });
     if (!payment) throw Object.assign(new Error('Not found'), { statusCode: 404 });
+
+    const ref = typeof payload === 'string' ? payload : (payload?.transactionRef || payload?.reference);
+    const method = typeof payload === 'object' && payload?.paymentMethod ? payload.paymentMethod : (payment.paymentMethod || 'bank_transfer');
+
     payment.status = 'paid';
     payment.paidAt = new Date();
     payment.paidBy = userId;
-    payment.transactionRef = transactionRef;
+    payment.transactionRef = ref;
+    payment.paymentMethod = method;
     await payment.save();
-    logger.audit('PAYMENT_PROCESSED', userId, { paymentId: payment._id, amount: payment.netAmount });
+    logger.audit('PAYMENT_PROCESSED', userId, { paymentId: payment._id, amount: payment.netAmount, transactionRef: ref });
 
     // Sync contract paymentSchedule status to paid
     const Contract = require('../models/contract.model');

@@ -24,4 +24,14 @@ const getUserTimeline = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getAuditLogs, getAuditStats, getUserTimeline };
+const exportAuditLogs = async (req, res, next) => {
+  try {
+    const csv = await auditLogService.exportCSV(req.query, req.tenantId);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="audit-trail-logs.csv"');
+    return res.send(csv);
+  } catch (err) { next(err); }
+};
+
+module.exports = { getAuditLogs, getAuditStats, getUserTimeline, exportAuditLogs };
+

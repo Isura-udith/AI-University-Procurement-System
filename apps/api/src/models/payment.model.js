@@ -36,6 +36,7 @@ const paymentSchema = new mongoose.Schema({
   paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   transactionRef: String,
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  remarks: String,
 }, { timestamps: true });
 
 paymentSchema.index({ tenantId: 1, status: 1 });

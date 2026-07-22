@@ -13,7 +13,7 @@ const express = require('express');
 const router = express.Router();
 const {
   createPayment, getAllPayments, getPayment,
-  threeWayMatch, approvePayment, markPaid,
+  threeWayMatch, resolveDiscrepancy, approvePayment, markPaid,
 } = require('../controllers/payment.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
@@ -42,6 +42,13 @@ router.post('/:id/three-way-match',
   authorize('finance_officer', 'bursar', 'admin', 'super_admin'),
   readOnlyGuard,
   threeWayMatch
+);
+
+// Resolve 3-Way Match Discrepancy
+router.post('/:id/resolve-discrepancy',
+  authorize('finance_officer', 'bursar', 'admin', 'super_admin'),
+  readOnlyGuard,
+  resolveDiscrepancy
 );
 
 // Approve payment (bursar authority)

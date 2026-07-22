@@ -5,6 +5,9 @@ export const inventoryService = {
   getInventory: (params) => api.get('/inventory/items', { params }),
   getInventoryItem: (id) => api.get(`/inventory/items/${id}`),
   getInventoryStats: () => api.get('/inventory/stats'),
+  createItem: (data) => api.post('/inventory/items', data),
+  adjustStock: (id, data) => api.post(`/inventory/items/${id}/adjust`, data),
+  getItemHistory: (id) => api.get(`/inventory/items/${id}/history`),
 
   // ── Goods Receipt Notes (Phase 7) ───────────────────────
   getGRNs: (params) => api.get('/inventory/grn', { params }),

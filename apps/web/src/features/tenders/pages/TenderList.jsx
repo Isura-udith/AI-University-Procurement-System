@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaPlus, FaSearch, FaFilter, FaEye, FaSpinner, FaTrash, FaCopy, FaTimesCircle, FaPaperPlane } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaEye, FaSpinner, FaTrash, FaCopy, FaTimesCircle, FaPaperPlane, FaEdit } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import Pagination from '../../../components/Pagination';
@@ -254,9 +254,14 @@ export default function TenderList() {
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         <div className="flex items-center justify-center space-x-1">
-                          <Link to={`/tenders/${t._id}`} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View">
+                          <Link to={`/tenders/${t._id}`} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View Details">
                             <FaEye size={12} />
                           </Link>
+                          {t.status === 'draft' && (
+                            <Link to={`/tenders/${t._id}/edit`} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit Draft">
+                              <FaEdit size={11} />
+                            </Link>
+                          )}
                           {t.status === 'draft' && (
                             <button onClick={() => setPublishTarget(t)} className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors" title="Publish">
                               <FaPaperPlane size={11} />

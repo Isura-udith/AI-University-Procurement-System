@@ -3,7 +3,12 @@
  * Real-time WebSocket layer for in-app notifications.
  * Users join tenant-scoped rooms; notifications are broadcast per-tenant and per-user.
  */
-const { Server } = require('socket.io');
+let Server;
+try {
+  Server = require('socket.io').Server;
+} catch (e) {
+  Server = null;
+}
 const { verifyToken } = require('../utils/jwt');
 const User = require('../models/user.model');
 const logger = require('./logger');

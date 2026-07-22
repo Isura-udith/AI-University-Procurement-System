@@ -246,18 +246,16 @@ class TenderService {
   async openBidBox(id, userId, tenantId) {
     const tender = await Tender.findOne({ _id: id, tenantId });
     if (!tender) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    const allowedStatuses = ['published', 'bidding', 'bid_closed', 'closed'];
+    const allowedStatuses = ['published', 'bidding', 'bid_closed', 'closed', 'opening', 'evaluation', 'awarded'];
     if (!allowedStatuses.includes(tender.status)) {
       throw Object.assign(new Error(`Cannot open bid box for a tender in '${tender.status}' status`), { statusCode: 400 });
     }
-    // Relax check: If status is explicitly bid_closed, we can open it (e.g. manually closed early)
-    if (tender.status !== 'bid_closed' && tender.bidSubmissionDeadline && new Date() < tender.bidSubmissionDeadline) {
-      throw Object.assign(new Error('Bid submission deadline not yet reached'), { statusCode: 400 });
-    }
     tender.bidBoxLocked = false;
-    tender.bidBoxOpenedAt = new Date();
+    tender.bidBoxOpenedAt = tender.bidBoxOpenedAt || new Date();
     tender.bidBoxOpenedBy = userId;
-    tender.status = 'opening';
+    if (!['evaluation', 'awarded'].includes(tender.status)) {
+      tender.status = 'opening';
+    }
     await tender.save();
     logger.audit('BID_BOX_OPENED', userId, { tenderId: tender._id });
     return tender;
@@ -363,6 +361,7 @@ class TenderService {
     };
 
     const bid = await Bid.create(bidData);
+    await Tender.findByIdAndUpdate(tenderId, { $inc: { bidsReceived: 1 } });
     logger.audit('BID_SUBMITTED', userId, { tenderId, bidId: bid._id });
     return bid;
   }
@@ -370,10 +369,14 @@ class TenderService {
   async withdrawBid(tenderId, bidId, userId, tenantId) {
     const bid = await Bid.findOne({ _id: bidId, tenderId, tenantId });
     if (!bid) throw Object.assign(new Error('Bid not found'), { statusCode: 404 });
+    if (bid.status === 'withdrawn') {
+      throw Object.assign(new Error('Bid is already withdrawn'), { statusCode: 400 });
+    }
     bid.status = 'withdrawn';
     bid.withdrawnAt = new Date();
     bid.withdrawnBy = userId;
     await bid.save();
+    await Tender.findByIdAndUpdate(tenderId, { $inc: { bidsReceived: -1 } });
     logger.audit('BID_WITHDRAWN', userId, { tenderId, bidId });
     return bid;
   }
@@ -574,9 +577,18 @@ class TenderService {
     // Calculate combined score using QCBS weighting
     const techWeight = scores.techWeight || 70;
     const finWeight = 100 - techWeight;
-    const techMax = (tender.technicalCriteria || []).reduce((sum, c) => sum + (c.maxScore || 0), 0) || 100;
+
+    // Calculate techMax from tender criteria or scores.technicalScores
+    let techMax = 70;
+    if (tender.technicalCriteria && tender.technicalCriteria.length > 0) {
+      techMax = tender.technicalCriteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+    } else if (scores.technicalScores && scores.technicalScores.length > 0) {
+      techMax = scores.technicalScores.reduce((sum, s) => sum + (s.maxScore || 0), 0);
+    }
+    if (techMax <= 0) techMax = 70;
+
     const techRawScore = bid.technicalEvaluation?.totalScore || 0;
-    const techWeightedScore = techMax > 0 ? (techRawScore / techMax) * techWeight : 0;
+    const techWeightedScore = (techRawScore / techMax) * techWeight;
 
     // Financial scoring: lowest price gets full financial weight
     const bidPrice = bid.financialEvaluation?.correctedBidAmount || bid.totalBidAmount || Infinity;
@@ -587,11 +599,9 @@ class TenderService {
         return bidPrice;
       }
       return b.financialEvaluation?.correctedBidAmount || b.totalBidAmount || Infinity;
-    });
+    }).filter(p => p > 0 && p !== Infinity);
 
-    if (!allBids.some(b => b._id.toString() === bid._id.toString())) {
-      bidPrices.push(bidPrice);
-    }
+    if (bidPrices.length === 0) bidPrices.push(bidPrice);
 
     const lowestPrice = Math.min(...bidPrices);
     const finWeightedScore = bidPrice > 0 ? (lowestPrice / bidPrice) * finWeight : 0;
@@ -600,7 +610,7 @@ class TenderService {
     bid.status = 'financially_evaluated';
     await bid.save();
 
-    // Re-rank all evaluated bids
+    // Re-rank all evaluated bids for this tender
     const evaluatedBids = await Bid.find({ tenderId, tenantId, combinedScore: { $exists: true, $ne: null } }).sort('-combinedScore');
     for (let i = 0; i < evaluatedBids.length; i++) {
       evaluatedBids[i].rank = i + 1;
@@ -614,37 +624,58 @@ class TenderService {
     return bid;
   }
 
-  async completeBidOpening(tenderId, userId, tenantId) {
+  async completeBidOpening(tenderId, userId, tenantId, body = {}) {
     const tender = await Tender.findOne({ _id: tenderId, tenantId });
     if (!tender) throw Object.assign(new Error('Not found'), { statusCode: 404 });
     
     const bids = await Bid.find({ tenderId, tenantId }).populate('vendorId', 'companyName');
+    
+    const committee = body.committee || (tender.bocMembers && tender.bocMembers.length > 0
+      ? tender.bocMembers.map(m => ({ name: m.name || m.userId?.firstName || 'Committee Member', role: m.role || 'Member', present: m.present !== false }))
+      : []);
+
     const minutes = {
       tenderId: tender._id,
       tenderNumber: tender.tenderNumber,
-      openedAt: tender.bidBoxOpenedAt,
-      openedBy: tender.bidBoxOpenedBy,
+      tenderTitle: tender.title,
+      openedAt: tender.bidBoxOpenedAt || new Date(),
+      openedBy: tender.bidBoxOpenedBy || userId,
       completedAt: new Date(),
       completedBy: userId,
+      committee: committee,
       totalBidsReceived: bids.length,
       bidSummary: bids.map(b => ({
         bidId: b._id,
+        bidNumber: b.bidNumber,
         vendor: b.vendorId?.companyName || 'Unknown',
         amount: b.totalBidAmount,
         submittedAt: b.submittedAt,
         bidSecurityPresent: !!b.bidSecurityDocument,
+        bidSecurityType: b.bidSecurityType || 'N/A',
+        isSealed: b.isSealed,
+        status: b.status,
       })),
+      generatedAt: new Date(),
     };
 
     tender.status = 'evaluation';
     tender.bidOpeningCompletedAt = new Date();
     tender.bidOpeningCompletedBy = userId;
     tender.bidOpeningMinutes = minutes;
+    
+    if (body.committee && Array.isArray(body.committee)) {
+      tender.bocMembers = body.committee.map(c => ({
+        role: c.role,
+        present: c.present,
+        name: c.name,
+      }));
+    }
+    
     await tender.save();
 
-    // Mark all bids as opened
+    // Mark all non-withdrawn bids as opened
     await Bid.updateMany(
-      { tenderId, tenantId },
+      { tenderId, tenantId, status: { $ne: 'withdrawn' } },
       { isSealed: false, status: 'opened', openedAt: new Date() }
     );
 
@@ -660,16 +691,27 @@ class TenderService {
       .populate('vendorId', 'companyName contactPerson email performanceScore')
       .sort('-combinedScore totalBidAmount');
 
-    const techCriteria = (tender.technicalCriteria || []).map(c => ({
-      name: c.criterion,
-      max: c.maxScore,
-      key: c.criterion.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-    }));
+    const defaultTechCriteria = [
+      { name: 'Relevant Experience', max: 25, key: 'relevant_experience' },
+      { name: 'Technical Methodology', max: 20, key: 'technical_methodology' },
+      { name: 'Key Staff Qualifications', max: 15, key: 'key_staff_qualifications' },
+      { name: 'Compliance & Standards', max: 10, key: 'compliance___standards' },
+    ];
 
-    const techMax = techCriteria.reduce((sum, c) => sum + c.max, 0) || 100;
+    const techCriteria = (tender.technicalCriteria && tender.technicalCriteria.length > 0)
+      ? tender.technicalCriteria.map(c => ({
+          name: c.criterion,
+          max: c.maxScore,
+          key: c.criterion.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        }))
+      : defaultTechCriteria;
+
+    const techMax = techCriteria.reduce((sum, c) => sum + (c.max || 0), 0) || 70;
     const techWeight = 70; // Default QCBS weight
     const finWeight = 30;
-    const lowestPrice = Math.min(...bids.map(b => b.financialEvaluation?.correctedBidAmount || b.totalBidAmount || Infinity));
+
+    const validPrices = bids.map(b => b.financialEvaluation?.correctedBidAmount || b.totalBidAmount || Infinity).filter(p => p > 0 && p !== Infinity);
+    const lowestPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
 
     const results = bids.map((bid, i) => {
       const techScores = {};
@@ -683,7 +725,7 @@ class TenderService {
       const techWeighted = (techPercent * techWeight) / 100;
       
       const bidPrice = bid.financialEvaluation?.correctedBidAmount || bid.totalBidAmount || 0;
-      const finWeighted = bidPrice > 0 ? (lowestPrice / bidPrice) * finWeight : 0;
+      const finWeighted = (lowestPrice > 0 && bidPrice > 0) ? (lowestPrice / bidPrice) * finWeight : 0;
       const combined = bid.combinedScore || Math.round((techWeighted + finWeighted) * 10) / 10;
 
       return {
@@ -710,6 +752,7 @@ class TenderService {
     if (!tender) throw Object.assign(new Error('Not found'), { statusCode: 404 });
 
     // Store the evaluation submission metadata
+    tender.status = 'evaluation';
     tender.evaluationSubmittedAt = new Date();
     tender.evaluationSubmittedBy = userId;
     await tender.save();

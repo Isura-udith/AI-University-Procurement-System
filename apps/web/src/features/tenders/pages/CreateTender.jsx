@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaArrowLeft, FaUpload, FaFileAlt, FaPaperPlane, FaSave, FaSpinner, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaUpload, FaFileAlt, FaPaperPlane, FaSave, FaSpinner, FaPlus, FaTrash, FaUsers } from 'react-icons/fa';
 import FormSection from '../../procurement/components/FormSection';
 import FormField, { TextInput, SelectInput, TextArea } from '../../procurement/components/FormField';
 import tenderService from '../../../services/tender.service';
 import procurementService from '../../../services/procurement.service';
+import userService from '../../../services/user.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 
 const METHODS = [
   { value: 'ncb', label: 'NCB - National Competitive Bidding' },
   { value: 'icb', label: 'ICB - International Competitive Bidding' },
   { value: 'shopping', label: 'Shopping (Limited Bidding)' },
+  { value: 'direct', label: 'Direct Contracting' },
+  { value: 'rfq', label: 'RFQ - Request for Quotation' },
 ];
 const CATEGORIES = [
   { value: 'Goods', label: 'Goods' },
@@ -27,18 +30,24 @@ const BID_TYPES = [
 
 export default function CreateTender() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = !!id;
+
   const [form, setForm] = useState({
-    requisitionRef: '', title: '', method: '', category: '',
+    requisitionRef: '', title: '', method: 'ncb', category: 'Goods',
     bidType: 'single-envelope', technicalWeight: '70', financialWeight: '30',
     publishDate: '', closingDate: '', openingDate: '',
     bidDocFee: '', bidSecurity: '', bidValidity: '120',
-    evaluation: '', publishPortal: true, publishWebsite: true,
+    evaluation: 'lowest_price', publishPortal: true, publishWebsite: true,
     description: '', estimatedValue: '',
   });
+
   const [files, setFiles] = useState([]);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [loadingTender, setLoadingTender] = useState(isEdit);
   const [publishModal, setPublishModal] = useState(false);
+
   const [criteria, setCriteria] = useState([
     { name: 'Relevant Experience', maxScore: 25 },
     { name: 'Technical Methodology', maxScore: 20 },
@@ -46,27 +55,91 @@ export default function CreateTender() {
     { name: 'Compliance & Standards', maxScore: 10 },
   ]);
 
+  const [becMembers, setBecMembers] = useState([]);
+  const [bocMembers, setBocMembers] = useState([]);
+
   const [procurements, setProcurements] = useState([]);
   const [loadingProcurements, setLoadingProcurements] = useState(true);
+  const [systemUsers, setSystemUsers] = useState([]);
 
+  // Fetch Requisitions and System Users
   useEffect(() => {
-    const fetchProcurements = async () => {
+    const fetchData = async () => {
       try {
-        const res = await procurementService.getAll();
-        // Filter for approved and budget-locked/ready requisitions
-        const approved = (res.data || []).filter(p => 
-          ['budget_locked', 'committee_assigned', 'tender_preparation', 'hod_approved', 'dean_approved'].includes(p.status)
+        const [procRes, userRes] = await Promise.all([
+          procurementService.getAll(),
+          userService.getUsers()
+        ]);
+        const items = procRes.data || procRes || [];
+        const approved = (Array.isArray(items) ? items : []).filter(p =>
+          ['budget_locked', 'committee_assigned', 'tender_preparation', 'hod_approved', 'dean_approved', 'published'].includes(p.status)
         );
         setProcurements(approved);
+
+        const usersData = userRes.data || userRes || [];
+        setSystemUsers(Array.isArray(usersData) ? usersData : []);
       } catch (err) {
-        console.error('Failed to load approved requisitions:', err);
-        toast.error('Failed to load approved requisitions.');
+        console.error('Failed to load initial form metadata:', err);
       } finally {
         setLoadingProcurements(false);
       }
     };
-    fetchProcurements();
+    fetchData();
   }, []);
+
+  // Fetch Tender details if in Edit Mode
+  useEffect(() => {
+    if (!isEdit) return;
+    const fetchTender = async () => {
+      setLoadingTender(true);
+      try {
+        const res = await tenderService.getById(id);
+        const t = res.data || res;
+        
+        setForm({
+          requisitionRef: t.procurementId?._id || t.procurementId || '',
+          title: t.title || '',
+          method: t.procurementMethod ? t.procurementMethod.toLowerCase() : 'ncb',
+          category: t.category || 'Goods',
+          bidType: 'single-envelope',
+          technicalWeight: '70',
+          financialWeight: '30',
+          publishDate: t.publishedAt ? new Date(t.publishedAt).toISOString().split('T')[0] : '',
+          closingDate: t.bidSubmissionDeadline ? new Date(t.bidSubmissionDeadline).toISOString().slice(0, 16) : '',
+          openingDate: t.bidOpeningDate ? new Date(t.bidOpeningDate).toISOString().slice(0, 16) : '',
+          bidDocFee: t.documentFee || '',
+          bidSecurity: t.bidSecurityAmount || '',
+          bidValidity: t.bidSecurityValidityDays || '120',
+          evaluation: t.evaluationType || 'lowest_price',
+          publishPortal: true,
+          publishWebsite: true,
+          description: t.description || '',
+          estimatedValue: t.estimatedValue || '',
+        });
+
+        if (t.technicalCriteria && t.technicalCriteria.length > 0) {
+          setCriteria(t.technicalCriteria.map(c => ({ name: c.criterion, maxScore: c.maxScore || 10 })));
+        }
+
+        if (t.becMembers && t.becMembers.length > 0) {
+          setBecMembers(t.becMembers.map(m => ({ userId: m.userId?._id || m.userId, role: m.role || 'member' })));
+        }
+
+        if (t.bocMembers && t.bocMembers.length > 0) {
+          setBocMembers(t.bocMembers.map(m => ({ userId: m.userId?._id || m.userId, role: m.role || 'member' })));
+        }
+
+        if (t.tenderDocuments && t.tenderDocuments.length > 0) {
+          setFiles(t.tenderDocuments.map(d => ({ name: d.name, url: d.url, type: d.type })));
+        }
+      } catch (err) {
+        toast.error(err.message || 'Failed to fetch tender details for editing');
+      } finally {
+        setLoadingTender(false);
+      }
+    };
+    fetchTender();
+  }, [id, isEdit]);
 
   const set = (field) => (e) => {
     const val = e.target?.type === 'checkbox' ? e.target.checked : (e.target?.value ?? e);
@@ -86,7 +159,6 @@ export default function CreateTender() {
   };
 
   const mapFormDataToApi = (formData) => {
-    // Category and method values are already correct case from select options
     const methodMap = { ncb: 'NCB', icb: 'ICB', shopping: 'Shopping', direct: 'Direct', rfq: 'RFQ', limited: 'Limited' };
     const rawMethod = (formData.method || '').toLowerCase();
     return {
@@ -94,7 +166,7 @@ export default function CreateTender() {
       title: formData.title,
       description: formData.description,
       category: formData.category || 'Goods',
-      procurementMethod: methodMap[rawMethod] || formData.method || 'NCB',
+      procurementMethod: methodMap[rawMethod] || formData.method?.toUpperCase() || 'NCB',
       estimatedValue: Number(formData.estimatedValue) || 0,
       bidSubmissionDeadline: formData.closingDate,
       bidOpeningDate: formData.openingDate || (formData.closingDate ? new Date(new Date(formData.closingDate).getTime() + 30 * 60000).toISOString() : undefined),
@@ -104,8 +176,10 @@ export default function CreateTender() {
       bidSecurityPercentage: 2,
       bidSecurityValidityDays: Number(formData.bidValidity) || 120,
       evaluationType: formData.evaluation || 'lowest_price',
-      technicalCriteria: criteria.map(c => ({ criterion: c.name, maxScore: c.maxScore })),
-      technicalPassMark: 70
+      technicalCriteria: criteria.filter(c => c.name.trim()).map(c => ({ criterion: c.name, maxScore: c.maxScore })),
+      technicalPassMark: 70,
+      becMembers: becMembers.filter(m => m.userId),
+      bocMembers: bocMembers.filter(m => m.userId),
     };
   };
 
@@ -116,8 +190,13 @@ export default function CreateTender() {
     setSaving(true);
     try {
       const apiData = mapFormDataToApi(form);
-      await tenderService.create({ ...apiData, status: 'draft' });
-      toast.success('📋 Tender draft saved successfully.');
+      if (isEdit) {
+        await tenderService.update(id, { ...apiData, status: 'draft' });
+        toast.success('📋 Tender draft updated successfully.');
+      } else {
+        await tenderService.create({ ...apiData, status: 'draft' });
+        toast.success('📋 Tender draft created successfully.');
+      }
       navigate('/tenders');
     } catch (err) {
       toast.error(err.message || 'Failed to save draft tender');
@@ -130,10 +209,16 @@ export default function CreateTender() {
     setSaving(true);
     try {
       const apiData = mapFormDataToApi(form);
-      const res = await tenderService.create({ ...apiData, status: 'draft' });
-      const createdTender = res.data;
-      if (createdTender?._id) {
-        await tenderService.publish(createdTender._id);
+      let targetId = id;
+      if (isEdit) {
+        await tenderService.update(id, apiData);
+      } else {
+        const res = await tenderService.create({ ...apiData, status: 'draft' });
+        targetId = res.data?._id || res._id;
+      }
+
+      if (targetId) {
+        await tenderService.publish(targetId);
         toast.success('🚀 Tender published to e-GP portal and university website!');
       } else {
         throw new Error('Tender creation response invalid');
@@ -156,10 +241,32 @@ export default function CreateTender() {
   const removeCriterion = (i) => setCriteria(prev => prev.filter((_, idx) => idx !== i));
   const updateCriterion = (i, key, val) => { const updated = [...criteria]; updated[i] = { ...updated[i], [key]: val }; setCriteria(updated); };
 
+  const addBecMember = () => setBecMembers(prev => [...prev, { userId: '', role: 'member' }]);
+  const removeBecMember = (i) => setBecMembers(prev => prev.filter((_, idx) => idx !== i));
+  const updateBecMember = (i, key, val) => { const updated = [...becMembers]; updated[i] = { ...updated[i], [key]: val }; setBecMembers(updated); };
+
+  const addBocMember = () => setBocMembers(prev => [...prev, { userId: '', role: 'member' }]);
+  const removeBocMember = (i) => setBocMembers(prev => prev.filter((_, idx) => idx !== i));
+  const updateBocMember = (i, key, val) => { const updated = [...bocMembers]; updated[i] = { ...updated[i], [key]: val }; setBocMembers(updated); };
+
   const procurementOptions = procurements.map(p => ({
     value: p._id,
     label: `${p.referenceNumber} - ${p.title} (${p.category} - LKR ${p.totalEstimatedCost?.toLocaleString() || '0'})`
   }));
+
+  const userOptions = systemUsers.map(u => ({
+    value: u._id,
+    label: `${u.firstName} ${u.lastName} (${u.role ? u.role.toUpperCase() : 'Staff'}) - ${u.department || 'UWU'}`
+  }));
+
+  if (loadingTender) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <FaSpinner className="animate-spin text-emerald-600 mr-2" size={20} />
+        <span className="text-slate-500 text-sm">Loading tender data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -168,7 +275,7 @@ export default function CreateTender() {
           <Link to="/tenders" className="inline-flex items-center text-sm text-slate-500 hover:text-emerald-600 mb-2 transition-colors">
             <FaArrowLeft className="mr-1.5" size={11} /> Back to Tenders
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Create Tender Notice</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit Tender Notice' : 'Create Tender Notice'}</h1>
           <p className="text-sm text-slate-500 mt-1">Prepare Specific Procurement Notice (SPN) and bidding documents</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -253,7 +360,7 @@ export default function CreateTender() {
             <FormField label="Publish Date">
               <TextInput type="date" value={form.publishDate} onChange={set('publishDate')} />
             </FormField>
-            <FormField label="Bid Closing Deadline">
+            <FormField label="Bid Closing Deadline" required error={errors.closingDate}>
               <TextInput type="datetime-local" value={form.closingDate} onChange={set('closingDate')} />
             </FormField>
             <FormField label="Bid Opening Date">
@@ -277,7 +384,7 @@ export default function CreateTender() {
 
         <FormSection title="Bidding Documents" step="4" subtitle="Upload standard bidding documents, evaluation criteria, and technical specifications">
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-emerald-400 transition-colors cursor-pointer relative">
-            <input type="file" multiple accept=".pdf,.docx,.xlsx" onChange={e => setFiles(prev => [...prev, ...Array.from(e.target.files)])} className="absolute inset-0 opacity-0 cursor-pointer" />
+            <input type="file" multiple accept=".pdf,.docx,.xlsx" onChange={e => setFiles(prev => [...prev, ...Array.from(e.target.files).map(f => ({ name: f.name, type: f.type }))])} className="absolute inset-0 opacity-0 cursor-pointer" />
             <FaUpload className="mx-auto text-slate-400 mb-2" size={24} />
             <p className="text-sm text-slate-500">Upload Standard Bidding Documents (SBD)</p>
             <p className="text-xs text-slate-400 mt-1">PDF, DOCX, XLSX only. Malware-scanned on upload.</p>
@@ -313,6 +420,63 @@ export default function CreateTender() {
           </div>
         </FormSection>
 
+        {/* Committee Setup */}
+        <FormSection title="Committees Assignment" step="6" subtitle="Assign Bid Evaluation Committee (BEC) and Bid Opening Committee (BOC) members">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* BEC Members */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-700 flex items-center space-x-1.5">
+                  <FaUsers className="text-emerald-600" size={13} />
+                  <span>Bid Evaluation Committee (BEC)</span>
+                </h4>
+                <button onClick={addBecMember} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">+ Member</button>
+              </div>
+              {becMembers.map((m, i) => (
+                <div key={i} className="flex items-center space-x-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                  <select value={m.userId} onChange={e => updateBecMember(i, 'userId', e.target.value)} className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none">
+                    <option value="">Select Staff User...</option>
+                    {userOptions.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                  </select>
+                  <select value={m.role} onChange={e => updateBecMember(i, 'role', e.target.value)} className="w-28 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none">
+                    <option value="chairperson">Chairperson</option>
+                    <option value="member">Member</option>
+                    <option value="secretary">Secretary</option>
+                  </select>
+                  <button onClick={() => removeBecMember(i)} className="p-1 text-red-400 hover:text-red-600"><FaTrash size={10} /></button>
+                </div>
+              ))}
+              {becMembers.length === 0 && <p className="text-xs text-slate-400 italic">No BEC members assigned yet.</p>}
+            </div>
+
+            {/* BOC Members */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-700 flex items-center space-x-1.5">
+                  <FaUsers className="text-blue-600" size={13} />
+                  <span>Bid Opening Committee (BOC)</span>
+                </h4>
+                <button onClick={addBocMember} className="text-xs font-semibold text-blue-600 hover:text-blue-700">+ Member</button>
+              </div>
+              {bocMembers.map((m, i) => (
+                <div key={i} className="flex items-center space-x-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                  <select value={m.userId} onChange={e => updateBocMember(i, 'userId', e.target.value)} className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none">
+                    <option value="">Select Staff User...</option>
+                    {userOptions.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                  </select>
+                  <select value={m.role} onChange={e => updateBocMember(i, 'role', e.target.value)} className="w-28 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none">
+                    <option value="chairperson">Chairperson</option>
+                    <option value="member">Member</option>
+                    <option value="witness">Witness</option>
+                  </select>
+                  <button onClick={() => removeBocMember(i)} className="p-1 text-red-400 hover:text-red-600"><FaTrash size={10} /></button>
+                </div>
+              ))}
+              {bocMembers.length === 0 && <p className="text-xs text-slate-400 italic">No BOC members assigned yet.</p>}
+            </div>
+          </div>
+        </FormSection>
+
         <div className="flex items-center justify-between pt-4 pb-8 border-t border-slate-200">
           <Link to="/tenders" className="text-sm text-slate-500 hover:text-slate-700 font-medium">Cancel</Link>
           <div className="flex items-center space-x-3">
@@ -332,10 +496,10 @@ export default function CreateTender() {
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1.5 text-sm">
               <div className="flex justify-between"><span className="text-slate-500">Method</span><span className="font-medium">{form.method || '—'}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Closing</span><span className="font-medium">{form.closingDate || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Documents</span><span className="font-medium">{files.length} files</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">BEC Members</span><span className="font-medium">{becMembers.length} assigned</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Eval Criteria</span><span className="font-medium">{criteria.length} criteria</span></div>
             </div>
-            <p className="text-xs text-slate-400">This will be visible to all registered bidders on the e-GP portal and university website.</p>
+            <p className="text-xs text-slate-400">This will make the tender visible to all registered bidders on the e-GP portal and university website.</p>
           </div>
         </ConfirmModal>
       </div>

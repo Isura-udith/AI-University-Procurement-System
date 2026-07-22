@@ -5,6 +5,7 @@ export const paymentService = {
   getById: (id) => api.get(`/payments/${id}`),
   create: (data) => api.post('/payments', data),
   threeWayMatch: (id) => api.post(`/payments/${id}/three-way-match`),
+  resolveDiscrepancy: (id, data) => api.post(`/payments/${id}/resolve-discrepancy`, data),
   approve: (id, data) => api.post(`/payments/${id}/approve`, data),
   markPaid: (id, data) => api.post(`/payments/${id}/mark-paid`, data),
 };

@@ -51,9 +51,19 @@ export default function DeliveryPage() {
     };
   }, []);
 
+  const openGrnModal = (d) => {
+    setGrnModal(d);
+    setGrnForm({
+      receivedQty: String(d.orderedQty || ''),
+      acceptedQty: String(d.orderedQty || ''),
+      condition: 'good',
+      remarks: ''
+    });
+  };
+
   const handleRecordGRN = async () => {
     if (!grnForm.receivedQty) { toast.error('Enter received quantity.'); return; }
-    const grnRef = `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+    const grnRef = `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
     try {
       await contractService.recordGRN(grnModal._id, {
         grnRef,
@@ -91,7 +101,7 @@ export default function DeliveryPage() {
 
   const stats = {
     matched: deliveries.filter(d => d.matchStatus === 'matched').length,
-    pending: deliveries.filter(d => d.status === 'pending').length,
+    pending: deliveries.filter(d => d.status === 'pending' || d.matchStatus === 'pending').length,
     discrepancy: deliveries.filter(d => d.matchStatus === 'discrepancy').length,
   };
 
@@ -111,7 +121,7 @@ export default function DeliveryPage() {
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center space-x-3">
           <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaBoxOpen size={16} /></div>
-          <div><p className="text-2xl font-bold text-slate-900">{stats.pending}</p><p className="text-xs text-slate-500">Awaiting Delivery</p></div>
+          <div><p className="text-2xl font-bold text-slate-900">{stats.pending}</p><p className="text-xs text-slate-500">Awaiting Delivery / GRN</p></div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center space-x-3">
           <div className="p-2.5 bg-red-100 text-red-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
@@ -128,7 +138,7 @@ export default function DeliveryPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16"><FaSpinner className="animate-spin text-emerald-600 mr-2" size={18} /><span className="text-sm text-slate-500">Loading...</span></div>
+          <div className="flex items-center justify-center py-16"><FaSpinner className="animate-spin text-emerald-600 mr-2" size={18} /><span className="text-sm text-slate-500">Loading deliveries...</span></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -155,7 +165,7 @@ export default function DeliveryPage() {
                     <td className="px-5 py-3.5 text-center">
                       <span className="text-sm">{d.orderedQty}</span>
                       <span className="text-slate-400 mx-1">/</span>
-                      <span className={`text-sm font-bold ${d.receivedQty === d.orderedQty ? 'text-emerald-600' : d.receivedQty > 0 ? 'text-red-600' : 'text-slate-400'}`}>{d.receivedQty}</span>
+                      <span className={`text-sm font-bold ${d.receivedQty === d.orderedQty && d.receivedQty > 0 ? 'text-emerald-600' : d.receivedQty > 0 ? 'text-red-600' : 'text-slate-400'}`}>{d.receivedQty}</span>
                     </td>
                     <td className="px-5 py-3.5 text-xs font-mono text-slate-500">{d.grn || '—'}</td>
                     <td className="px-5 py-3.5">
@@ -170,7 +180,7 @@ export default function DeliveryPage() {
                     <td className="px-5 py-3.5 text-center">
                       <div className="flex items-center justify-center space-x-2">
                         {d.status === 'pending' && (hasPermission(PERMISSIONS.RECORD_GRN) || ['store_manager', 'contract_manager', 'procurement_officer', 'admin', 'super_admin'].includes(role)) && (
-                          <button onClick={() => setGrnModal(d)} className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 transition-colors">
+                          <button onClick={() => openGrnModal(d)} className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 transition-colors">
                             <FaClipboardCheck size={10} /><span>Record GRN</span>
                           </button>
                         )}

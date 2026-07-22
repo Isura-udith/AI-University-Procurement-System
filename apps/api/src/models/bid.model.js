@@ -80,7 +80,7 @@ bidSchema.index({ tenantId: 1, vendorId: 1 });
 
 bidSchema.pre('validate', function () {
   // Auto-calculate line item totals
-  if (this.lineItems) {
+  if (this.lineItems && this.lineItems.length > 0) {
     this.lineItems.forEach(item => { item.totalPrice = item.quantity * item.unitPrice; });
     this.totalBidAmount = this.lineItems.reduce((sum, item) => sum + item.totalPrice, 0) + (this.vatAmount || 0) - (this.discountOffered || 0);
   }

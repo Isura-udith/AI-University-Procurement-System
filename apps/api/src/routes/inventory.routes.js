@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth.middleware');
 const {
-  getInventory, getInventoryItem, getInventoryStats,
+  getInventory, getInventoryItem, getInventoryStats, createInventoryItem, adjustStock, getItemHistory,
   createGRN, getGRNs, getGRN, inspectGRN,
   createIssuance, getIssuances, issueItems, confirmDeptReceipt, approveIssuance,
 } = require('../controllers/inventory.controller');
@@ -12,7 +12,10 @@ router.use(protect);
 // Inventory stock
 router.get('/stats', getInventoryStats);
 router.get('/items', getInventory);
+router.post('/items', createInventoryItem);
 router.get('/items/:id', getInventoryItem);
+router.post('/items/:id/adjust', adjustStock);
+router.get('/items/:id/history', getItemHistory);
 
 // Goods Receipt Notes
 router.get('/grn', getGRNs);

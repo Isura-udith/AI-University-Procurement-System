@@ -212,8 +212,8 @@ class ContractService {
   }
 
   async getDeliveries(tenantId) {
-    // Get all active/in-progress contracts with their deliverables
-    const contracts = await Contract.find({ tenantId, status: { $in: ['active', 'in_progress'] } })
+    // Get all active, in-progress, loa_issued, or completed contracts with deliverables
+    const contracts = await Contract.find({ tenantId, status: { $in: ['active', 'in_progress', 'loa_issued', 'completed'] } })
       .populate('vendorId', 'companyName')
       .sort('-createdAt');
 
@@ -227,20 +227,24 @@ class ContractService {
     // Flatten deliverables into a delivery list
     const deliveries = [];
     contracts.forEach(c => {
-      c.deliverables.forEach((d, i) => {
+      (c.deliverables || []).forEach((d, i) => {
         let orderedQty = 1;
-        const qtyMatch = d.description.match(/\((\d+)\s+units?\)/i);
+        const qtyMatch = d.description ? d.description.match(/\((\d+)\s+units?\)/i) : null;
         if (qtyMatch) {
           orderedQty = parseInt(qtyMatch[1], 10);
         }
 
         let grn = d.acceptanceReport && d.acceptanceReport.startsWith('GRN-') ? d.acceptanceReport : null;
         
-        // Find corresponding payment by contract and GRN
-        const associatedPayment = grn ? payments.find(p => 
+        // Find corresponding payment by contract and GRN (or contract fallback)
+        const associatedPayment = payments.find(p => 
           p.contractId.toString() === c._id.toString() && 
-          p.goodsReceivedNote?.grnNumber === grn
-        ) : null;
+          ((grn && p.goodsReceivedNote?.grnNumber === grn) || !grn)
+        );
+
+        if (!grn && associatedPayment?.goodsReceivedNote?.grnNumber) {
+          grn = associatedPayment.goodsReceivedNote.grnNumber;
+        }
 
         let receivedQty = 0;
         let acceptedQty = 0;
@@ -248,34 +252,30 @@ class ContractService {
 
         if (d.status === 'delivered' || d.status === 'accepted' || d.status === 'rejected') {
           if (!grn) {
-            grn = `GRN-2026-0${i}5`;
+            grn = `GRN-2026-0${i + 1}5`;
           }
 
           if (associatedPayment) {
-            // Retrieve quantities from the payment voucher's GRN items
             const grnItem = associatedPayment.goodsReceivedNote?.items?.find(item => 
-              item.description.includes(d.description) || d.description.includes(item.description)
+              item.description && (item.description.includes(d.description) || d.description.includes(item.description))
             ) || associatedPayment.goodsReceivedNote?.items?.[0];
 
             if (grnItem) {
-              receivedQty = grnItem.receivedQty;
-              acceptedQty = grnItem.acceptedQty;
+              receivedQty = grnItem.receivedQty ?? orderedQty;
+              acceptedQty = grnItem.acceptedQty ?? orderedQty;
             } else {
               receivedQty = orderedQty;
               acceptedQty = orderedQty;
             }
 
-            // Sync match status
-            if (associatedPayment.threeWayMatchStatus === 'discrepancy') {
-              matchStatus = 'discrepancy';
-            } else if (['matched', 'approved', 'paid'].includes(associatedPayment.threeWayMatchStatus) || 
-                       ['approved', 'paid', 'pending_approval'].includes(associatedPayment.status)) {
+            if (d.status === 'accepted' || ['matched', 'approved', 'paid'].includes(associatedPayment.threeWayMatchStatus) || ['approved', 'paid', 'pending_approval'].includes(associatedPayment.status)) {
               matchStatus = 'matched';
+            } else if (associatedPayment.threeWayMatchStatus === 'discrepancy' || d.status === 'rejected' || (receivedQty > 0 && (receivedQty !== orderedQty || acceptedQty !== orderedQty))) {
+              matchStatus = 'discrepancy';
             } else {
               matchStatus = 'pending';
             }
           } else {
-            // Fallback behavior if no payment matches yet
             if (d.status === 'accepted') {
               receivedQty = orderedQty;
               acceptedQty = orderedQty;
@@ -296,19 +296,19 @@ class ContractService {
           _id: `${c._id}_${i}`,
           contractId: c._id,
           contract: c.contractNumber,
-          po: c.contractNumber.replace('CNT-', 'PO-'),
-          vendor: c.vendorId?.companyName || 'Unknown',
-          items: d.description,
-          deliveredDate: d.deliveredDate ? d.deliveredDate.toISOString().split('T')[0] : null,
-          status: d.status,
+          po: c.contractNumber ? c.contractNumber.replace('CNT-', 'PO-') : `PO-${c._id.toString().slice(-4)}`,
+          vendor: c.vendorId?.companyName || 'Unknown Vendor',
+          items: d.description || 'Deliverable Item',
+          deliveredDate: d.deliveredDate ? new Date(d.deliveredDate).toISOString().split('T')[0] : null,
+          status: d.status || 'pending',
           matchStatus,
           orderedQty,
           receivedQty,
           acceptedQty,
           grn,
-          poAmount: c.contractValue,
-          invoiceRef: grn ? grn.replace('GRN-', 'INV-') : null,
-          invoiceAmount: c.contractValue,
+          poAmount: c.contractValue || 0,
+          invoiceRef: grn ? grn.replace('GRN-', 'INV-') : (associatedPayment?.invoice?.invoiceNumber || null),
+          invoiceAmount: associatedPayment?.invoice?.invoiceAmount || c.contractValue || 0,
         });
       });
     });
@@ -321,64 +321,127 @@ class ContractService {
     const contractId = parts[0];
     const deliverableIdx = parseInt(parts[1] || '0', 10);
     const contract = await Contract.findOne({ _id: contractId, tenantId });
-    if (!contract) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    if (contract.deliverables[deliverableIdx]) {
+    if (!contract) throw Object.assign(new Error('Contract not found'), { statusCode: 404 });
+    if (contract.deliverables && contract.deliverables[deliverableIdx]) {
       contract.deliverables[deliverableIdx].deliveredDate = new Date();
       
       let orderedQty = 1;
-      const qtyMatch = contract.deliverables[deliverableIdx].description.match(/\((\d+)\s+units?\)/i);
+      const desc = contract.deliverables[deliverableIdx].description || '';
+      const qtyMatch = desc.match(/\((\d+)\s+units?\)/i);
       if (qtyMatch) {
         orderedQty = parseInt(qtyMatch[1], 10);
+      } else if (data.orderedQty) {
+        orderedQty = parseInt(data.orderedQty, 10);
       }
       
       const received = parseInt(data.receivedQty || orderedQty, 10);
       const accepted = parseInt(data.acceptedQty || received, 10);
-      const isMatched = accepted === orderedQty;
+      const isMatched = (received === orderedQty) && (accepted === orderedQty) && (data.condition === 'good' || !data.condition);
 
-      const grnRefVal = data.grnRef || `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+      const grnRefVal = data.grnRef || `GRN-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
 
       contract.deliverables[deliverableIdx].status = isMatched ? 'accepted' : 'rejected';
       contract.deliverables[deliverableIdx].acceptanceReport = grnRefVal;
 
-      // Automatically create a corresponding payment voucher in the database
       const Payment = require('../models/payment.model');
-      const count = await Payment.countDocuments({ tenantId });
-      const paymentNumber = `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
-      
-      await Payment.create({
+      let existingPayment = await Payment.findOne({
         tenantId,
         contractId: contract._id,
-        procurementId: contract.procurementId,
-        vendorId: contract.vendorId,
-        paymentNumber,
-        amount: contract.contractValue,
-        paymentType: 'progress',
-        status: isMatched ? 'pending_approval' : 'pending_match',
-        threeWayMatchStatus: isMatched ? 'matched' : 'discrepancy',
-        purchaseOrder: {
-          poNumber: contract.contractNumber.replace('CNT-', 'PO-'),
-          poDate: contract.startDate || new Date(),
-          poAmount: contract.contractValue
-        },
-        goodsReceivedNote: {
+        $or: [
+          { 'goodsReceivedNote.grnNumber': grnRefVal },
+          { status: 'pending_match' }
+        ]
+      });
+
+      const matchDiscrepancies = [];
+      if (!isMatched) {
+        if (received !== orderedQty) {
+          matchDiscrepancies.push({
+            field: 'quantity_received',
+            poValue: `${orderedQty} units`,
+            grnValue: `${received} units`,
+            invoiceValue: `${orderedQty} units`,
+            resolution: 'Pending store manager & vendor resolution'
+          });
+        }
+        if (accepted !== received) {
+          matchDiscrepancies.push({
+            field: 'quantity_accepted',
+            poValue: `${received} units received`,
+            grnValue: `${accepted} units accepted`,
+            invoiceValue: `${received} units`,
+            resolution: 'Rejection/debit note required'
+          });
+        }
+        if (data.condition && data.condition !== 'good') {
+          matchDiscrepancies.push({
+            field: 'item_condition',
+            poValue: 'Good Condition',
+            grnValue: `Condition: ${data.condition}`,
+            invoiceValue: 'Good Condition',
+            resolution: `Inspection noted: ${data.remarks || data.condition}`
+          });
+        }
+      }
+
+      if (existingPayment) {
+        existingPayment.goodsReceivedNote = {
           grnNumber: grnRefVal,
           grnDate: new Date(),
           items: [{
-            description: contract.deliverables[deliverableIdx].description,
+            description: desc,
             orderedQty,
             receivedQty: received,
             acceptedQty: accepted,
-            rejectedQty: Math.max(0, received - accepted)
+            rejectedQty: Math.max(0, received - accepted),
+            reason: data.remarks || ''
           }]
-        },
-        invoice: {
-          invoiceNumber: `INV-${grnRefVal.replace('GRN-', '')}`,
-          invoiceDate: new Date(),
-          invoiceAmount: contract.contractValue
-        },
-        deductions: [{ description: 'Retention (10%)', amount: contract.contractValue * 0.1, type: 'retention' }],
-        netAmount: contract.contractValue * 0.9,
-      });
+        };
+        existingPayment.threeWayMatchStatus = isMatched ? 'matched' : 'discrepancy';
+        existingPayment.status = isMatched ? 'pending_approval' : 'pending_match';
+        existingPayment.matchDiscrepancies = matchDiscrepancies;
+        await existingPayment.save();
+      } else {
+        const count = await Payment.countDocuments({ tenantId });
+        const paymentNumber = `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+        
+        await Payment.create({
+          tenantId,
+          contractId: contract._id,
+          procurementId: contract.procurementId,
+          vendorId: contract.vendorId,
+          paymentNumber,
+          amount: contract.contractValue,
+          paymentType: 'progress',
+          status: isMatched ? 'pending_approval' : 'pending_match',
+          threeWayMatchStatus: isMatched ? 'matched' : 'discrepancy',
+          matchDiscrepancies,
+          purchaseOrder: {
+            poNumber: contract.contractNumber ? contract.contractNumber.replace('CNT-', 'PO-') : `PO-${contract._id.toString().slice(-4)}`,
+            poDate: contract.startDate || new Date(),
+            poAmount: contract.contractValue
+          },
+          goodsReceivedNote: {
+            grnNumber: grnRefVal,
+            grnDate: new Date(),
+            items: [{
+              description: desc,
+              orderedQty,
+              receivedQty: received,
+              acceptedQty: accepted,
+              rejectedQty: Math.max(0, received - accepted),
+              reason: data.remarks || ''
+            }]
+          },
+          invoice: {
+            invoiceNumber: `INV-${grnRefVal.replace('GRN-', '')}`,
+            invoiceDate: new Date(),
+            invoiceAmount: contract.contractValue
+          },
+          deductions: [{ description: 'Retention (10%)', amount: contract.contractValue * 0.1, type: 'retention' }],
+          netAmount: contract.contractValue * 0.9,
+        });
+      }
 
       // Trigger goodsAccepted notification if matched
       if (isMatched) {
@@ -391,7 +454,7 @@ class ContractService {
             const supplierUser = await User.findById(vendor.userId);
             if (supplierUser) {
               await triggers.goodsAccepted(tenantId, {
-                poNumber: contract.contractNumber.replace('CNT-', 'PO-'),
+                poNumber: contract.contractNumber ? contract.contractNumber.replace('CNT-', 'PO-') : 'PO',
                 grnNumber: grnRefVal,
                 _id: contract._id,
               }, supplierUser);
@@ -411,17 +474,30 @@ class ContractService {
     const contractId = parts[0];
     const deliverableIdx = parseInt(parts[1] || '0', 10);
     const contract = await Contract.findOne({ _id: contractId, tenantId });
-    if (!contract) throw Object.assign(new Error('Not found'), { statusCode: 404 });
-    if (contract.deliverables[deliverableIdx]) {
+    if (!contract) throw Object.assign(new Error('Contract not found'), { statusCode: 404 });
+    if (contract.deliverables && contract.deliverables[deliverableIdx]) {
       contract.deliverables[deliverableIdx].status = 'accepted';
       
-      // Update corresponding Payment status if it exists and has discrepancy
       const Payment = require('../models/payment.model');
-      const payment = await Payment.findOne({ contractId, tenantId, status: 'pending_match' });
+      const payment = await Payment.findOne({
+        contractId,
+        tenantId,
+        $or: [
+          { status: 'pending_match' },
+          { threeWayMatchStatus: 'discrepancy' }
+        ]
+      });
+
       if (payment) {
         payment.threeWayMatchStatus = 'matched';
         payment.status = 'pending_approval';
         payment.matchDiscrepancies = [];
+        if (payment.goodsReceivedNote && payment.goodsReceivedNote.items && payment.goodsReceivedNote.items.length > 0) {
+          payment.goodsReceivedNote.items.forEach(item => {
+            item.acceptedQty = item.orderedQty || item.receivedQty;
+            item.rejectedQty = 0;
+          });
+        }
         await payment.save();
       }
 
@@ -435,7 +511,7 @@ class ContractService {
           const supplierUser = await User.findById(vendor.userId);
           if (supplierUser) {
             await triggers.goodsAccepted(tenantId, {
-              poNumber: contract.contractNumber.replace('CNT-', 'PO-'),
+              poNumber: contract.contractNumber ? contract.contractNumber.replace('CNT-', 'PO-') : 'PO',
               grnNumber: payment?.goodsReceivedNote?.grnNumber || contract.deliverables[deliverableIdx].acceptanceReport || 'GRN recorded',
               _id: contract._id,
             }, supplierUser);

@@ -3,7 +3,12 @@
  * Provides IORedis connection for BullMQ queues, idempotency cache, and pub/sub.
  * Falls back gracefully when Redis is unavailable (dev-friendly).
  */
-const Redis = require('ioredis');
+let Redis;
+try {
+  Redis = require('ioredis');
+} catch (e) {
+  Redis = null;
+}
 const logger = require('./logger');
 const env = require('./env');
 
@@ -17,6 +22,7 @@ let isRedisAvailable = false;
  * Reconnects automatically; logs status transitions.
  */
 const getRedisConnection = () => {
+  if (!Redis) return null;
   if (redisConnection) return redisConnection;
 
   redisConnection = new Redis(REDIS_URL, {

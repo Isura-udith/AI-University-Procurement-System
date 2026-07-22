@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAuditLogs, getAuditStats, getUserTimeline } = require('../controllers/audit.log.controller');
+const { getAuditLogs, getAuditStats, getUserTimeline, exportAuditLogs } = require('../controllers/audit.log.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
 router.use(protect);
@@ -9,6 +9,12 @@ router.use(protect);
 router.get('/stats',
   authorize('admin', 'vc', 'auditor', 'super_admin'),
   getAuditStats
+);
+
+// Export audit logs as CSV
+router.get('/export',
+  authorize('admin', 'vc', 'auditor', 'super_admin'),
+  exportAuditLogs
 );
 
 // All audit logs (paginated with filters)
@@ -24,3 +30,4 @@ router.get('/user/:userId',
 );
 
 module.exports = router;
+

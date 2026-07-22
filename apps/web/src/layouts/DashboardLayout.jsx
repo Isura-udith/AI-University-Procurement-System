@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   FaTachometerAlt, FaClipboardList, FaCheckDouble, FaLock,
@@ -8,6 +8,8 @@ import {
   FaUsers, FaBars, FaTimes, FaSignOutAlt, FaPlus,
   FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
   FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot,
+  FaExpand, FaCompress, FaChevronLeft, FaChevronRight, FaIndent, FaOutdent,
+  FaGripLinesVertical,
 } from 'react-icons/fa';
 import uwuLogo from '../assets/logos/Logo_uwu.jpg';
 import { logout } from '../app/store';
@@ -124,6 +126,122 @@ export default function DashboardLayout() {
   const { user, isAuthenticated } = useSelector(state => state.auth);
 
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+
+  // ─── Sidebar Adjustment & Drag Resizing State ─────────────────
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smartprocure_sidebar_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.width === 'number' && parsed.width >= 180 && parsed.width <= 450) {
+          return parsed.width;
+        }
+      }
+    } catch { /* ignored */ }
+    return 280; // default width in px (w-70 equivalent)
+  });
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smartprocure_sidebar_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Boolean(parsed.isCollapsed);
+      }
+    } catch { /* ignored */ }
+    return false;
+  });
+
+  const [isResizing, setIsResizing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Persist sidebar preferences
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'smartprocure_sidebar_settings',
+        JSON.stringify({ width: sidebarWidth, isCollapsed })
+      );
+    } catch { /* ignored */ }
+  }, [sidebarWidth, isCollapsed]);
+
+  // ─── Full Screen Handler & Event Listeners ────────────────────
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      ));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) docEl.requestFullscreen();
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      else if (docEl.mozRequestFullScreen) docEl.mozRequestFullScreen();
+      else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  };
+
+  // ─── Drag Resizing Handlers ────────────────────────────────────
+  const startResizing = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (e) => {
+      if (isResizing) {
+        const newWidth = e.clientX;
+        if (newWidth < 130) {
+          setIsCollapsed(true);
+        } else {
+          setIsCollapsed(false);
+          setSidebarWidth(Math.max(200, Math.min(420, newWidth)));
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing, resize, stopResizing]);
 
   useEffect(() => {
     let isMounted = true;
@@ -251,14 +369,20 @@ export default function DashboardLayout() {
     navigate('/login');
   };
 
-  const renderNav = (onClickLink) => (
-    <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+  const effectiveDesktopWidth = isCollapsed ? 80 : sidebarWidth;
+
+  const renderNav = (onClickLink, collapsed = false) => (
+    <nav className={`flex-1 ${collapsed ? 'px-2 py-4' : 'px-4 py-6'} space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent`}>
       {filteredSections.map((section, si) => (
         <div key={si}>
           {section.title && (
-            <p className="px-3 mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500/80">
-              {section.title}
-            </p>
+            collapsed ? (
+              <div className="my-2 border-t border-slate-800/80" title={section.title} />
+            ) : (
+              <p className="px-3 mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500/80">
+                {section.title}
+              </p>
+            )
           )}
           <div className="space-y-1">
             {section.items.map(item => {
@@ -269,23 +393,30 @@ export default function DashboardLayout() {
                   key={item.path}
                   to={item.path}
                   onClick={onClickLink}
-                  className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  title={collapsed ? item.label : undefined}
+                  className={`group relative flex items-center ${collapsed ? 'justify-center p-3' : 'justify-between px-3 py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
+                      ? 'bg-emerald-500/15 text-emerald-400 font-semibold'
+                      : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
                   }`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-emerald-400 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                   )}
-                  <div className="flex items-center space-x-3">
-                    <Icon size={16} className={`transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                    <span className={isActive ? 'font-semibold' : 'font-medium'}>{item.label}</span>
+                  <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'} overflow-hidden`}>
+                    <Icon size={18} className={`shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                    {!collapsed && <span className={`truncate ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>}
                   </div>
-                  {item.hint && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md border ${isActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700/50'}`}>
+                  {!collapsed && item.hint && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md border shrink-0 ${isActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700/50'}`}>
                       {item.hint}
                     </span>
+                  )}
+                  {/* Floating Tooltip for Collapsed Sidebar */}
+                  {collapsed && (
+                    <div className="fixed left-20 ml-2 px-3 py-1.5 bg-slate-900 text-slate-100 text-xs font-semibold rounded-lg shadow-xl border border-slate-700/80 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap">
+                      {item.label}
+                    </div>
                   )}
                 </Link>
               );
@@ -299,43 +430,112 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col w-72 bg-[#0B1120] border-r border-slate-800 text-white fixed inset-y-0 left-0 z-40 shadow-2xl">
-        <Link to="/" className="flex items-center space-x-3 px-6 py-5 border-b border-slate-800/80 bg-[#0B1120]/95 backdrop-blur z-10 sticky top-0 hover:bg-slate-800/50 transition-colors cursor-pointer">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm ring-1 ring-slate-200/20">
-            <img src={uwuLogo} alt="UWU" className="w-full h-full object-contain" />
-          </div>
-          <div>
-            <p className="text-[15px] font-bold text-slate-100 tracking-wide leading-tight">SmartProcure</p>
-            <p className="text-[10px] font-semibold text-emerald-400/90 tracking-wider uppercase mt-0.5">UWU GOSL Compliant</p>
-          </div>
-        </Link>
+      <aside
+        style={{ width: `${effectiveDesktopWidth}px` }}
+        className={`hidden lg:flex lg:flex-col bg-[#0B1120] border-r border-slate-800 text-white fixed inset-y-0 left-0 z-40 shadow-2xl ${
+          isResizing ? 'select-none' : 'transition-[width] duration-300 ease-in-out'
+        }`}
+      >
+        {/* Header Logo & Collapse Toggle */}
+        <div className={`flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-5'} py-4 border-b border-slate-800/80 bg-[#0B1120]/95 backdrop-blur sticky top-0 z-10`}>
+          <Link to="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity cursor-pointer overflow-hidden">
+            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm ring-1 ring-slate-200/20 shrink-0">
+              <img src={uwuLogo} alt="UWU" className="w-full h-full object-contain" />
+            </div>
+            {!isCollapsed && (
+              <div className="truncate">
+                <p className="text-[15px] font-bold text-slate-100 tracking-wide leading-tight truncate">SmartProcure</p>
+                <p className="text-[10px] font-semibold text-emerald-400/90 tracking-wider uppercase mt-0.5 truncate">UWU GOSL Compliant</p>
+              </div>
+            )}
+          </Link>
 
-        {/* Role Badge & Quick Action */}
-        <div className="px-5 pt-4 pb-2 space-y-3">
-          {canCreateRequisition && (
-            <Link to="/procurements/new" className="flex items-center justify-center space-x-2 w-full py-2.5 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:-translate-y-0.5 ring-1 ring-emerald-500/50">
-              <FaPlus size={12} /> <span>New Requisition</span>
-            </Link>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
+          </button>
+        </div>
+
+        {/* Quick Action Button */}
+        {canCreateRequisition && (
+          <div className={`${isCollapsed ? 'px-2' : 'px-4'} pt-4 pb-2`}>
+            {isCollapsed ? (
+              <Link
+                to="/procurements/new"
+                className="flex items-center justify-center w-10 h-10 mx-auto bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md transition-all group relative"
+                title="New Requisition"
+              >
+                <FaPlus size={14} />
+                <div className="fixed left-20 ml-2 px-3 py-1.5 bg-slate-900 text-slate-100 text-xs font-semibold rounded-lg shadow-xl border border-slate-700/80 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50 whitespace-nowrap">
+                  New Requisition
+                </div>
+              </Link>
+            ) : (
+              <Link
+                to="/procurements/new"
+                className="flex items-center justify-center space-x-2 w-full py-2.5 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:-translate-y-0.5 ring-1 ring-emerald-500/50"
+              >
+                <FaPlus size={12} /> <span>New Requisition</span>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {renderNav(null, isCollapsed)}
+
+        {/* User Profile Footer */}
+        <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-slate-800/80 bg-[#0B1120]/95 backdrop-blur sticky bottom-0 z-10`}>
+          {isCollapsed ? (
+            <div className="flex flex-col items-center space-y-2">
+              <div
+                className={`w-9 h-9 rounded-full bg-linear-to-br ${accent.gradient} flex items-center justify-center text-[11px] font-bold text-white shadow-inner ring-2 ring-slate-800`}
+                title={`${userFullName} (${userRoleLabel})`}
+              >
+                {userInitial}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                title="Sign Out"
+              >
+                <FaSignOutAlt size={15} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between bg-slate-800/40 hover:bg-slate-800/60 transition-colors p-3 rounded-xl border border-slate-700/50 group">
+              <div className="flex items-center space-x-3 overflow-hidden">
+                <div className={`w-9 h-9 rounded-full bg-linear-to-br ${accent.gradient} flex items-center justify-center text-[11px] font-bold text-white shadow-inner ring-2 ring-slate-800 group-hover:ring-slate-700 transition-all shrink-0`}>
+                  {userInitial}
+                </div>
+                <div className="flex flex-col truncate">
+                  <p className="text-sm font-semibold text-slate-200 truncate">{userFullName}</p>
+                  <p className="text-[10px] text-emerald-400/80 font-medium truncate">{userRoleLabel}</p>
+                </div>
+              </div>
+              <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-200 shrink-0" title="Sign Out">
+                <FaSignOutAlt size={15} />
+              </button>
+            </div>
           )}
         </div>
 
-        {renderNav()}
-
-        {/* User Profile Footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-[#0B1120]/95 backdrop-blur sticky bottom-0 z-10">
-          <div className="flex items-center justify-between bg-slate-800/40 hover:bg-slate-800/60 transition-colors p-3 rounded-xl border border-slate-700/50 group">
-            <div className="flex items-center space-x-3">
-              <div className={`w-9 h-9 rounded-full bg-linear-to-br ${accent.gradient} flex items-center justify-center text-[11px] font-bold text-white shadow-inner ring-2 ring-slate-800 group-hover:ring-slate-700 transition-all`}>
-                {userInitial}
-              </div>
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-slate-200">{userFullName}</p>
-                <p className="text-[10px] text-emerald-400/80 font-medium">{userRoleLabel}</p>
-              </div>
-            </div>
-            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-200" title="Sign Out">
-              <FaSignOutAlt size={15} />
-            </button>
+        {/* Drag Resize Handle (Desktop) */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={() => {
+            setIsCollapsed(false);
+            setSidebarWidth(280);
+          }}
+          className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-emerald-500/50 active:bg-emerald-500 transition-colors group z-50 ${
+            isResizing ? 'bg-emerald-500' : ''
+          }`}
+          title="Drag edge to adjust width, double click to reset width"
+        >
+          <div className="h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <FaGripLinesVertical className="text-emerald-400 text-[10px]" />
           </div>
         </div>
       </aside>
@@ -366,24 +566,40 @@ export default function DashboardLayout() {
                 </Link>
               )}
             </div>
-            {renderNav(() => setSidebarOpen(false))}
+            {renderNav(() => setSidebarOpen(false), false)}
           </aside>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-72 flex flex-col min-h-screen transition-all duration-300">
+      <div
+        style={{ marginLeft: `${effectiveDesktopWidth}px` }}
+        className={`flex-1 flex flex-col min-h-screen ${
+          isResizing ? 'select-none' : 'transition-[margin-left] duration-300 ease-in-out'
+        }`}
+      >
         <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-30 border-b border-slate-200/60">
           <div className="flex items-center justify-between px-4 sm:px-6 h-16">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              {/* Mobile Sidebar Toggle Button */}
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                 <FaBars size={18} />
               </button>
+
+              {/* Desktop Sidebar Collapse Toggle Button */}
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="hidden lg:flex p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200/80 shadow-2xs items-center justify-center cursor-pointer"
+                title={isCollapsed ? "Expand Navigation Bar" : "Adjust / Collapse Navigation Bar"}
+              >
+                {isCollapsed ? <FaIndent size={16} className="text-emerald-600" /> : <FaOutdent size={16} className="text-slate-600" />}
+              </button>
+
               <h2 className="text-base font-bold text-slate-800 tracking-tight hidden sm:block">
                 {allNavItems.find(n => location.pathname.startsWith(n.path))?.label || 'Dashboard'}
               </h2>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               {location.pathname === '/dashboard' && (
                 <div className="hidden lg:flex items-center space-x-3 mr-2">
                   <select value={category} onChange={e => setCategory(e.target.value)} className="pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer hover:bg-slate-50 transition-colors appearance-none shadow-sm">
@@ -405,6 +621,19 @@ export default function DashboardLayout() {
                   )}
                 </div>
               )}
+
+              {/* Fullscreen Toggle Button */}
+              <button
+                onClick={toggleFullScreen}
+                className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200/80 shadow-2xs flex items-center justify-center cursor-pointer relative group"
+                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Full Screen Mode"}
+              >
+                {isFullscreen ? (
+                  <FaCompress size={16} className="text-emerald-600" />
+                ) : (
+                  <FaExpand size={16} className="text-slate-600 group-hover:text-emerald-600" />
+                )}
+              </button>
               
               <NotificationBell messageUnreadCount={messageUnreadCount} />
               <div className={`w-8 h-8 rounded-full bg-linear-to-br ${accent.gradient} flex items-center justify-center text-[10px] font-bold text-white lg:hidden shadow-sm`}>

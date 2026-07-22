@@ -2,7 +2,15 @@
  * BullMQ Queue Configuration
  * Manages notification email queue and digest queue with Redis-backed processing.
  */
-const { Queue, Worker, QueueScheduler } = require('bullmq');
+let Queue, Worker, QueueScheduler;
+try {
+  const bullmq = require('bullmq');
+  Queue = bullmq.Queue;
+  Worker = bullmq.Worker;
+  QueueScheduler = bullmq.QueueScheduler;
+} catch (e) {
+  Queue = null; Worker = null; QueueScheduler = null;
+}
 const { getRedisConnection, getRedisStatus } = require('./redis');
 const logger = require('./logger');
 

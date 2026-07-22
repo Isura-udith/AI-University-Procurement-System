@@ -296,7 +296,10 @@ const seedDeliveryFinance = async () => {
       amount: 15400000,
       paymentType: 'progress',
       status: 'pending_match',
-      threeWayMatchStatus: 'pending',
+      threeWayMatchStatus: 'discrepancy',
+      matchDiscrepancies: [
+        { field: 'quantity_received', poValue: '25 units', grnValue: '23 units', invoiceValue: '25 units', resolution: 'Shortfall of 2 units detected upon delivery' }
+      ],
       purchaseOrder: { poNumber: 'CNT-2026-0002', poDate: new Date('2026-04-15'), poAmount: 15400000 },
       goodsReceivedNote: {
         grnNumber: 'GRN-2026-035',

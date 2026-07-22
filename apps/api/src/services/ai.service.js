@@ -96,7 +96,7 @@ class AIService {
    * @returns {Promise<number[]>} Embedding vector
    */
   async getEmbedding(text) {
-    if (!text || !this.isConfigured()) return [];
+    if (!text || !this.isConfigured() || this._embeddingDisabled) return [];
 
     // Check cache
     const cacheKey = text.substring(0, 200);
@@ -105,42 +105,47 @@ class AIService {
     }
 
     const env = require('../config/env');
-    const model = env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
-    const url = `${this.baseUrl}/models/${model}:embedContent?key=${this.apiKey}`;
+    const primaryModel = env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004';
+    const modelsToTry = [primaryModel, 'embedding-001'];
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: `models/${model}`,
-          content: { parts: [{ text: text.substring(0, 2048) }] },
-        }),
-      });
+    for (const model of modelsToTry) {
+      const url = `${this.baseUrl}/models/${model}:embedContent?key=${this.apiKey}`;
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: `models/${model}`,
+            content: { parts: [{ text: text.substring(0, 2048) }] },
+          }),
+        });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        logger.warn('Embedding API error', { status: response.status, error: errText.substring(0, 200) });
+        if (response.ok) {
+          const data = await response.json();
+          const embedding = data?.embedding?.values || [];
+
+          if (embedding.length > 0) {
+            if (this._embeddingCache.size >= this._embeddingCacheMaxSize) {
+              const firstKey = this._embeddingCache.keys().next().value;
+              this._embeddingCache.delete(firstKey);
+            }
+            this._embeddingCache.set(cacheKey, embedding);
+          }
+          return embedding;
+        }
+
+        if (response.status === 404 && model === modelsToTry[modelsToTry.length - 1]) {
+          logger.warn('Gemini Embedding API endpoint returned 404 for all models. Disabling vector embeddings and using Keyword RAG fallback.');
+          this._embeddingDisabled = true;
+          return [];
+        }
+      } catch (err) {
+        logger.warn('Embedding computation failed', { error: err.message });
         return [];
       }
-
-      const data = await response.json();
-      const embedding = data?.embedding?.values || [];
-
-      // Cache the result (LRU eviction)
-      if (embedding.length > 0) {
-        if (this._embeddingCache.size >= this._embeddingCacheMaxSize) {
-          const firstKey = this._embeddingCache.keys().next().value;
-          this._embeddingCache.delete(firstKey);
-        }
-        this._embeddingCache.set(cacheKey, embedding);
-      }
-
-      return embedding;
-    } catch (err) {
-      logger.warn('Embedding computation failed', { error: err.message });
-      return [];
     }
+
+    return [];
   }
 
   /**

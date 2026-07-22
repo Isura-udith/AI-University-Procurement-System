@@ -80,7 +80,7 @@ const evaluateBid = async (req, res, next) => {
   try { return success(res, await tenderService.evaluateBid(req.params.id, req.params.bidId, req.body, req.user._id, req.tenantId), 'Bid evaluated'); } catch (err) { next(err); }
 };
 const completeBidOpening = async (req, res, next) => {
-  try { return success(res, await tenderService.completeBidOpening(req.params.id, req.user._id, req.tenantId), 'Bid opening completed'); } catch (err) { next(err); }
+  try { return success(res, await tenderService.completeBidOpening(req.params.id, req.user._id, req.tenantId, req.body), 'Bid opening completed'); } catch (err) { next(err); }
 };
 const getEvaluationResults = async (req, res, next) => {
   try { return success(res, await tenderService.getEvaluationResults(req.params.id, req.tenantId)); } catch (err) { next(err); }

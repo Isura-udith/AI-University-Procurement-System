@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaArrowLeft, FaDownload, FaBoxOpen, FaCheckCircle, FaFileAlt, FaLock, FaRobot, FaGavel, FaCalendarPlus, FaTimesCircle, FaCommentDots, FaSpinner, FaClock, FaUsers, FaTimes, FaPaperPlane, FaPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaBoxOpen, FaCheckCircle, FaFileAlt, FaLock, FaRobot, FaGavel, FaCalendarPlus, FaTimesCircle, FaCommentDots, FaSpinner, FaClock, FaUsers, FaTimes, FaPaperPlane, FaPlus, FaEdit } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import StatusBadge from '../../../components/StatusBadge';
@@ -198,7 +198,12 @@ export default function TenderDetails() {
         {/* Action buttons */}
         <div className="flex items-center flex-wrap gap-2 shrink-0">
           {tender.status === 'draft' && (
-            <button onClick={() => setPublishModal(true)} className="flex items-center space-x-1 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm"><FaPaperPlane size={10} /><span>Publish Tender</span></button>
+            <>
+              <Link to={`/tenders/${tender._id || id}/edit`} className="flex items-center space-x-1 px-3.5 py-2 border border-amber-300 text-amber-700 bg-amber-50 text-xs font-semibold rounded-lg hover:bg-amber-100 transition-colors">
+                <FaEdit size={11} /><span>Edit Draft</span>
+              </Link>
+              <button onClick={() => setPublishModal(true)} className="flex items-center space-x-1 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm"><FaPaperPlane size={10} /><span>Publish Tender</span></button>
+            </>
           )}
           {['published', 'bidding'].includes(tender.status) && (
             <>
@@ -289,6 +294,64 @@ export default function TenderDetails() {
           </div>
         </div>
       )}
+
+      {/* Assigned Committees */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-700 flex items-center space-x-2">
+            <FaUsers className="text-emerald-600" size={14} />
+            <span>Assigned Procurement Committees</span>
+          </h3>
+          {tender.status === 'draft' && (
+            <Link to={`/tenders/${tender._id || id}/edit`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+              Manage Committees
+            </Link>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* BEC Panel */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Bid Evaluation Committee (BEC)</p>
+            {(tender.becMembers || []).length > 0 ? (
+              <div className="space-y-1.5">
+                {tender.becMembers.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-white p-2 rounded border border-slate-100">
+                    <span className="font-medium text-slate-800">
+                      {m.userId?.firstName ? `${m.userId.firstName} ${m.userId.lastName}` : 'Assigned Member'}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 uppercase">
+                      {m.role || 'Member'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">No BEC members assigned yet.</p>
+            )}
+          </div>
+
+          {/* BOC Panel */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Bid Opening Committee (BOC)</p>
+            {(tender.bocMembers || []).length > 0 ? (
+              <div className="space-y-1.5">
+                {tender.bocMembers.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-white p-2 rounded border border-slate-100">
+                    <span className="font-medium text-slate-800">
+                      {m.userId?.firstName ? `${m.userId.firstName} ${m.userId.lastName}` : (m.name || 'Assigned Member')}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 uppercase">
+                      {m.role || 'Member'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">No BOC members assigned yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Bids Received */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

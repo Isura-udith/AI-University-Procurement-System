@@ -40,12 +40,14 @@ export default function EvaluationPage() {
       try {
         const res = await tenderService.getAll();
         const items = res.data || res || [];
-        const filtered = (Array.isArray(items) ? items : []).filter(t => 
-          ['evaluation', 'cleared', 'standstill', 'awarded', 'loa_issued'].includes(t.status)
+        const itemsArr = Array.isArray(items) ? items : [];
+        const filtered = itemsArr.filter(t => 
+          ['opening', 'opened', 'bid_closed', 'closed', 'evaluation', 'cleared', 'standstill', 'awarded', 'loa_issued'].includes(t.status)
         );
-        setAllTenders(filtered);
-        if (!selectedTenderId && filtered.length > 0) {
-          setSelectedTenderId(filtered[0]._id);
+        const tendersList = filtered.length > 0 ? filtered : itemsArr.filter(t => t.status !== 'draft' && t.status !== 'cancelled');
+        setAllTenders(tendersList);
+        if (!selectedTenderId && tendersList.length > 0) {
+          setSelectedTenderId(tendersList[0]._id);
         }
       } catch (err) {
         console.error('Failed to load tenders for evaluation:', err);

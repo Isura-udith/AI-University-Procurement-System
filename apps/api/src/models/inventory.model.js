@@ -33,6 +33,17 @@ const inventoryItemSchema = new mongoose.Schema({
 
   lastReceivedAt: Date,
   lastIssuedAt: Date,
+  // Transaction / Audit Ledger
+  transactions: [{
+    type: { type: String, enum: ['receipt', 'issuance', 'adjustment'], required: true },
+    quantity: { type: Number, required: true },
+    previousQty: Number,
+    newQty: Number,
+    referenceNumber: String,
+    reason: String,
+    performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    timestamp: { type: Date, default: Date.now },
+  }],
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

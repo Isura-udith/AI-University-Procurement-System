@@ -220,7 +220,7 @@ export default function AIChatAssistantPage() {
         setMessages(data.messages.map(m => ({
           sender: m.role,
           text: m.content,
-          time: new Date(m.timestamp),
+          time: new Date(m.timestamp || Date.now()),
           metadata: m.metadata,
           rating: m.rating,
         })));

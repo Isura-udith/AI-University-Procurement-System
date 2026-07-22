@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import {
   FaBoxOpen, FaLock, FaClock, FaUpload, FaFileAlt, FaTimes, FaCheckCircle,
   FaShieldAlt, FaSpinner, FaPlus, FaTrash, FaBan, FaChevronDown, FaChevronUp,
-  FaHistory, FaTrophy, FaExclamationTriangle, FaSearch, FaChevronRight,
+  FaHistory, FaTrophy, FaExclamationTriangle, FaSearch,
   FaClipboardList, FaThumbsUp, FaThumbsDown, FaInfoCircle,
 } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
@@ -92,6 +92,9 @@ function MyBidsSection({ refreshKey }) {
   const [loading, setLoading] = useState(true);
   const [withdrawConfirm, setWithdrawConfirm] = useState(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [expandedBidId, setExpandedBidId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,6 +130,17 @@ function MyBidsSection({ refreshKey }) {
       setWithdrawing(false);
     }
   };
+
+  const filteredBids = myBids.filter(bid => {
+    const tender = bid.tenderId;
+    const matchesSearch = !searchQuery.trim() ||
+      (tender?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tender?.tenderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (bid.bidNumber || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || bid.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -172,81 +186,253 @@ function MyBidsSection({ refreshKey }) {
         ))}
       </div>
 
-      {/* Bid cards */}
-      <div className="space-y-3">
-        {myBids.map(bid => {
-          const tender = bid.tenderId;
-          const isWithdrawn = bid.status === 'withdrawn';
-          const canWithdraw = ['submitted'].includes(bid.status) &&
-            tender?.status && ['published', 'bidding'].includes(tender.status);
-
-          return (
-            <div key={bid._id} className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${isWithdrawn ? 'opacity-60 border-slate-200' : 'border-slate-200'}`}>
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-start space-x-4 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    bid.status === 'awarded' ? 'bg-amber-100 text-amber-600' :
-                    bid.status === 'rejected' ? 'bg-red-100 text-red-500' :
-                    bid.status === 'withdrawn' ? 'bg-slate-100 text-slate-400' :
-                    'bg-emerald-100 text-emerald-600'
-                  }`}>
-                    {bid.status === 'awarded' ? <FaTrophy size={16} /> :
-                     bid.status === 'rejected' ? <FaExclamationTriangle size={16} /> :
-                     bid.status === 'withdrawn' ? <FaBan size={16} /> :
-                     <FaLock size={16} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-mono text-slate-400">
-                      {tender?.tenderNumber || '—'} · <span className="font-semibold text-slate-500">{bid.bidNumber || '—'}</span>
-                    </p>
-                    <h4 className="text-sm font-bold text-slate-800 truncate mt-0.5">{tender?.title || 'Unknown Tender'}</h4>
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <BidStatusChip status={bid.status} />
-                      {tender?.category && (
-                        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">{tender.category}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 shrink-0">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Bid Amount</p>
-                    <p className="text-base font-bold text-slate-800">
-                      LKR {(bid.totalBidAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {bid.submittedAt ? new Date(bid.submittedAt).toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                    </p>
-                  </div>
-                  {canWithdraw && (
-                    <button
-                      onClick={() => setWithdrawConfirm(bid)}
-                      className="px-3 py-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200 flex items-center space-x-1.5 whitespace-nowrap"
-                    >
-                      <FaBan size={10} /><span>Withdraw</span>
-                    </button>
-                  )}
-                  {tender?.status && ['evaluation', 'awarded', 'loa_issued'].includes(tender.status) && (
-                    <div className="flex items-center space-x-1 text-[10px] text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 rounded-lg">
-                      <FaChevronRight size={8} /><span>In Evaluation</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {bid.bidSecurityDocument && (
-                <div className="px-5 py-2 bg-amber-50 border-t border-amber-100 flex items-center space-x-2 text-[10px] text-amber-700">
-                  <FaShieldAlt size={9} />
-                  <span>
-                    Bid Security Attached — {bid.bidSecurityType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Document'}
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Search & Filter toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by tender title, tender #, or bid #..."
+            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <FaTimes size={12} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+          >
+            <option value="all">All Bid Statuses</option>
+            <option value="submitted">Sealed &amp; Submitted</option>
+            <option value="opened">Opened</option>
+            <option value="technically_evaluated">Tech Evaluated</option>
+            <option value="awarded">Awarded</option>
+            <option value="withdrawn">Withdrawn</option>
+          </select>
+        </div>
       </div>
+
+      {/* Bid cards */}
+      {filteredBids.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-xs text-slate-500">
+          No bids match your search criteria.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredBids.map(bid => {
+            const tender = bid.tenderId;
+            const isWithdrawn = bid.status === 'withdrawn';
+            const isExpanded = expandedBidId === bid._id;
+            const canWithdraw = ['submitted'].includes(bid.status) &&
+              tender?.status && ['published', 'bidding'].includes(tender.status);
+
+            return (
+              <div key={bid._id} className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${isWithdrawn ? 'opacity-70 border-slate-200' : 'border-slate-200'}`}>
+                <div className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start space-x-4 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      bid.status === 'awarded' ? 'bg-amber-100 text-amber-600' :
+                      bid.status === 'rejected' ? 'bg-red-100 text-red-500' :
+                      bid.status === 'withdrawn' ? 'bg-slate-100 text-slate-400' :
+                      'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {bid.status === 'awarded' ? <FaTrophy size={16} /> :
+                       bid.status === 'rejected' ? <FaExclamationTriangle size={16} /> :
+                       bid.status === 'withdrawn' ? <FaBan size={16} /> :
+                       <FaLock size={16} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-mono text-slate-400">
+                        {tender?.tenderNumber || '—'} · <span className="font-semibold text-slate-500">{bid.bidNumber || '—'}</span>
+                      </p>
+                      <h4 className="text-sm font-bold text-slate-800 truncate mt-0.5">{tender?.title || 'Unknown Tender'}</h4>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <BidStatusChip status={bid.status} />
+                        {tender?.category && (
+                          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100">{tender.category}</span>
+                        )}
+                        {bid.encryptionHash && (
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono flex items-center space-x-1">
+                            <FaShieldAlt size={8} className="text-emerald-500" />
+                            <span>SHA-256 Sealed</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right">
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Bid Amount</p>
+                      <p className="text-base font-bold text-slate-800">
+                        LKR {(bid.totalBidAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 0 })}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {bid.submittedAt ? new Date(bid.submittedAt).toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setExpandedBidId(isExpanded ? null : bid._id)}
+                      className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold transition-colors flex items-center space-x-1"
+                    >
+                      <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
+                      {isExpanded ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                    </button>
+
+                    {canWithdraw && (
+                      <button
+                        onClick={() => setWithdrawConfirm(bid)}
+                        className="px-3 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-semibold transition-colors border border-red-200 flex items-center space-x-1 whitespace-nowrap"
+                      >
+                        <FaBan size={10} /><span>Withdraw</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {bid.bidSecurityDocument && (
+                  <div className="px-5 py-2 bg-amber-50/80 border-t border-amber-100 flex items-center space-x-2 text-[10px] text-amber-700">
+                    <FaShieldAlt size={9} />
+                    <span>
+                      Bid Security Attached — {bid.bidSecurityType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Document'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Expanded details section */}
+                {isExpanded && (
+                  <div className="border-t border-slate-200 bg-slate-50/70 p-5 space-y-4 text-xs text-slate-700">
+                    {/* Security Hash & Integrity */}
+                    {bid.encryptionHash && (
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 flex items-center justify-between font-mono text-[11px]">
+                        <div className="flex items-center space-x-2 text-slate-600">
+                          <FaLock size={12} className="text-emerald-600" />
+                          <span className="font-semibold">Encryption Hash:</span>
+                          <span className="text-slate-500 text-[10px] truncate max-w-md">{bid.encryptionHash}</span>
+                        </div>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-sans font-semibold">AES-256 Sealed</span>
+                      </div>
+                    )}
+
+                    {/* BoQ Line Items */}
+                    {bid.lineItems && bid.lineItems.length > 0 && (
+                      <div className="bg-white p-4 rounded-xl border border-slate-200">
+                        <h5 className="font-bold text-slate-800 text-xs mb-2">Bill of Quantities (BoQ Line Items)</h5>
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-slate-400 font-semibold">
+                              <th className="pb-1.5">Description</th>
+                              <th className="pb-1.5 w-16 text-center">Qty</th>
+                              <th className="pb-1.5 w-16 text-center">Unit</th>
+                              <th className="pb-1.5 w-28 text-right">Unit Price (LKR)</th>
+                              <th className="pb-1.5 w-28 text-right">Total Price (LKR)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {bid.lineItems.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="py-1.5 font-medium text-slate-800">{item.itemDescription}</td>
+                                <td className="py-1.5 text-center text-slate-600">{item.quantity}</td>
+                                <td className="py-1.5 text-center text-slate-500">{item.unit}</td>
+                                <td className="py-1.5 text-right font-mono">{(item.unitPrice || 0).toLocaleString('en-LK')}</td>
+                                <td className="py-1.5 text-right font-mono font-bold text-slate-800">{(item.totalPrice || 0).toLocaleString('en-LK')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {(bid.vatAmount > 0 || bid.discountOffered > 0) && (
+                          <div className="mt-3 pt-2 border-t border-slate-100 flex justify-end space-x-6 text-[11px]">
+                            {bid.vatAmount > 0 && <span>VAT: <strong>LKR {bid.vatAmount.toLocaleString()}</strong></span>}
+                            {bid.discountOffered > 0 && <span className="text-emerald-600">Discount: <strong>-LKR {bid.discountOffered.toLocaleString()}</strong></span>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Technical Specification Compliance */}
+                    {bid.specificationVotes && bid.specificationVotes.length > 0 && (
+                      <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                        <h5 className="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                          <FaClipboardList className="text-blue-600" size={12} />
+                          <span>Technical Specification Compliance</span>
+                        </h5>
+                        <div className="space-y-1.5">
+                          {bid.specificationVotes.map((sv, idx) => (
+                            <div key={idx} className="flex items-start justify-between bg-slate-50 p-2 rounded-lg text-[11px]">
+                              <div className="flex items-start space-x-2">
+                                <span className="font-bold text-slate-500">#{sv.specNumber}</span>
+                                <div>
+                                  <p className="font-semibold text-slate-800">{sv.specTitle}</p>
+                                  {sv.vote === 'no' && sv.reason && (
+                                    <p className="text-red-600 mt-0.5 font-medium">Reason: {sv.reason}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded font-bold uppercase text-[10px] ${
+                                sv.vote === 'yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {sv.vote === 'yes' ? 'Comply' : 'Non-Comply'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Technical Proposal */}
+                    {bid.technicalProposal && (bid.technicalProposal.methodology || bid.technicalProposal.timeline || bid.technicalProposal.experience) && (
+                      <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
+                        <h5 className="font-bold text-slate-800 text-xs">Technical Proposal Details</h5>
+                        {bid.technicalProposal.methodology && (
+                          <div>
+                            <span className="font-semibold text-slate-600 block text-[11px]">Methodology:</span>
+                            <p className="text-slate-700 text-[11px] leading-relaxed mt-0.5">{bid.technicalProposal.methodology}</p>
+                          </div>
+                        )}
+                        {bid.technicalProposal.timeline && (
+                          <div>
+                            <span className="font-semibold text-slate-600 block text-[11px]">Timeline:</span>
+                            <p className="text-slate-700 text-[11px] mt-0.5">{bid.technicalProposal.timeline}</p>
+                          </div>
+                        )}
+                        {bid.technicalProposal.experience && (
+                          <div>
+                            <span className="font-semibold text-slate-600 block text-[11px]">Relevant Experience:</span>
+                            <p className="text-slate-700 text-[11px] leading-relaxed mt-0.5">{bid.technicalProposal.experience}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Submitted Documents */}
+                    {bid.documents && bid.documents.length > 0 && (
+                      <div className="bg-white p-4 rounded-xl border border-slate-200">
+                        <h5 className="font-bold text-slate-800 text-xs mb-2">Submitted Bid Documents</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {bid.documents.map((doc, idx) => (
+                            <span key={idx} className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                              <FaFileAlt className="text-slate-400" size={10} />
+                              <span>{doc.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Withdraw confirm modal */}
       <ConfirmModal
@@ -286,6 +472,8 @@ export default function BidBoxPage() {
   const [closeModal, setCloseModal] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [myBidsRefreshKey, setMyBidsRefreshKey] = useState(0);
+  const [tenderSearchQuery, setTenderSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
   // Bid form state
   const [bidAmount, setBidAmount] = useState('');
@@ -552,6 +740,37 @@ export default function BidBoxPage() {
       {/* ── Active Tenders ── */}
       {(!isSupplier || activeTab === 'tenders') && (
         <>
+          {/* Active Tenders Toolbar */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+              <input
+                type="text"
+                value={tenderSearchQuery}
+                onChange={e => setTenderSearchQuery(e.target.value)}
+                placeholder="Search active tenders by title or tender number..."
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+              />
+              {tenderSearchQuery && (
+                <button onClick={() => setTenderSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <FaTimes size={12} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <select
+                value={categoryFilter}
+                onChange={e => setCategoryFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              >
+                <option value="all">All Categories</option>
+                {Array.from(new Set(tenders.map(t => t.category).filter(Boolean))).map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <FaSpinner className="animate-spin text-emerald-600 mr-2" size={16} />
@@ -564,73 +783,93 @@ export default function BidBoxPage() {
               <p className="text-xs text-slate-400 mt-1">Published tenders accepting bids will appear here.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {tenders.map(t => {
-                const deadline = new Date(t.deadline);
-                const isOpen = deadline > new Date();
+            (() => {
+              const filteredTenders = tenders.filter(t => {
+                const matchesSearch = !tenderSearchQuery.trim() ||
+                  (t.title || '').toLowerCase().includes(tenderSearchQuery.toLowerCase()) ||
+                  (t.tenderNumber || '').toLowerCase().includes(tenderSearchQuery.toLowerCase());
+                const matchesCat = categoryFilter === 'all' || t.category === categoryFilter;
+                return matchesSearch && matchesCat;
+              });
+
+              if (filteredTenders.length === 0) {
                 return (
-                  <div key={t._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex items-start space-x-4">
-                        <div className={`p-3 rounded-xl shrink-0 ${isOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                          {isOpen ? <FaBoxOpen size={20} /> : <FaLock size={20} />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-mono text-slate-500">{t.tenderNumber}</p>
-                          <h3 className="text-base font-bold text-slate-800 truncate">{t.title}</h3>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                            <span className="flex items-center space-x-1 text-xs text-slate-500">
-                              <FaClock size={10} /><span>{isOpen ? 'Closes:' : 'Closed'}</span>
-                            </span>
-                            {isOpen && <CountdownTimer deadline={t.deadline} />}
-                            {!isOpen && <span className="text-xs font-bold text-red-500">DEADLINE PASSED</span>}
-                            <span className="flex items-center space-x-1 text-xs text-slate-500">
-                              <FaFileAlt size={10} /><span>{t.bidsReceived || 0} bids received</span>
-                            </span>
-                            {t.bidSecurityRequired && (
-                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Security Required</span>
+                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-xs text-slate-500">
+                    No active tenders match your search or filter criteria.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {filteredTenders.map(t => {
+                    const deadline = new Date(t.deadline);
+                    const isOpen = deadline > new Date();
+                    return (
+                      <div key={t._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                          <div className="flex items-start space-x-4">
+                            <div className={`p-3 rounded-xl shrink-0 ${isOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                              {isOpen ? <FaBoxOpen size={20} /> : <FaLock size={20} />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-mono text-slate-500">{t.tenderNumber}</p>
+                              <h3 className="text-base font-bold text-slate-800 truncate">{t.title}</h3>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                                <span className="flex items-center space-x-1 text-xs text-slate-500">
+                                  <FaClock size={10} /><span>{isOpen ? 'Closes:' : 'Closed'}</span>
+                                </span>
+                                {isOpen && <CountdownTimer deadline={t.deadline} />}
+                                {!isOpen && <span className="text-xs font-bold text-red-500">DEADLINE PASSED</span>}
+                                <span className="flex items-center space-x-1 text-xs text-slate-500">
+                                  <FaFileAlt size={10} /><span>{t.bidsReceived || 0} bids received</span>
+                                </span>
+                                {t.bidSecurityRequired && (
+                                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Security Required</span>
+                                )}
+                                {t.estimatedValue && (
+                                  <span className="text-xs text-slate-400">TCE: LKR {t.estimatedValue.toLocaleString()}</span>
+                                )}
+                                {t.category && (
+                                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{t.category}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <StatusBadge status={t.status} />
+                            {isOpen && !isProcurement && (
+                              <button
+                                onClick={() => openSubmitModal(t)}
+                                className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-500 flex items-center space-x-2 transition-colors shadow-sm"
+                              >
+                                <FaUpload size={12} /><span>Submit Bid</span>
+                              </button>
                             )}
-                            {t.estimatedValue && (
-                              <span className="text-xs text-slate-400">TCE: LKR {t.estimatedValue.toLocaleString()}</span>
+                            {isOpen && !isProcurement && (
+                              <button
+                                onClick={() => setWithdrawModal(t)}
+                                className="px-3 py-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-medium transition-colors border border-red-200"
+                              >
+                                Withdraw
+                              </button>
                             )}
-                            {t.category && (
-                              <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{t.category}</span>
+                            {isProcurement && (
+                              <button
+                                onClick={() => setCloseModal(t)}
+                                className="px-3 py-2 text-xs text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg font-medium transition-colors border border-orange-200 flex items-center space-x-1"
+                              >
+                                <FaBan size={10} /><span>Close Bidding</span>
+                              </button>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        <StatusBadge status={t.status} />
-                        {isOpen && !isProcurement && (
-                          <button
-                            onClick={() => openSubmitModal(t)}
-                            className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-500 flex items-center space-x-2 transition-colors shadow-sm"
-                          >
-                            <FaUpload size={12} /><span>Submit Bid</span>
-                          </button>
-                        )}
-                        {isOpen && !isProcurement && (
-                          <button
-                            onClick={() => setWithdrawModal(t)}
-                            className="px-3 py-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-medium transition-colors border border-red-200"
-                          >
-                            Withdraw
-                          </button>
-                        )}
-                        {isProcurement && (
-                          <button
-                            onClick={() => setCloseModal(t)}
-                            className="px-3 py-2 text-xs text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg font-medium transition-colors border border-orange-200 flex items-center space-x-1"
-                          >
-                            <FaBan size={10} /><span>Close Bidding</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
           )}
         </>
       )}

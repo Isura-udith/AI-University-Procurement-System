@@ -69,6 +69,7 @@ import WorkflowDashboard from "../features/planning/pages/WorkflowDashboard";
 
 // Phase 7-8: Store & Inventory
 import StoreHub from "../features/store/pages/StoreHub";
+import GRNList from "../features/store/pages/GRNList";
 import CreateGRN from "../features/store/pages/CreateGRN";
 import IssueItems from "../features/store/pages/IssueItems";
 
@@ -160,6 +161,7 @@ export default function RoutesConfig() {
         {/* Stages 5-6: Strategy, Document Preparation & Solicitation */}
         <Route path="/tenders" element={<ProtectedRoute><TenderList /></ProtectedRoute>} />
         <Route path="/tenders/new" element={<ProtectedRoute><CreateTender /></ProtectedRoute>} />
+        <Route path="/tenders/:id/edit" element={<ProtectedRoute><CreateTender /></ProtectedRoute>} />
         <Route path="/tenders/:id" element={<ProtectedRoute><TenderDetails /></ProtectedRoute>} />
 
         {/* Stage 7: Secure Digital Bidding */}
@@ -217,6 +219,7 @@ export default function RoutesConfig() {
 
         {/* Phase 7-8: Store & Inventory */}
         <Route path="/store" element={<ProtectedRoute><StoreHub /></ProtectedRoute>} />
+        <Route path="/store/grn" element={<ProtectedRoute><GRNList /></ProtectedRoute>} />
         <Route path="/store/grn/new" element={<ProtectedRoute><CreateGRN /></ProtectedRoute>} />
         <Route path="/store/issue" element={<ProtectedRoute><IssueItems /></ProtectedRoute>} />
 

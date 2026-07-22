@@ -16,14 +16,16 @@ const Tender = require('./src/models/tender.model');
 const Bid = require('./src/models/bid.model');
 const Contract = require('./src/models/contract.model');
 const Payment = require('./src/models/payment.model');
-const { InventoryItem } = require('./src/models/inventory.model');
+const { InventoryItem, GRN, Issuance } = require('./src/models/inventory.model');
 const Notification = require('./src/models/notification.model');
 const Message = require('./src/models/message.model');
 const MarketAlert = require('./src/models/market.alert.model');
 const Document = require('./src/models/document.model');
 const KnowledgeDocument = require('./src/models/knowledge.document.model');
 const Report = require('./src/models/report.model');
+const AuditLog = require('./src/models/audit.log.model');
 const AIExplainabilityLog = require('./src/models/ai.explainability.log.model');
+const ChatSession = require('./src/models/chat.session.model');
 const aiService = require('./src/services/ai.service');
 
 // Helper to read JSON feed files
@@ -54,14 +56,20 @@ const feedDatabase = async () => {
     await Contract.deleteMany({});
     await Payment.deleteMany({});
     await InventoryItem.deleteMany({});
+    await GRN.deleteMany({});
+    await Issuance.deleteMany({});
     await Notification.deleteMany({});
     await Message.deleteMany({});
     await MarketAlert.deleteMany({});
     await Document.deleteMany({});
     await KnowledgeDocument.deleteMany({});
     await Report.deleteMany({});
+    await AuditLog.collection.drop().catch(() => {});
     await AIExplainabilityLog.deleteMany({});
+    await ChatSession.deleteMany({});
     console.log('✓ Cleared database.');
+
+
 
     // 1. Roles
     console.log('Seeding Roles...');
@@ -375,6 +383,63 @@ const feedDatabase = async () => {
     }
     console.log(`✓ Seeded ${inventoryData.length} inventory items.`);
 
+    // 12b. Seed Goods Receipt Notes (GRNs)
+    console.log('Seeding GRNs & Issuances...');
+    const storeUser = userEmailMap['store@uwu.ac.lk'] || Object.values(userEmailMap)[0];
+    const createdItems = await InventoryItem.find({ tenantId });
+    if (createdItems.length > 0) {
+      const sampleItem = createdItems[0];
+      const sampleGrn = await GRN.create({
+        tenantId,
+        grnNumber: 'UWU/GRN/2026/0001',
+        procurementId: sampleItem.procurementId,
+        contractId: sampleItem.contractId,
+        supplierId: sampleItem.supplierId,
+        supplierName: 'MedTech Solutions (Pvt) Ltd',
+        supplierInvoiceNumber: 'INV-2026-901',
+        supplierDeliveryNoteNumber: 'DN-2026-442',
+        deliveryDate: new Date(),
+        receivedBy: storeUser,
+        overallInspectionStatus: 'passed',
+        status: 'inventory_updated',
+        storeLocation: 'Main Store Room A',
+        items: [{
+          inventoryItemId: sampleItem._id,
+          description: sampleItem.description,
+          orderedQuantity: 10,
+          receivedQuantity: 10,
+          rejectedQuantity: 0,
+          unit: sampleItem.unit,
+          unitCost: sampleItem.unitCost,
+          inspectionStatus: 'passed'
+        }],
+        totalReceivedValue: (sampleItem.unitCost || 0) * 10
+      });
+
+      // Sample Issuance
+      await Issuance.create({
+        tenantId,
+        issuanceNumber: 'UWU/ISS/2026/0001',
+        procurementId: sampleItem.procurementId,
+        grnId: sampleGrn._id,
+        requestingDepartment: 'Science & Technology',
+        requestingFaculty: 'Faculty of Applied Sciences',
+        requestedBy: storeUser,
+        issuedBy: storeUser,
+        issuedAt: new Date(),
+        status: 'issued',
+        items: [{
+          inventoryItemId: sampleItem._id,
+          description: sampleItem.description,
+          issuedQuantity: 2,
+          unit: sampleItem.unit,
+          unitCost: sampleItem.unitCost,
+          purpose: 'Laboratory Research Work'
+        }]
+      });
+      console.log('✓ Seeded sample GRN & Issuance records.');
+    }
+
     // 13. Notifications
     console.log('Seeding Notifications...');
     const notificationsData = readFeedFile('notifications.json');
@@ -469,6 +534,194 @@ const feedDatabase = async () => {
       });
     }
     console.log(`✓ Seeded ${aiLogsData.length} AI explainability logs.`);
+
+    // 18b. Seed Audit Logs
+    console.log('Seeding Sample Audit Trail Logs...');
+    const adminUserId = userEmailMap['admin@uwu.ac.lk'];
+    const vcUserId = userEmailMap['vc@uwu.ac.lk'];
+    const bursarUserId = userEmailMap['bursar@uwu.ac.lk'];
+
+    const sampleAuditLogs = [
+      {
+        tenantId,
+        userId: adminUserId,
+        userEmail: 'admin@uwu.ac.lk',
+        userName: 'Saman Kumara',
+        userRole: 'admin',
+        action: 'LOGIN_SUCCESS',
+        category: 'authentication',
+        severity: 'info',
+        description: 'Saman Kumara logged in successfully from PMD office network',
+        ipAddress: '192.168.1.102',
+        status: 'success',
+        createdAt: new Date(Date.now() - 30 * 60 * 1000)
+      },
+      {
+        tenantId,
+        userId: vcUserId,
+        userEmail: 'vc@uwu.ac.lk',
+        userName: 'Prof. Jayantha Lal',
+        userRole: 'vc',
+        action: 'ROLE_CHANGED',
+        category: 'user_management',
+        severity: 'warning',
+        description: 'Updated procurement approval thresholds for Faculty of Technology',
+        ipAddress: '192.168.1.50',
+        status: 'success',
+        createdAt: new Date(Date.now() - 2 * 3600 * 1000)
+      },
+      {
+        tenantId,
+        userId: bursarUserId,
+        userEmail: 'bursar@uwu.ac.lk',
+        userName: 'Nimal Perera',
+        userRole: 'bursar',
+        action: 'LOGIN_FAILED',
+        category: 'authentication',
+        severity: 'warning',
+        description: 'Failed login attempt for bursar@uwu.ac.lk (Invalid Credentials)',
+        ipAddress: '203.115.26.14',
+        status: 'failure',
+        failureReason: 'Invalid password provided',
+        createdAt: new Date(Date.now() - 5 * 3600 * 1000)
+      },
+      {
+        tenantId,
+        userId: adminUserId,
+        userEmail: 'admin@uwu.ac.lk',
+        userName: 'Saman Kumara',
+        userRole: 'admin',
+        action: 'ACCOUNT_LOCKED',
+        category: 'security',
+        severity: 'critical',
+        description: 'Account temporarily flagged following multiple access attempts from unrecognised subnet',
+        ipAddress: '45.132.18.99',
+        status: 'blocked',
+        failureReason: 'IP Geolocation restriction rule triggered',
+        createdAt: new Date(Date.now() - 12 * 3600 * 1000)
+      },
+      {
+        tenantId,
+        userId: adminUserId,
+        userEmail: 'admin@uwu.ac.lk',
+        userName: 'Saman Kumara',
+        userRole: 'admin',
+        action: 'USER_CREATED_BY_ADMIN',
+        category: 'administrative',
+        severity: 'info',
+        description: 'Saman Kumara generated quarterly GOSL compliance report',
+        ipAddress: '192.168.1.102',
+        status: 'success',
+        createdAt: new Date(Date.now() - 24 * 3600 * 1000)
+      }
+    ];
+
+    for (const al of sampleAuditLogs) {
+      await AuditLog.create(al);
+    }
+    console.log(`✓ Seeded ${sampleAuditLogs.length} audit logs.`);
+
+    // 18c. Seed AI Chat Sessions
+    console.log('Seeding Sample AI Chat Sessions...');
+    const procurementOfficerId = userEmailMap['procurement@uwu.ac.lk'] || adminUserId;
+    const hodUserId = userEmailMap['hod@uwu.ac.lk'] || adminUserId;
+
+    const sampleChatSessions = [
+      {
+        sessionId: 'session-seed-001',
+        userId: adminUserId,
+        tenantId,
+        title: 'GOSL Shopping Method Thresholds & Guidelines',
+        isPinned: true,
+        isArchived: false,
+        messageCount: 2,
+        lastActivityAt: new Date(Date.now() - 2 * 3600 * 1000),
+        messages: [
+          {
+            role: 'user',
+            content: 'What are the limits & rules for the Shopping method under GOSL Guidelines?',
+            timestamp: new Date(Date.now() - 2 * 3600 * 1000 - 30000),
+          },
+          {
+            role: 'assistant',
+            content: '### GOSL Shopping Method Guidelines (PG-2024 & PFM Act)\n\nUnder the Sri Lanka Government Procurement Guidelines (2024 Updates):\n\n- **Monetary Threshold**: Applicable for procurements up to **LKR 10,000,000 (10 Million LKR)** for Goods & Services.\n- **Quotation Requirements**: Minimum **3 competitive quotations** must be obtained from registered suppliers.\n- **Technical Evaluation**: The Departmental Procurement Committee (DPC) / TEC evaluates compliance with technical specifications.\n- **Budget Compliance**: A valid budget reservation (Budget Lock) must be active prior to issuing Purchase Orders.\n\n*Note: Splitting contracts to avoid National Competitive Bidding (NCB) threshold is strictly prohibited under PFM Act Section 44.*',
+            timestamp: new Date(Date.now() - 2 * 3600 * 1000),
+            metadata: {
+              usedTools: ['gosl_compliance_engine', 'semantic_rag_knowledge_store'],
+              sourceDocuments: [
+                { pageContent: 'GOSL Procurement Manual Chapter 3 - Shopping Method Limits: LKR 10,000,000 max per procurement entity.', metadata: { source: 'GOSL_Procurement_Manual_2024.pdf' } }
+              ],
+              processingTimeMs: 1240,
+            },
+            rating: 1,
+          }
+        ]
+      },
+      {
+        sessionId: 'session-seed-002',
+        userId: adminUserId,
+        tenantId,
+        title: '3-Way Match Process for Store Items',
+        isPinned: false,
+        isArchived: false,
+        messageCount: 2,
+        lastActivityAt: new Date(Date.now() - 12 * 3600 * 1000),
+        messages: [
+          {
+            role: 'user',
+            content: 'Explain the 3-Way Match process required for Store item verification.',
+            timestamp: new Date(Date.now() - 12 * 3600 * 1000 - 45000),
+          },
+          {
+            role: 'assistant',
+            content: '### 3-Way Match Audit Rule for Payment Disbursement\n\nBefore releasing payments to vendors, the Finance & Audit Division verifies **three documents**:\n\n1. **Approved Purchase Order (PO)**: Validates approved quantities, unit rates, and total contract price.\n2. **Signed Goods Received Note (GRN)**: Store Manager confirmation of physical delivery, quality inspection, and store entry.\n3. **Supplier Tax Invoice**: Checks invoice serial, VAT calculations, and bank details.\n\n| Document | Authority | Key Check |\n|---|---|---|\n| Purchase Order | Procurement Division | Budget Lock & Contract Terms |\n| GRN | Store Room / Inspection Committee | Item Code, Quantity & Inspection Status |\n| Supplier Invoice | Finance Division | Unit Price & Bank Account Match |\n\n*Payment disbursements cannot be generated unless all 3 documents match with 0 variance.*',
+            timestamp: new Date(Date.now() - 12 * 3600 * 1000),
+            metadata: {
+              usedTools: ['payment_matching_engine'],
+              sourceDocuments: [
+                { pageContent: 'UWU Store SOP Chapter 5: Mandatory 3-Way Match before Bursar approval.', metadata: { source: 'UWU_Store_SOP_2025.pdf' } }
+              ],
+              processingTimeMs: 980,
+            },
+            rating: 1,
+          }
+        ]
+      },
+      {
+        sessionId: 'session-seed-003',
+        userId: procurementOfficerId,
+        tenantId,
+        title: 'Bid Evaluation Committee Risk Scoring Model',
+        isPinned: true,
+        isArchived: false,
+        messageCount: 2,
+        lastActivityAt: new Date(Date.now() - 24 * 3600 * 1000),
+        messages: [
+          {
+            role: 'user',
+            content: 'How should the Bid Evaluation Committee (TEC) compute risk scores?',
+            timestamp: new Date(Date.now() - 24 * 3600 * 1000 - 20000),
+          },
+          {
+            role: 'assistant',
+            content: '### TEC Procurement Risk Assessment Formula\n\nThe AI Risk Scoring Module computes a **0–100 Weighted Risk Score** based on 5 parameters:\n\n- **Financial Threshold (25%)**: Price variance against Engineer\'s Estimate (>15% deviation flags risk).\n- **Vendor Performance (25%)**: Past contract completion history & supplier rating tier.\n- **Delivery Timeframes (20%)**: Unrealistic delivery times relative to industry averages.\n- **Specification Restrictiveness (15%)**: Single-brand vendor lock-in terms.\n- **Documentation Completeness (15%)**: Missing CIDA registration or bid bond securities.\n\n*Scores above 60 require mandatory Bursar & Internal Audit pre-check prior to award.*',
+            timestamp: new Date(Date.now() - 24 * 3600 * 1000),
+            metadata: {
+              usedTools: ['risk_analysis_engine'],
+              sourceDocuments: [],
+              processingTimeMs: 1150,
+            },
+            rating: 1,
+          }
+        ]
+      }
+    ];
+
+    for (const sessionData of sampleChatSessions) {
+      await ChatSession.create(sessionData);
+    }
+    console.log(`✓ Seeded ${sampleChatSessions.length} sample AI Chat Sessions.`);
+
 
     // 19. Index Documents Directory for RAG
     console.log('Indexing official procurement Documents folder for RAG...');

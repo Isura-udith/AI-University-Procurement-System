@@ -23,11 +23,14 @@ const getPayment = async (req, res, next) => {
 const threeWayMatch = async (req, res, next) => {
   try { return success(res, await paymentService.performThreeWayMatch(req.params.id, req.tenantId), 'Match completed'); } catch (err) { next(err); }
 };
+const resolveDiscrepancy = async (req, res, next) => {
+  try { return success(res, await paymentService.resolveDiscrepancy(req.params.id, req.user._id, req.body.comments, req.tenantId), 'Discrepancy resolved'); } catch (err) { next(err); }
+};
 const approvePayment = async (req, res, next) => {
   try { return success(res, await paymentService.approve(req.params.id, req.user._id, req.user.role, req.body.comments, req.tenantId), 'Approved'); } catch (err) { next(err); }
 };
 const markPaid = async (req, res, next) => {
-  try { return success(res, await paymentService.markPaid(req.params.id, req.user._id, req.body.transactionRef, req.tenantId), 'Paid'); } catch (err) { next(err); }
+  try { return success(res, await paymentService.markPaid(req.params.id, req.user._id, req.body, req.tenantId), 'Paid'); } catch (err) { next(err); }
 };
 
-module.exports = { createPayment, getAllPayments, getPayment, threeWayMatch, approvePayment, markPaid };
+module.exports = { createPayment, getAllPayments, getPayment, threeWayMatch, resolveDiscrepancy, approvePayment, markPaid };

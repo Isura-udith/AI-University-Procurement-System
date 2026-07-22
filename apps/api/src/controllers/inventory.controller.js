@@ -53,6 +53,68 @@ const getInventoryStats = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const createInventoryItem = async (req, res, next) => {
+  try {
+    const item = new InventoryItem({
+      ...req.body,
+      tenantId: req.tenantId,
+    });
+    if (item.quantityOnHand > 0) {
+      item.transactions.push({
+        type: 'receipt',
+        quantity: item.quantityOnHand,
+        previousQty: 0,
+        newQty: item.quantityOnHand,
+        referenceNumber: 'INITIAL_STOCK',
+        reason: 'Initial Stock Entry',
+        performedBy: req.user._id,
+      });
+      item.lastReceivedAt = new Date();
+    }
+    await item.save();
+    return created(res, item, 'Inventory item created successfully');
+  } catch (err) { next(err); }
+};
+
+const adjustStock = async (req, res, next) => {
+  try {
+    const { quantity, reason, type = 'adjustment' } = req.body;
+    const item = await InventoryItem.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!item) return res.status(404).json({ message: 'Inventory item not found' });
+
+    const prevQty = item.quantityOnHand || 0;
+    const adjQty = Number(quantity);
+    const newQty = prevQty + adjQty;
+
+    if (newQty < 0) {
+      return res.status(400).json({ message: 'Adjustment results in negative stock quantity' });
+    }
+
+    item.quantityOnHand = newQty;
+    item.transactions.push({
+      type,
+      quantity: adjQty,
+      previousQty: prevQty,
+      newQty,
+      reason: reason || 'Manual Stock Adjustment',
+      performedBy: req.user._id,
+      timestamp: new Date(),
+    });
+
+    await item.save();
+    return success(res, item, 'Stock quantity updated successfully');
+  } catch (err) { next(err); }
+};
+
+const getItemHistory = async (req, res, next) => {
+  try {
+    const item = await InventoryItem.findOne({ _id: req.params.id, tenantId: req.tenantId })
+      .populate('transactions.performedBy', 'name email');
+    if (!item) return res.status(404).json({ message: 'Inventory item not found' });
+    return success(res, item.transactions || []);
+  } catch (err) { next(err); }
+};
+
 // ─── Goods Receipt Notes (GRN) ─────────────────────────────────
 
 const createGRN = async (req, res, next) => {
@@ -322,7 +384,7 @@ const approveIssuance = async (req, res, next) => {
 };
 
 module.exports = {
-  getInventory, getInventoryItem, getInventoryStats,
+  getInventory, getInventoryItem, getInventoryStats, createInventoryItem, adjustStock, getItemHistory,
   createGRN, getGRNs, getGRN, inspectGRN,
   createIssuance, getIssuances, issueItems, confirmDeptReceipt, approveIssuance,
 };

@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const {
-  generateReport, getAllReports, getReport, getSpendAnalysis, getPublicAnalytics
+  generateReport,
+  getAllReports,
+  getReport,
+  getSpendAnalysis,
+  getVendorPerformance,
+  getComplianceAudit,
+  exportReport,
+  deleteReport,
+  getPublicAnalytics
 } = require('../controllers/report.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
@@ -10,7 +18,7 @@ router.get('/public-analytics', getPublicAnalytics);
 
 router.use(protect);
 
-// All reports (most internal roles can read)
+// All reports
 router.get('/',
   authorize('procurement_officer', 'contract_manager', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'department_head', 'auditor', 'super_admin'),
   getAllReports
@@ -22,10 +30,16 @@ router.get('/spend-analysis',
   getSpendAnalysis
 );
 
-// Single report detail
-router.get('/:id',
-  authorize('procurement_officer', 'contract_manager', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'department_head', 'auditor', 'super_admin'),
-  getReport
+// Vendor performance report
+router.get('/vendor-performance',
+  authorize('procurement_officer', 'admin', 'vc', 'bursar', 'contract_manager', 'auditor', 'super_admin'),
+  getVendorPerformance
+);
+
+// Compliance audit report
+router.get('/compliance-audit',
+  authorize('procurement_officer', 'admin', 'vc', 'bursar', 'auditor', 'super_admin'),
+  getComplianceAudit
 );
 
 // Generate new report
@@ -34,4 +48,23 @@ router.post('/generate',
   generateReport
 );
 
+// Export single report (CSV / JSON)
+router.get('/:id/export',
+  authorize('procurement_officer', 'contract_manager', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'department_head', 'auditor', 'super_admin'),
+  exportReport
+);
+
+// Single report detail
+router.get('/:id',
+  authorize('procurement_officer', 'contract_manager', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'department_head', 'auditor', 'super_admin'),
+  getReport
+);
+
+// Delete report
+router.delete('/:id',
+  authorize('admin', 'super_admin'),
+  deleteReport
+);
+
 module.exports = router;
+

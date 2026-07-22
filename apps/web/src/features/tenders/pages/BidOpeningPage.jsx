@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
   FaLockOpen,
@@ -13,7 +13,6 @@ import {
   FaFileAlt,
   FaChevronRight,
   FaBan,
-  FaExclamationTriangle,
   FaCheck,
   FaEnvelopeOpenText,
   FaPenFancy,
@@ -24,6 +23,11 @@ import {
   FaThumbsDown,
   FaChevronDown,
   FaChevronUp,
+  FaSearch,
+  FaPrint,
+  FaUserPlus,
+  FaExternalLinkAlt,
+  FaMoneyBillWave,
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import tenderService from "../../../services/tender.service";
@@ -43,7 +47,7 @@ function BidStatusChip({ status }) {
   const map = {
     submitted: { cls: "bg-blue-50 text-blue-700 border-blue-200/60", icon: "🔒", label: "Sealed" },
     opened: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200/60", icon: "🔓", label: "Opened" },
-    withdrawn: { cls: "bg-slate-50 text-slate-500 border-slate-200/60", icon: "↩️", label: "Withdrawn" },
+    withdrawn: { cls: "bg-slate-100 text-slate-500 border-slate-200/60", icon: "↩️", label: "Withdrawn" },
     rejected: { cls: "bg-red-50 text-red-700 border-red-200/60", icon: "❌", label: "Rejected" },
   };
   const { cls, icon, label } = map[status] || {
@@ -52,7 +56,7 @@ function BidStatusChip({ status }) {
     label: status,
   };
   return (
-    <span className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${cls}`}>
       <span>{icon}</span>
       <span>{label}</span>
     </span>
@@ -94,7 +98,7 @@ function CeremonyTimeline({ currentStep }) {
                   isPast
                     ? "bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-200"
                     : isActive
-                      ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 animate-pulse-ring"
+                      ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 animate-pulse"
                       : "bg-slate-50 text-slate-400 border border-slate-200"
                 }`}
               >
@@ -144,10 +148,22 @@ export default function BidOpeningPage() {
   const [showPrices, setShowPrices] = useState(false);
   const [ceremonyStarted, setCeremonyStarted] = useState(false);
 
+  // Search & Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Modals
   const [startModal, setStartModal] = useState(false);
   const [unsealModal, setUnsealModal] = useState(null);
   const [completeModal, setCompleteModal] = useState(false);
   const [closeModal, setCloseModal] = useState(false);
+  const [addMemberModal, setAddMemberModal] = useState(false);
+  const [minutesModal, setMinutesModal] = useState(false);
+
+  // New BOC Member state
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberRole, setNewMemberRole] = useState("Independent Observer");
+
   const [expandedBids, setExpandedBids] = useState({});
 
   /* ── Load all tenders eligible for bid opening ── */
@@ -156,7 +172,6 @@ export default function BidOpeningPage() {
       try {
         const res = await tenderService.getAll();
         const items = res.data || res || [];
-        // Include published (deadline passed), bid_closed, closed, opening, evaluation
         const filtered = (Array.isArray(items) ? items : []).filter((t) =>
           [
             "published",
@@ -165,7 +180,9 @@ export default function BidOpeningPage() {
             "closed",
             "opening",
             "evaluation",
-          ].includes(t.status),
+            "awarded",
+            "loa_issued",
+          ].includes(t.status)
         );
         setAllTenders(filtered);
         if (!selectedTenderId && filtered.length > 0) {
@@ -176,8 +193,7 @@ export default function BidOpeningPage() {
       }
     };
     fetchTenders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedTenderId]);
 
   /* ── Load tender + bids detail ── */
   const loadDetails = useCallback(async () => {
@@ -206,12 +222,10 @@ export default function BidOpeningPage() {
       if (t.bocMembers && t.bocMembers.length > 0) {
         setCommittee(
           t.bocMembers.map((m) => ({
-            name: m.userId
-              ? `${m.userId.firstName} ${m.userId.lastName}`
-              : "Committee Member",
+            name: m.name || (m.userId ? `${m.userId.firstName} ${m.userId.lastName}` : "Committee Member"),
             role: m.role || "BOC Representative",
-            present: true,
-          })),
+            present: m.present !== false,
+          }))
         );
       } else {
         setCommittee(DEFAULT_COMMITTEE);
@@ -225,24 +239,26 @@ export default function BidOpeningPage() {
           submitted: b.submittedAt
             ? new Date(b.submittedAt).toLocaleDateString("en-LK")
             : "—",
+          submittedAtFull: b.submittedAt ? new Date(b.submittedAt).toLocaleString("en-LK") : "—",
           bidAmount: b.totalBidAmount || 0,
-          bidSecurity: !!b.bidSecurityDocument,
-          bidSecurityType: b.bidSecurityType || "—",
-          docs: (b.documents || []).map((doc) => doc.name),
+          bidSecurity: !!b.bidSecurityDocument || !!b.bidSecurityAmount,
+          bidSecurityType: b.bidSecurityType?.replace(/_/g, " ").toUpperCase() || "Bank Guarantee",
+          bidSecurityAmount: b.bidSecurityAmount || (b.totalBidAmount ? Math.round(b.totalBidAmount * 0.02) : 0),
+          docs: (b.documents || []).map((doc) => doc.name || "Attachment"),
+          rawDocs: b.documents || [],
           status: b.status || "submitted",
           deviations: b.status === "rejected" ? ["MAJOR: Disqualified"] : [],
           isSealed: b.isSealed !== false,
           specificationVotes: b.specificationVotes || [],
-        })),
+        }))
       );
 
-      // Track opened bids by _id (not vendor name — avoids breakage when names collide)
       const opened = bidsData
-        .filter((b) => b.status !== "submitted")
+        .filter((b) => b.status !== "submitted" && b.isSealed === false)
         .map((b) => b._id.toString());
       setOpenedBids(opened);
 
-      if (t.status === "evaluation") {
+      if (["evaluation", "awarded", "loa_issued"].includes(t.status)) {
         setShowPrices(true);
         setCeremonyStarted(true);
       } else if (t.status === "opening") {
@@ -260,11 +276,54 @@ export default function BidOpeningPage() {
     Promise.resolve().then(() => loadDetails());
   }, [loadDetails]);
 
+  /* ── Save BOC committee attendance to DB ── */
+  const saveCommitteeAttendance = async (updatedCommittee) => {
+    try {
+      await tenderService.assignCommittee(tender._id, {
+        bocMembers: updatedCommittee.map((c) => ({
+          name: c.name,
+          role: c.role,
+          present: c.present,
+        })),
+      });
+      toast.success("BOC Committee attendance updated");
+    } catch (err) {
+      console.error("Failed to save committee attendance:", err);
+    }
+  };
+
+  const toggleAttendance = (i) => {
+    const updated = [...committee];
+    updated[i] = { ...updated[i], present: !updated[i].present };
+    setCommittee(updated);
+    if (tender?._id) {
+      saveCommitteeAttendance(updated);
+    }
+  };
+
+  const handleAddMember = () => {
+    if (!newMemberName.trim()) {
+      toast.error("Please enter committee member name");
+      return;
+    }
+    const updated = [
+      ...committee,
+      { name: newMemberName.trim(), role: newMemberRole, present: true },
+    ];
+    setCommittee(updated);
+    setNewMemberName("");
+    setAddMemberModal(false);
+    toast.success(`Added ${newMemberName} to Committee`);
+    if (tender?._id) {
+      saveCommitteeAttendance(updated);
+    }
+  };
+
   /* ── Actions ── */
   const handleCloseBidding = async () => {
     try {
       await tenderService.closeBidding(tender._id);
-      toast.success("🔒 Bidding officially closed. Bid box is sealed.");
+      toast.success("Bidding officially closed. Bid box is sealed.");
       setCloseModal(false);
       loadDetails();
     } catch (err) {
@@ -277,9 +336,7 @@ export default function BidOpeningPage() {
       await tenderService.openBidBox(tender._id);
       setCeremonyStarted(true);
       setStartModal(false);
-      toast.success(
-        "🎬 Bid Opening Ceremony started! All bids are being unsealed.",
-      );
+      toast.success("Bid Opening Ceremony started! All bids are ready to be unsealed.");
       loadDetails();
     } catch (err) {
       toast.error(err.message || "Failed to start ceremony.");
@@ -291,7 +348,7 @@ export default function BidOpeningPage() {
       const bid = bids.find((b) => b._id === bidId);
       if (bid) {
         await tenderService.unsealBid(tender._id, bid._id);
-        toast.success(`🔓 Bid from "${bid.vendor}" unsealed.`);
+        toast.success(`Bid from "${bid.vendor}" unsealed successfully.`);
         loadDetails();
       } else {
         toast.error("Bid not found.");
@@ -306,16 +363,13 @@ export default function BidOpeningPage() {
   const handleUnsealAll = async () => {
     try {
       const sealedBids = bids.filter(
-        (b) =>
-          !openedBids.includes(b._id.toString()) && b.status === "submitted",
+        (b) => !openedBids.includes(b._id.toString()) && b.status === "submitted"
       );
       await Promise.all(
-        sealedBids.map((b) => tenderService.unsealBid(tender._id, b._id)),
+        sealedBids.map((b) => tenderService.unsealBid(tender._id, b._id))
       );
       setShowPrices(true);
-      toast.success(
-        `🔓 All ${bids.length} bids unsealed. Financial envelopes opened.`,
-      );
+      toast.success(`All ${bids.length} bids unsealed. Financial envelopes opened.`);
       loadDetails();
     } catch (err) {
       toast.error(err.message || "Failed to unseal all bids.");
@@ -324,22 +378,19 @@ export default function BidOpeningPage() {
 
   const handleCompleteCeremony = async () => {
     try {
-      await tenderService.completeBidOpening(tender._id);
-      toast.success(
-        "✅ Bid Opening Ceremony completed. Minutes generated and signed. Proceeding to evaluation.",
-      );
+      await tenderService.completeBidOpening(tender._id, {
+        committee: committee.map((c) => ({
+          name: c.name,
+          role: c.role,
+          present: c.present,
+        })),
+      });
+      toast.success("Bid Opening Ceremony completed! Official minutes saved to database.");
+      setCompleteModal(false);
       loadDetails();
     } catch (err) {
       toast.error(err.message || "Failed to complete bid opening.");
-    } finally {
-      setCompleteModal(false);
     }
-  };
-
-  const toggleAttendance = (i) => {
-    const updated = [...committee];
-    updated[i] = { ...updated[i], present: !updated[i].present };
-    setCommittee(updated);
   };
 
   const quorum = committee.filter((c) => c.present).length;
@@ -358,67 +409,81 @@ export default function BidOpeningPage() {
     tender &&
     ["published", "bidding"].includes(tender.status) &&
     isDeadlinePassed;
-  const canOpen = isProcurement && tender && tender.status === "bid_closed";
+  const canOpen = isProcurement && tender && ["published", "bidding", "bid_closed", "closed"].includes(tender.status);
 
-  // Calculate current step for timeline
+  // Current step for timeline
   let currentStep = 1;
   if (
     tender?.status === "bid_closed" ||
     tender?.status === "opening" ||
-    tender?.status === "evaluation"
+    ["evaluation", "awarded", "loa_issued"].includes(tender?.status)
   ) {
-    currentStep = 2; // Close Bidding is done
+    currentStep = 2;
   }
   if (ceremonyStarted) {
-    currentStep = 3; // Open Bid Box is done
+    currentStep = 3;
   }
   if (allOpened) {
-    currentStep = 4; // Unseal Bids is done
+    currentStep = 4;
   }
   if (showPrices) {
-    currentStep = 5; // Financials Opened
+    currentStep = 5;
   }
-  if (tender?.status === "evaluation") {
-    currentStep = 6; // Ceremony completed (all done)
+  if (["evaluation", "awarded", "loa_issued"].includes(tender?.status)) {
+    currentStep = 6;
   }
 
+  // Filtered Bids
+  const filteredBids = useMemo(() => {
+    return bids.filter((b) => {
+      const matchesSearch =
+        b.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.bidNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (statusFilter === "opened") return openedBids.includes(b._id.toString());
+      if (statusFilter === "sealed") return !openedBids.includes(b._id.toString()) && b.status !== "withdrawn";
+      if (statusFilter === "withdrawn") return b.status === "withdrawn";
+      return true;
+    });
+  }, [bids, searchTerm, statusFilter, openedBids]);
+
   // Summary Stats
-  const withdrawnBidsCount = bids.filter(
-    (b) => b.status === "withdrawn",
-  ).length;
+  const withdrawnBidsCount = bids.filter((b) => b.status === "withdrawn").length;
   const activeBidsCount = bids.length - withdrawnBidsCount;
   const sealedBidsCount = activeBidsCount - openedBids.length;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-16">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 to-slate-800 p-6 rounded-2xl text-white shadow-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-700 via-slate-750 to-slate-800 p-6 rounded-2xl text-white shadow-xl">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
             <FaGavel size={22} className="animate-pulse" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight animate-slide-up">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
               Bid Opening Ceremony
             </h1>
             <p className="text-xs text-slate-300 mt-0.5">
-              Stage 8: Public bid opening with BOC committee, live video recording, and digital unsealing
+              Stage 8: Public digital bid unsealing, committee verification & live ceremony minutes
             </p>
           </div>
         </div>
-        {allTenders.length > 0 && !tenderIdParam && (
-          <div className="flex items-center space-x-3 bg-slate-800/80 border border-slate-700/60 shadow-inner px-4 py-2 rounded-xl">
+
+        {allTenders.length > 0 && (
+          <div className="flex items-center space-x-3 bg-slate-800/90 border border-slate-700/80 shadow-inner px-4 py-2.5 rounded-xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Tender Reference:
+              Tender Ref:
             </span>
             <select
               value={selectedTenderId}
               onChange={(e) => setSelectedTenderId(e.target.value)}
-              className="px-3 py-1.5 border border-slate-700 rounded-lg text-xs bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer font-medium"
+              className="px-3 py-1.5 border border-slate-700 rounded-lg text-xs bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer font-semibold max-w-70 md:max-w-90"
             >
               {allTenders.map((t) => (
                 <option key={t._id} value={t._id}>
-                  {t.tenderNumber} — {t.title.length > 30 ? t.title.substring(0, 30) + "..." : t.title} [{t.status}]
+                  {t.tenderNumber} — {t.title.length > 28 ? t.title.substring(0, 28) + "..." : t.title} [{t.status}]
                 </option>
               ))}
             </select>
@@ -427,12 +492,12 @@ export default function BidOpeningPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <FaSpinner className="animate-spin text-emerald-600 mr-2" size={20} />
-          <span className="text-sm text-slate-500">Loading tender data...</span>
+        <div className="flex flex-col items-center justify-center py-28 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+          <FaSpinner className="animate-spin text-emerald-600 mb-3" size={28} />
+          <span className="text-sm font-semibold text-slate-600">Loading tender data & bids...</span>
         </div>
       ) : !tender ? (
-        <div className="text-center py-24 text-slate-400 bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="text-center py-28 text-slate-400 bg-white border border-slate-200 rounded-2xl shadow-sm">
           No tender selected or available for bid opening.
         </div>
       ) : (
@@ -444,14 +509,14 @@ export default function BidOpeningPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               {
-                label: "Total Bids",
+                label: "Total Received",
                 value: bids.length,
                 icon: FaFileAlt,
                 color: "bg-white border-slate-200/80 text-slate-800 shadow-sm",
-                iconBg: "bg-slate-100 text-slate-500",
+                iconBg: "bg-slate-100 text-slate-600",
               },
               {
-                label: "Opened Bids",
+                label: "Unsealed Bids",
                 value: openedBids.length,
                 icon: FaLockOpen,
                 color: "bg-white border-slate-200/80 text-slate-800 shadow-sm",
@@ -459,13 +524,13 @@ export default function BidOpeningPage() {
               },
               {
                 label: "Sealed Bids",
-                value: sealedBidsCount,
+                value: Math.max(0, sealedBidsCount),
                 icon: FaLock,
                 color: "bg-white border-slate-200/80 text-slate-800 shadow-sm",
                 iconBg: "bg-blue-50 text-blue-600 border border-blue-100",
               },
               {
-                label: "Withdrawn Bids",
+                label: "Withdrawn / Disqualified",
                 value: withdrawnBidsCount,
                 icon: FaTimesCircle,
                 color: "bg-white border-slate-200/80 text-slate-800 shadow-sm",
@@ -476,7 +541,7 @@ export default function BidOpeningPage() {
               return (
                 <div
                   key={idx}
-                  className={`rounded-2xl border p-4 flex items-center justify-between hover:translate-y-[-2px] transition-all duration-200 ${s.color}`}
+                  className={`rounded-2xl border p-4 flex items-center justify-between hover:translate-y-0.5 transition-all duration-200 ${s.color}`}
                 >
                   <div>
                     <p className="text-2xl font-bold font-mono tracking-tight">{s.value}</p>
@@ -492,44 +557,49 @@ export default function BidOpeningPage() {
             })}
           </div>
 
-          {/* ── Tender Info Card ── */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+          {/* ── Tender Details Card ── */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
               <div className="space-y-3 flex-1">
-                <div>
-                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono bg-slate-100 border border-slate-200 text-slate-600">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2.5 py-0.5 rounded-md text-[11px] font-extrabold font-mono bg-slate-100 border border-slate-200 text-slate-700">
                     {tender?.tenderNumber}
                   </span>
-                  <h2 className="text-lg font-bold text-slate-800 mt-1.5 leading-snug">
-                    {tender?.title}
-                  </h2>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200/60 uppercase">
+                    {tender?.category || "Goods"}
+                  </span>
                 </div>
+                <h2 className="text-lg md:text-xl font-bold text-slate-800 leading-snug">
+                  {tender?.title}
+                </h2>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                  <span className="flex items-center space-x-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                  <span className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
                     <FaCalendarAlt size={11} className="text-slate-400" />
                     <span>
-                      <strong>Deadline:</strong> {tender?.closingDate?.split("T")[0] || "—"}
+                      <strong>Submission Deadline:</strong>{" "}
+                      {tender?.closingDate ? new Date(tender.closingDate).toLocaleString("en-LK") : "—"}
                     </span>
                   </span>
-                  <span className="flex items-center space-x-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                    <FaCalendarAlt size={11} className="text-slate-400" />
-                    <span>
-                      <strong>Opening:</strong> {tender?.openingDate?.split("T")[0] || "TBD"}
+
+                  {tender?.estimatedValue > 0 && (
+                    <span className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
+                      <FaMoneyBillWave size={11} className="text-emerald-600" />
+                      <span>
+                        <strong>Est. Budget:</strong> LKR {tender.estimatedValue.toLocaleString("en-LK")}
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex items-center space-x-1 bg-blue-50/50 text-blue-700 px-2 py-1 rounded-md border border-blue-100/50 font-semibold">
-                    <span>{bids.length} bids received</span>
-                  </span>
+                  )}
+
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold border ${
                       tender.status === "opening"
-                        ? "bg-purple-50 text-purple-700 border-purple-200/50"
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
                         : tender.status === "bid_closed"
-                          ? "bg-orange-50 text-orange-700 border-orange-200/50"
-                          : tender.status === "evaluation"
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200/50"
-                            : "bg-slate-50 text-slate-600 border-slate-200/50"
+                          ? "bg-orange-50 text-orange-700 border-orange-200"
+                          : ["evaluation", "awarded", "loa_issued"].includes(tender.status)
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
                     }`}
                   >
                     {tender.status?.replace(/_/g, " ").toUpperCase()}
@@ -537,75 +607,84 @@ export default function BidOpeningPage() {
                 </div>
               </div>
 
+              {/* Ceremony Control Toolbar */}
               <div className="flex flex-wrap items-center gap-2 shrink-0">
-                {/* Close Bidding */}
                 {canCloseBidding && (
                   <button
                     onClick={() => setCloseModal(true)}
-                    className="flex items-center space-x-2 px-4.5 py-2.5 bg-orange-600 text-white text-xs font-bold rounded-xl hover:bg-orange-500 hover:shadow-md hover:shadow-orange-500/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm animate-fade-in"
+                    className="flex items-center space-x-2 px-4 py-2.5 bg-orange-600 text-white text-xs font-bold rounded-xl hover:bg-orange-500 transition-all duration-200 shadow-sm cursor-pointer"
                   >
                     <FaBan size={12} />
                     <span>Close Bidding</span>
                   </button>
                 )}
-                {/* Start Ceremony */}
+
                 {!ceremonyStarted && canOpen && isProcurement && (
                   <button
                     onClick={() => setStartModal(true)}
                     disabled={!hasQuorum}
-                    className="flex items-center space-x-2 px-5 py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-xl hover:from-emerald-500 hover:to-teal-500 hover:shadow-md hover:shadow-emerald-500/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                    className="flex items-center space-x-2 px-5 py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-xl hover:from-emerald-500 hover:to-teal-500 shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <FaVideo size={12} className="animate-pulse" />
-                    <span>Start Ceremony</span>
+                    <span>Start Opening Ceremony</span>
                   </button>
                 )}
-                {/* Live Recording indicator */}
+
                 {ceremonyStarted && (
-                  <div className="flex items-center space-x-2.5 text-xs bg-red-50 border border-red-200 px-4 py-2 rounded-xl shadow-sm">
+                  <div className="flex items-center space-x-2 text-xs bg-red-50 border border-red-200 px-4 py-2 rounded-xl shadow-sm">
                     <span className="flex items-center space-x-1.5 text-red-600 font-bold">
                       <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping shrink-0" />
-                      <span className="relative inline-flex w-2.5 h-2.5 bg-red-600 rounded-full -ml-4 shrink-0" />
-                      <span className="tracking-wide">LIVE RECORDING IN PROGRESS</span>
+                      <span className="tracking-wide text-[11px]">CEREMONY IN PROGRESS</span>
                     </span>
                   </div>
                 )}
+
+                {(ceremonyStarted || tender.bidOpeningMinutes) && (
+                  <button
+                    onClick={() => setMinutesModal(true)}
+                    className="flex items-center space-x-1.5 px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
+                  >
+                    <FaFileAlt size={12} />
+                    <span>View Opening Minutes</span>
+                  </button>
+                )}
               </div>
             </div>
-
-            {/* Deadline warning */}
-            {!isDeadlinePassed && tender.status === "published" && (
-              <div className="mt-4 flex items-center space-x-2 bg-amber-50 border border-amber-200/80 rounded-xl p-4 text-xs text-amber-700">
-                <FaExclamationTriangle size={14} className="shrink-0 text-amber-600" />
-                <span>
-                  Bid submission deadline has not been reached yet. Opening the bid box early is not permitted.
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* ── BOC Committee ── */}
+          {/* ── BOC Committee Section ── */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
                   <FaUsers className="text-emerald-600" size={16} />
                   <span>Bid Opening Committee (BOC)</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Verify attendance. Minimum 3 members required to establish a valid quorum.
+                  Check present members to verify attendance. Minimum 3 members required for a valid quorum.
                 </p>
               </div>
-              <span
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border shrink-0 transition-colors ${
-                  hasQuorum
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
-                    : "bg-red-50 text-red-700 border-red-200/60 animate-pulse"
-                }`}
-              >
-                {hasQuorum
-                  ? `✓ Quorum Met (${quorum}/${committee.length} present)`
-                  : `✗ Quorum Deficit (${quorum}/${committee.length} present)`}
-              </span>
+              <div className="flex items-center space-x-3">
+                <span
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border shrink-0 transition-colors ${
+                    hasQuorum
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                      : "bg-red-50 text-red-700 border-red-200/60 animate-pulse"
+                  }`}
+                >
+                  {hasQuorum
+                    ? `✓ Quorum Met (${quorum}/${committee.length} present)`
+                    : `✗ Quorum Deficit (${quorum}/${committee.length} present)`}
+                </span>
+
+                <button
+                  onClick={() => setAddMemberModal(true)}
+                  className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 transition-all cursor-pointer border border-slate-200"
+                >
+                  <FaUserPlus size={11} />
+                  <span>Add Member</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -623,11 +702,11 @@ export default function BidOpeningPage() {
                     onClick={() => toggleAttendance(i)}
                     className={`flex flex-col items-center justify-between p-4 rounded-xl border transition-all duration-300 text-center relative overflow-hidden group cursor-pointer ${
                       m.present
-                        ? "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 shadow-sm"
+                        ? "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50 shadow-sm"
                         : "border-slate-200 bg-slate-50/50 opacity-60 hover:opacity-80"
                     }`}
                   >
-                    <div className="flex flex-col items-center space-y-2.5">
+                    <div className="flex flex-col items-center space-y-2">
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold border transition-colors ${
                           m.present
@@ -638,7 +717,7 @@ export default function BidOpeningPage() {
                         {m.present ? <FaCheck size={12} /> : initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-slate-900">
+                        <p className="text-xs font-bold text-slate-800 line-clamp-1">
                           {m.name}
                         </p>
                         <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
@@ -647,10 +726,9 @@ export default function BidOpeningPage() {
                       </div>
                     </div>
 
-                    {/* Attend tag */}
                     <div className="mt-3">
                       <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all ${
+                        className={`text-[9px] font-bold px-2.5 py-0.5 rounded-full border transition-all ${
                           m.present
                             ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                             : "bg-slate-100 text-slate-500 border-slate-200"
@@ -663,69 +741,84 @@ export default function BidOpeningPage() {
                 );
               })}
             </div>
-            {!hasQuorum && (
-              <p className="text-[11px] text-red-500 flex items-center space-x-1.5 bg-red-50/50 border border-red-100/50 rounded-xl p-3">
-                <FaExclamationTriangle size={12} className="text-red-600 shrink-0 animate-bounce" />
-                <span>
-                  <strong>Action Required:</strong> At least 3 committee members must be marked present to start the bid opening.
-                </span>
-              </p>
-            )}
           </div>
 
-          {/* ── Bids Table ── */}
+          {/* ── Bids Workspace ── */}
           {ceremonyStarted ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="px-6 py-4.5 bg-slate-50 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-0">
+              {/* Toolbar & Filters */}
+              <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200/60 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-slate-800">
-                    Received Bids ({bids.length})
+                    Received Submissions ({bids.length})
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Review and unseal bids. {openedBids.length} of {activeBidsCount} active bids unsealed.
+                    Unseal bids and verify financial envelopes and technical specification compliance.
                   </p>
                 </div>
-                <div className="flex items-center space-x-3 shrink-0">
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search bar */}
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                    <input
+                      type="text"
+                      placeholder="Search vendor or bid no..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/40 w-44 md:w-56"
+                    />
+                  </div>
+
+                  {/* Status filter */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-medium cursor-pointer"
+                  >
+                    <option value="all">All Bids ({bids.length})</option>
+                    <option value="sealed">Sealed ({sealedBidsCount})</option>
+                    <option value="opened">Unsealed ({openedBids.length})</option>
+                    <option value="withdrawn">Withdrawn ({withdrawnBidsCount})</option>
+                  </select>
+
                   {!allOpened && activeBidsCount > 0 && (
                     <button
                       onClick={handleUnsealAll}
-                      className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all duration-200 hover:-translate-y-0.5 shadow-sm cursor-pointer"
+                      className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
                     >
                       <FaLockOpen size={10} />
                       <span>Unseal All Bids</span>
                     </button>
                   )}
+
                   {allOpened && !showPrices && activeBidsCount > 0 && (
                     <button
                       onClick={() => {
                         setShowPrices(true);
-                        toast.info("Financial envelopes opened. Bid prices are now visible.");
+                        toast.info("Financial envelopes opened. Bid prices are now displayed.");
                       }}
-                      className="flex items-center space-x-1.5 px-4 py-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 hover:-translate-y-0.5 shadow-sm cursor-pointer"
+                      className="flex items-center space-x-1.5 px-4 py-2 bg-linear-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all shadow-sm cursor-pointer"
                     >
-                      <FaFileAlt size={10} />
+                      <FaEnvelopeOpenText size={11} />
                       <span>Open Financial Envelopes</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Enhanced Bid List */}
+              {/* Bids List */}
               <div className="divide-y divide-slate-100">
-                {bids.length === 0 ? (
-                  <div className="py-16 px-6 text-center space-y-3">
-                    <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
-                      <FaLockOpen size={24} />
-                    </div>
-                    <h3 className="text-base font-semibold text-slate-800">
-                      No Bids Received
-                    </h3>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      The bid box is currently empty. No suppliers submitted bids for this tender before the deadline.
+                {filteredBids.length === 0 ? (
+                  <div className="py-16 px-6 text-center space-y-2">
+                    <FaLockOpen size={24} className="mx-auto text-slate-300" />
+                    <p className="text-sm font-semibold text-slate-700">No Bids Match Criteria</p>
+                    <p className="text-xs text-slate-400">
+                      Try resetting your search query or filter selection.
                     </p>
                   </div>
                 ) : (
-                  bids.map((bid, i) => {
+                  filteredBids.map((bid, i) => {
                     const isOpened = openedBids.includes(bid._id.toString());
                     const isWithdrawn = bid.status === "withdrawn";
 
@@ -736,7 +829,7 @@ export default function BidOpeningPage() {
                           isOpened
                             ? "bg-emerald-50/20 border-l-4 border-emerald-500"
                             : isWithdrawn
-                              ? "opacity-60 bg-slate-50"
+                              ? "opacity-60 bg-slate-50 border-l-4 border-slate-300"
                               : "border-l-4 border-transparent hover:bg-slate-50/50"
                         }`}
                       >
@@ -747,37 +840,42 @@ export default function BidOpeningPage() {
                                 ? "bg-emerald-500 border-emerald-400 text-white shadow-md shadow-emerald-500/10"
                                 : isWithdrawn
                                   ? "bg-slate-200 border-slate-300 text-slate-500"
-                                  : "bg-slate-100 border-slate-200 text-slate-500 shadow-inner"
+                                  : "bg-slate-100 border-slate-200 text-slate-600 shadow-inner"
                             }`}
                           >
                             {String(i + 1).padStart(2, "0")}
                           </div>
 
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="text-sm font-bold text-slate-800 truncate">
-                              {bid.vendor}
-                            </p>
-
-                            <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono font-medium">
-                              <span>Ref: {bid.bidNumber}</span>
-                              <span>•</span>
-                              <span>Submitted: {bid.submitted}</span>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-bold text-slate-800 truncate">
+                                {bid.vendor}
+                              </p>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 font-mono font-medium">
+                              <span>Ref: {bid.bidNumber}</span>
+                              <span>•</span>
+                              <span>Submitted: {bid.submittedAtFull}</span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
                               <BidStatusChip status={bid.status || (isOpened ? "opened" : "submitted")} />
 
                               {bid.bidSecurity && !isWithdrawn && (
-                                <span className="inline-flex items-center space-x-1 text-[9px] text-amber-600 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full font-bold">
+                                <span className="inline-flex items-center space-x-1 text-[9px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full font-bold">
                                   <FaShieldAlt size={8} />
-                                  <span>Bid Security Verified</span>
+                                  <span>
+                                    {bid.bidSecurityType} (LKR {bid.bidSecurityAmount.toLocaleString("en-LK")})
+                                  </span>
                                 </span>
                               )}
 
-                              {bid.docs && bid.docs.length > 0 && (
-                                <span className="inline-flex items-center text-[9px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-bold">
-                                  {bid.docs.length} Doc{bid.docs.length > 1 ? "s" : ""} Uploaded
-                                </span>
+                              {bid.rawDocs && bid.rawDocs.length > 0 && (
+                                <div className="flex items-center space-x-1 text-[9px] text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full font-bold">
+                                  <FaFileAlt size={8} className="text-slate-400" />
+                                  <span>{bid.rawDocs.length} Doc{bid.rawDocs.length > 1 ? "s" : ""} Attached</span>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -787,9 +885,9 @@ export default function BidOpeningPage() {
                           {showPrices && !isWithdrawn && (
                             <div className="text-left md:text-right">
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Financial Bid Amount
+                                Quoted Financial Bid
                               </p>
-                              <p className="text-base font-extrabold text-slate-800 font-mono">
+                              <p className="text-base font-extrabold text-slate-850 font-mono">
                                 LKR {bid.bidAmount.toLocaleString("en-LK", { minimumFractionDigits: 2 })}
                               </p>
                             </div>
@@ -799,86 +897,128 @@ export default function BidOpeningPage() {
                             {!isOpened && !isWithdrawn && ceremonyStarted && isProcurement && (
                               <button
                                 onClick={() => setUnsealModal(bid._id)}
-                                className="flex items-center space-x-1 px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-500 hover:shadow-md hover:shadow-emerald-500/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm"
+                                className="flex items-center space-x-1 px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-500 transition-all cursor-pointer shadow-sm"
                               >
                                 <FaLockOpen size={10} />
                                 <span>Unseal Bid</span>
                               </button>
                             )}
+
                             {isOpened && !isWithdrawn && (
                               <button
-                                onClick={() => setExpandedBids(prev => ({ ...prev, [bid._id]: !prev[bid._id] }))}
-                                className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${
+                                onClick={() =>
+                                  setExpandedBids((prev) => ({
+                                    ...prev,
+                                    [bid._id]: !prev[bid._id],
+                                  }))
+                                }
+                                className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                                   expandedBids[bid._id]
-                                    ? "bg-slate-900 border-slate-800 text-white shadow-sm"
+                                    ? "bg-slate-900 border-slate-800 text-white"
                                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                                 }`}
                               >
                                 <FaClipboardList size={11} />
                                 <span>Specs Response</span>
-                                {expandedBids[bid._id] ? <FaChevronUp size={9} /> : <FaChevronDown size={9} />}
+                                {expandedBids[bid._id] ? (
+                                  <FaChevronUp size={9} />
+                                ) : (
+                                  <FaChevronDown size={9} />
+                                )}
                               </button>
                             )}
+
                             {isOpened && !isWithdrawn && (
-                              <div className="flex items-center space-x-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-xl text-xs font-bold animate-fade-in">
+                              <div className="flex items-center space-x-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-xl text-xs font-bold">
                                 <FaCheckCircle size={12} />
                                 <span>Unsealed</span>
                               </div>
                             )}
+
                             {isWithdrawn && (
                               <span className="text-xs font-semibold text-slate-400 italic">
-                                No action required
+                                Withdrawn by supplier
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Collapsible Specification Compliance Section */}
+                        {/* Specs Response Collapsible */}
                         {isOpened && expandedBids[bid._id] && (
-                          <div className="mt-2 ml-13 border border-slate-150 bg-slate-50/50 rounded-xl p-4 animate-fade-in space-y-2.5">
-                            <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                          <div className="mt-3 ml-0 md:ml-13 border border-slate-200 bg-slate-50/70 rounded-xl p-4 space-y-3 w-full">
+                            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                               <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                                 <FaClipboardList size={12} className="text-slate-500" />
                                 Technical Specification Compliance Verification
                               </span>
-                              <span className="text-[10px] text-slate-405 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
-                                {bid.specificationVotes?.length || 0} specifications responded
+                              <span className="text-[10px] text-slate-500 font-bold bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                                {bid.specificationVotes?.length || 0} specifications evaluated
                               </span>
                             </div>
-                            {(!bid.specificationVotes || bid.specificationVotes.length === 0) ? (
-                              <p className="text-xs text-slate-450 italic py-1">No specification responses found for this bid.</p>
+
+                            {!bid.specificationVotes || bid.specificationVotes.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic py-1">
+                                No technical specification votes recorded for this bid submission.
+                              </p>
                             ) : (
                               <div className="grid grid-cols-1 gap-2">
                                 {bid.specificationVotes.map((v, idx) => (
-                                  <div key={v._id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200/60">
+                                  <div
+                                    key={v._id || idx}
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-lg border border-slate-200/80 shadow-2xs"
+                                  >
                                     <div className="flex items-start space-x-2">
-                                      <span className="w-5 h-5 rounded bg-slate-100 text-[10px] font-bold text-slate-500 flex items-center justify-center shrink-0 mt-0.5">
+                                      <span className="w-5 h-5 rounded bg-slate-100 text-[10px] font-bold text-slate-600 flex items-center justify-center shrink-0 mt-0.5 font-mono">
                                         {v.specNumber || idx + 1}
                                       </span>
-                                      <span className="text-xs font-bold text-slate-700">{v.specTitle}</span>
+                                      <span className="text-xs font-bold text-slate-800">
+                                        {v.specTitle}
+                                      </span>
                                     </div>
                                     <div className="flex flex-col items-end shrink-0">
-                                      <div className="flex items-center space-x-1.5">
-                                        {v.vote === 'yes' ? (
-                                          <span className="inline-flex items-center space-x-1 text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full font-bold">
-                                            <FaThumbsUp size={8} />
-                                            <span>COMPLIANT</span>
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center space-x-1 text-[9px] text-red-700 bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full font-bold">
-                                            <FaThumbsDown size={8} />
-                                            <span>NON-COMPLIANT</span>
-                                          </span>
-                                        )}
-                                      </div>
-                                      {v.vote === 'no' && v.reason && (
-                                        <p className="text-[10px] text-red-650 font-semibold mt-1 max-w-[320px] break-all">
+                                      {v.vote === "yes" ? (
+                                        <span className="inline-flex items-center space-x-1 text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full font-bold">
+                                          <FaThumbsUp size={8} />
+                                          <span>COMPLIANT</span>
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center space-x-1 text-[9px] text-red-700 bg-red-50 border border-red-200/80 px-2 py-0.5 rounded-full font-bold">
+                                          <FaThumbsDown size={8} />
+                                          <span>NON-COMPLIANT</span>
+                                        </span>
+                                      )}
+                                      {v.vote === "no" && v.reason && (
+                                        <p className="text-[10px] text-red-600 font-semibold mt-1 max-w-[320px] break-all">
                                           Reason: {v.reason}
                                         </p>
                                       )}
                                     </div>
                                   </div>
                                 ))}
+                              </div>
+                            )}
+
+                            {/* Documents list */}
+                            {bid.rawDocs && bid.rawDocs.length > 0 && (
+                              <div className="pt-2 border-t border-slate-200/60">
+                                <p className="text-[11px] font-bold text-slate-700 mb-1.5">
+                                  Attached Documents ({bid.rawDocs.length}):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {bid.rawDocs.map((doc, docIdx) => (
+                                    <a
+                                      key={docIdx}
+                                      href={doc.url || "#"}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center space-x-1.5 text-xs bg-white text-emerald-700 border border-emerald-200 px-3 py-1 rounded-lg hover:bg-emerald-50 font-medium transition-all"
+                                    >
+                                      <FaFileAlt size={10} />
+                                      <span>{doc.name || `Document ${docIdx + 1}`}</span>
+                                      <FaExternalLinkAlt size={8} className="text-slate-400" />
+                                    </a>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -896,22 +1036,16 @@ export default function BidOpeningPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-800">
-                  Ceremony Not Started
+                  Bid Opening Ceremony Pending
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  The digital bid box is locked. Establish the committee quorum and click "Start Ceremony" to begin unsealing and verifying supplier submissions.
+                  The digital bid box is locked. Mark committee attendance and click "Start Opening Ceremony" to unseal vendor submissions.
                 </p>
               </div>
 
               {!hasQuorum && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-[11px] text-red-700 font-medium">
                   ⚠ Attendance deficit: Minimum 3 committee members must be present.
-                </div>
-              )}
-              {!canOpen && tender && !["bid_closed"].includes(tender.status) && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-700 font-medium">
-                  ⚠ Tender status must be "Bid Closed" to start.
-                  {canCloseBidding && ' Click "Close Bidding" above first.'}
                 </div>
               )}
             </div>
@@ -921,60 +1055,273 @@ export default function BidOpeningPage() {
           {ceremonyStarted &&
             (allOpened || activeBidsCount === 0) &&
             (showPrices || activeBidsCount === 0) &&
-            tender.status !== "evaluation" && (
-              <div className="bg-linear-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-500/10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            !["evaluation", "awarded", "loa_issued"].includes(tender.status) && (
+              <div className="bg-linear-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                 <div className="space-y-1">
-                  <h4 className="text-lg font-bold">
-                    🎉 Ceremony Ready to Finalize
+                  <h4 className="text-lg font-bold flex items-center space-x-2">
+                    <FaCheckCircle />
+                    <span>Ceremony Ready to Finalize</span>
                   </h4>
                   <p className="text-xs text-emerald-100">
-                    All bids have been successfully unsealed and prices displayed. The official ceremony minutes are ready for signing.
+                    All bids have been unsealed and prices revealed. Generate and save the official ceremony minutes to proceed to technical evaluation.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
                   <button
                     onClick={() => setCompleteModal(true)}
-                    className="px-5 py-3 bg-white text-emerald-700 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all duration-200 hover:-translate-y-0.5 shadow-md cursor-pointer flex items-center space-x-1.5"
+                    className="px-5 py-3 bg-white text-emerald-800 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all shadow-md cursor-pointer flex items-center space-x-1.5"
                   >
                     <FaCheckCircle size={12} />
-                    <span>Complete & Sign Minutes</span>
+                    <span>Complete Ceremony & Save Minutes</span>
                   </button>
                   <Link
                     to={`/evaluation?tenderId=${tender._id}`}
                     className="flex items-center space-x-1 text-xs text-white hover:text-emerald-100 font-bold transition-all"
                   >
-                    <span>Or Proceed to Evaluation</span>
+                    <span>Proceed to Evaluation</span>
                     <FaChevronRight size={10} />
                   </Link>
                 </div>
               </div>
             )}
 
-          {/* Already at evaluation */}
-          {tender.status === "evaluation" && (
-            <div className="bg-linear-to-r from-indigo-600 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          {/* Completed State Banner */}
+          {["evaluation", "awarded", "loa_issued"].includes(tender.status) && (
+            <div className="bg-linear-to-r from-indigo-900 via-slate-900 to-indigo-800 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-1">
-                <h4 className="text-lg font-bold">
-                  ✓ Bid Opening Ceremony Completed
+                <h4 className="text-lg font-bold flex items-center space-x-2">
+                  <FaCheckCircle className="text-emerald-400" />
+                  <span>Bid Opening Ceremony Completed</span>
                 </h4>
-                <p className="text-xs text-indigo-100">
-                  All records, logs, and signed minutes have been securely archived. The tender is now in the evaluation phase.
+                <p className="text-xs text-indigo-200">
+                  All unsealed records, committee attendance, and signed minutes are saved in the database.
                 </p>
               </div>
-              <Link
-                to={`/evaluation?tenderId=${tender._id}`}
-                className="px-5 py-3 bg-white text-indigo-700 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all duration-200 hover:-translate-y-0.5 shadow-md cursor-pointer flex items-center space-x-1.5 self-start md:self-auto shrink-0"
-              >
-                <span>Go to Evaluation Workspace</span>
-                <FaChevronRight size={12} />
-              </Link>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setMinutesModal(true)}
+                  className="px-4 py-2.5 bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-xl hover:bg-slate-700 transition-all shadow-md cursor-pointer flex items-center space-x-1.5"
+                >
+                  <FaFileAlt size={12} />
+                  <span>View Minutes Document</span>
+                </button>
+
+                <Link
+                  to={`/evaluation?tenderId=${tender._id}`}
+                  className="px-5 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-500 transition-all shadow-md cursor-pointer flex items-center space-x-1.5"
+                >
+                  <span>Go to Evaluation Workspace</span>
+                  <FaChevronRight size={12} />
+                </Link>
+              </div>
             </div>
           )}
         </>
       )}
 
-      {/* ── Modals ── */}
-      {/* Close Bidding */}
+      {/* ── Add BOC Member Modal ── */}
+      <ConfirmModal
+        isOpen={addMemberModal}
+        onClose={() => setAddMemberModal(false)}
+        onConfirm={handleAddMember}
+        title="Add Committee Member / Observer"
+        confirmText="Add Member"
+        variant="success"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Member Full Name & Title
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Dr. A. B. Perera"
+              value={newMemberName}
+              onChange={(e) => setNewMemberName(e.target.value)}
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Committee Role / Designation
+            </label>
+            <select
+              value={newMemberRole}
+              onChange={(e) => setNewMemberRole(e.target.value)}
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-medium"
+            >
+              <option value="Chairperson">Chairperson</option>
+              <option value="Technical Expert">Technical Expert</option>
+              <option value="BOC Representative">BOC Representative</option>
+              <option value="PMD Representative">PMD Representative</option>
+              <option value="End-User Rep">End-User Rep</option>
+              <option value="Independent Observer">Independent Observer</option>
+            </select>
+          </div>
+        </div>
+      </ConfirmModal>
+
+      {/* ── Official Bid Opening Minutes Modal ── */}
+      {minutesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl relative">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+              <div>
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  Government of Sri Lanka — Uva Wellassa University
+                </p>
+                <h2 className="text-xl font-extrabold text-slate-900 mt-1">
+                  OFFICIAL BID OPENING MINUTES
+                </h2>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                  Ref: {tender?.tenderNumber} | Venue: PMD Digital Bid Center
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
+                >
+                  <FaPrint size={11} />
+                  <span>Print Minutes</span>
+                </button>
+                <button
+                  onClick={() => setMinutesModal(false)}
+                  className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Document Body */}
+            <div className="space-y-6 text-xs text-slate-700 font-sans leading-relaxed">
+              {/* Tender Details Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/80">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Tender Title</p>
+                  <p className="font-bold text-slate-800 line-clamp-1">{tender?.title}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Submission Deadline</p>
+                  <p className="font-bold text-slate-800">
+                    {tender?.closingDate ? new Date(tender.closingDate).toLocaleDateString("en-LK") : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Ceremony Opened At</p>
+                  <p className="font-bold text-slate-800">
+                    {tender?.bidBoxOpenedAt ? new Date(tender.bidBoxOpenedAt).toLocaleString("en-LK") : "Just now"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Total Submissions</p>
+                  <p className="font-bold text-emerald-700">{bids.length} Bids</p>
+                </div>
+              </div>
+
+              {/* Committee Attendance Table */}
+              <div>
+                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">
+                  1. Committee Attendance & Quorum
+                </h4>
+                <table className="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 font-bold">
+                    <tr>
+                      <th className="p-2 border-b">Member Name</th>
+                      <th className="p-2 border-b">Designation / Role</th>
+                      <th className="p-2 border-b">Attendance</th>
+                      <th className="p-2 border-b text-right">Digital Sign Off</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {committee.map((m, idx) => (
+                      <tr key={idx}>
+                        <td className="p-2 font-bold text-slate-800">{m.name}</td>
+                        <td className="p-2 text-slate-600">{m.role}</td>
+                        <td className="p-2">
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              m.present ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {m.present ? "PRESENT" : "ABSENT"}
+                          </span>
+                        </td>
+                        <td className="p-2 text-right font-mono text-[10px] text-emerald-700 font-bold">
+                          {m.present ? "✓ SIGNED" : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bids Log Table */}
+              <div>
+                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">
+                  2. Received Bids & Financial Envelopes Opened
+                </h4>
+                <table className="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 font-bold">
+                    <tr>
+                      <th className="p-2 border-b">No</th>
+                      <th className="p-2 border-b">Bid Ref</th>
+                      <th className="p-2 border-b">Vendor Company Name</th>
+                      <th className="p-2 border-b">Bid Security Status</th>
+                      <th className="p-2 border-b text-right">Quoted Amount (LKR)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    {bids.map((b, idx) => (
+                      <tr key={b._id}>
+                        <td className="p-2 font-bold text-slate-600">{idx + 1}</td>
+                        <td className="p-2 text-slate-700">{b.bidNumber}</td>
+                        <td className="p-2 font-sans font-bold text-slate-800">{b.vendor}</td>
+                        <td className="p-2 font-sans">
+                          {b.bidSecurity ? (
+                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                              ✓ Verified ({b.bidSecurityType})
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400">None</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-right font-bold text-slate-900">
+                          {b.status === "withdrawn"
+                            ? "WITHDRAWN"
+                            : `LKR ${b.bidAmount.toLocaleString("en-LK", { minimumFractionDigits: 2 })}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Signatures Block */}
+              <div className="pt-6 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-6">
+                {committee
+                  .filter((c) => c.present)
+                  .map((m, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <div className="h-10 border-b border-dashed border-slate-300 flex items-end">
+                        <span className="text-[10px] font-mono text-emerald-700 italic">
+                          Signed digitally by {m.name}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-800">{m.name}</p>
+                      <p className="text-[9px] text-slate-400">{m.role}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm Modals ── */}
       <ConfirmModal
         isOpen={closeModal}
         onClose={() => setCloseModal(false)}
@@ -983,58 +1330,26 @@ export default function BidOpeningPage() {
         confirmText="Close & Seal"
         variant="danger"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Officially close the bidding period for{" "}
-            <span className="font-bold text-slate-800">"{tender?.title}"</span>?
-          </p>
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-xs text-orange-700 leading-relaxed">
-              No further bids will be accepted. The digital bid box will be sealed until the official opening ceremony. This action is irreversible and will be logged.
-            </p>
-          </div>
-          <div className="text-xs text-slate-500 flex justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <span>Total bids received:</span>
-            <strong className="text-slate-800">{bids.length}</strong>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600">
+          Officially close the bidding period for{" "}
+          <span className="font-bold text-slate-800">"{tender?.title}"</span>? No further bids will be accepted.
+        </p>
       </ConfirmModal>
 
-      {/* Start Ceremony */}
       <ConfirmModal
         isOpen={startModal}
         onClose={() => setStartModal(false)}
         onConfirm={handleStartCeremony}
         title="Start Bid Opening Ceremony"
-        confirmText="Start & Record"
+        confirmText="Start Ceremony"
         variant="success"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Begin the official bid opening ceremony for{" "}
-            <span className="font-bold text-slate-800">"{tender?.title}"</span>?
-          </p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
-            <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">
-              Committee Present:
-            </p>
-            <p className="text-xs text-emerald-700 font-medium">
-              {committee
-                .filter((c) => c.present)
-                .map((c) => c.name)
-                .join(", ")}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <FaVideo className="text-slate-400 shrink-0 animate-pulse" size={12} />
-            <span>
-              Video recording will be initiated automatically for the public audit record.
-            </span>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600">
+          Begin the official bid opening ceremony for{" "}
+          <span className="font-bold text-slate-800">"{tender?.title}"</span>?
+        </p>
       </ConfirmModal>
 
-      {/* Unseal Single */}
       <ConfirmModal
         isOpen={!!unsealModal}
         onClose={() => setUnsealModal(null)}
@@ -1043,59 +1358,26 @@ export default function BidOpeningPage() {
         confirmText="Unseal"
         variant="default"
       >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Are you sure you want to unseal the bid from{" "}
-            <span className="font-bold text-slate-850">
-              "{bids.find((b) => b._id === unsealModal)?.vendor || "—"}"
-            </span>
-            ? This action is recorded and irreversible.
-          </p>
-        </div>
+        <p className="text-sm text-slate-600">
+          Are you sure you want to unseal the bid from{" "}
+          <span className="font-bold text-slate-850">
+            "{bids.find((b) => b._id === unsealModal)?.vendor || "—"}"
+          </span>
+          ?
+        </p>
       </ConfirmModal>
 
-      {/* Complete */}
       <ConfirmModal
         isOpen={completeModal}
         onClose={() => setCompleteModal(false)}
         onConfirm={handleCompleteCeremony}
         title="Complete Ceremony & Sign Minutes"
-        confirmText="Sign & Complete"
+        confirmText="Save & Complete"
         variant="success"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Finalize the bid opening ceremony and sign the minutes.
-          </p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2 text-xs text-slate-700">
-            <div className="flex justify-between pb-1.5 border-b border-emerald-100/50">
-              <span className="text-slate-500 font-medium">Bids Successfully Opened</span>
-              <span className="font-bold text-slate-800 font-mono">{openedBids.length}</span>
-            </div>
-            <div className="flex justify-between pb-1.5 border-b border-emerald-100/50">
-              <span className="text-slate-500 font-medium">Withdrawn / Disqualified</span>
-              <span className="font-bold text-red-600 font-mono">
-                {
-                  bids.filter(
-                    (b) =>
-                      b.status === "withdrawn" ||
-                      (b.deviations || []).some((d) => d.includes("MAJOR")),
-                  ).length
-                }
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500 font-medium">Committee Signatures Applied</span>
-              <span className="font-bold text-emerald-800">{quorum} signatures</span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <FaShieldAlt className="text-slate-400 shrink-0" size={12} />
-            <span>
-              All committee members' digital signatures will be applied to the minutes for audit trails.
-            </span>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600">
+          Finalize the bid opening ceremony and save official signed minutes to the database.
+        </p>
       </ConfirmModal>
     </div>
   );

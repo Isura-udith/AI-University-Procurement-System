@@ -248,6 +248,25 @@ class AuditLogService {
   }
 
   /**
+   * Export audit logs as a formatted CSV string.
+   */
+  async exportCSV(query, tenantId) {
+    const { data } = await this.query({ ...query, limit: 1000 }, tenantId);
+    let csv = 'Timestamp,User Name,User Email,Role,Action,Category,Severity,Status,IP Address,Description\n';
+    
+    data.forEach(log => {
+      const dt = log.createdAt ? new Date(log.createdAt).toISOString() : '';
+      const name = log.userName || (log.userId ? `${log.userId.firstName} ${log.userId.lastName}` : '');
+      const email = log.userEmail || log.userId?.email || '';
+      const desc = (log.description || '').replace(/"/g, '""');
+
+      csv += `"${dt}","${name}","${email}","${log.userRole || ''}","${log.action}","${log.category}","${log.severity}","${log.status}","${log.ipAddress || ''}","${desc}"\n`;
+    });
+
+    return csv;
+  }
+
+  /**
    * Auto-generate human-readable descriptions.
    */
   _generateDescription(action, user, targetUser) {
@@ -285,3 +304,4 @@ class AuditLogService {
 }
 
 module.exports = new AuditLogService();
+
