@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch, FaPlus, FaTrash, FaClipboardList } from 'react-icons/fa';
+import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch, FaPlus, FaTrash, FaClipboardList, FaGripVertical, FaStar, FaLightbulb } from 'react-icons/fa';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
 import planningService from '../../../services/planning.service';
@@ -154,7 +154,7 @@ export default function CreateRequest() {
     deliveryLocation: 'UWU Supplies Division, Passara Road, Badulla', priority: 'normal',
     conflictDeclared: false, ethicsDeclared: false,
   });
-  const [boqItems, setBoqItems] = useState([{ description: '', unit: '', qty: '', unitPrice: '' }]);
+  const [boqItems, setBoqItems] = useState([{ description: '', specifications: '', unit: '', qty: '', unitPrice: '' }]);
   const [techSpecs, setTechSpecs] = useState([]);
   const [files, setFiles] = useState([]);
   const [aiWarning, setAiWarning] = useState('');
@@ -319,6 +319,7 @@ export default function CreateRequest() {
           if (reqData.items && reqData.items.length > 0) {
             setBoqItems(reqData.items.map(it => ({
               description: it.description || '',
+              specifications: it.specifications || '',
               unit: it.unit || 'nos',
               qty: String(it.quantity || 1),
               unitPrice: String(it.estimatedUnitPrice || 0)
@@ -330,6 +331,7 @@ export default function CreateRequest() {
               title: s.title || '',
               description: s.description || '',
               isMandatory: s.isMandatory !== false,
+              priority: s.priority || 'required',
             })));
           }
         } catch (err) {
@@ -459,16 +461,24 @@ export default function CreateRequest() {
 
   const needsJustification = form.method === 'direct' || form.method === 'shopping';
 
-  const handleTechDescChange = (e) => {
-    const val = e.target.value;
-    set('techDescription')({ target: { value: val } });
+  // Brand-name AI scan across all tech spec titles and descriptions
+  const scanTechSpecsBrands = (specs) => {
     const brands = ['Samsung', 'Apple', 'HP', 'Dell', 'Lenovo', 'Sony', 'LG', 'Canon', 'Epson', 'Huawei'];
-    const found = brands.filter(b => val.toLowerCase().includes(b.toLowerCase()));
+    const allText = specs.map(s => `${s.title} ${s.description}`).join(' ').toLowerCase();
+    const found = brands.filter(b => allText.includes(b.toLowerCase()));
     if (found.length > 0) {
-      setAiWarning(`AI Alert: Brand name(s) detected - "${found.join('", "')}". Specifications appear to be brand-specific. Please use generic descriptions to ensure fair competition.`);
+      setAiWarning(`AI Alert: Brand name(s) detected — "${found.join('", "')}". Specifications appear to be brand-specific. Please use generic descriptions to ensure fair competition per NPA guidelines.`);
     } else {
       setAiWarning('');
     }
+  };
+
+  // Update a tech spec field and run brand scan
+  const updateTechSpec = (index, field, value) => {
+    const updated = [...techSpecs];
+    updated[index] = { ...updated[index], [field]: value };
+    setTechSpecs(updated);
+    scanTechSpecsBrands(updated);
   };
 
   const handleFileUpload = (e) => {
@@ -494,10 +504,13 @@ export default function CreateRequest() {
     if (!form.conflictDeclared) errs.conflictDeclared = 'You must declare';
     if (!form.ethicsDeclared) errs.ethicsDeclared = 'You must affirm';
     if (baseNum <= 0) errs.baseAmount = 'Enter a valid amount';
+    // Validate that every BOQ item has specifications
+    const missingSpecs = boqItems.some(item => item.description?.trim() && !item.specifications?.trim());
+    if (missingSpecs) errs.specifications = 'All items must have full specifications';
     setErrors(errs);
     
     if (Object.keys(errs).length > 0) {
-      toast.error('Please fix the validation errors before proceeding.');
+      toast.error(errs.specifications || 'Please fix the validation errors before proceeding.');
       return;
     }
 
@@ -520,6 +533,7 @@ export default function CreateRequest() {
 
       const dbItems = boqItems.map(item => ({
         description: item.description,
+        specifications: item.specifications || '',
         category: dbCategory,
         quantity: parseFloat(item.qty) || 0,
         unit: item.unit || 'nos',
@@ -528,7 +542,7 @@ export default function CreateRequest() {
 
       const payload = {
         title: form.contractTitle,
-        description: form.techDescription || form.contractTitle,
+        description: techSpecs.filter(s => s.title.trim()).map(s => `${s.title}: ${s.description}`).join('; ') || form.contractTitle,
         justification: form.methodJustification,
         category: dbCategory,
         priority: form.priority === 'urgent' ? 'urgent' : form.priority === 'emergency' ? 'urgent' : 'medium',
@@ -560,6 +574,7 @@ export default function CreateRequest() {
           title: s.title.trim(),
           description: s.description.trim(),
           isMandatory: s.isMandatory,
+          priority: s.priority || 'required',
         })),
       };
 
@@ -1154,20 +1169,7 @@ export default function CreateRequest() {
               <SelectInput value={form.category} onChange={set('category')} options={CATEGORIES} placeholder="Select category..." />
             </FormField>
           </div>
-          <FormField label="Detailed Technical Description" required>
-            <TextArea value={form.techDescription} onChange={handleTechDescChange} rows={5} placeholder="Enter full technical specifications. The AI will scan for brand names..." />
-          </FormField>
-          {aiWarning && (
-            <div className="flex items-start space-x-4 bg-linear-to-r from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-2xl px-5 py-4 shadow-sm">
-              <div className="bg-amber-100/80 p-2 rounded-xl shrink-0">
-                <FaRobot className="text-amber-600" size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-amber-800">AI Specification Review</p>
-                <p className="text-[13px] font-medium text-amber-700/90 mt-1 leading-relaxed">{aiWarning}</p>
-              </div>
-            </div>
-          )}
+
           <FormField label="Drawings, Plans &amp; Supporting Documents" hint="Accepted: PDF, DOCX, XLSX only. Files are malware-scanned on upload.">
             <div className="border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl p-8 text-center hover:bg-slate-50 hover:border-emerald-300 transition-all cursor-pointer relative group">
               <input type="file" multiple accept=".pdf,.docx,.xlsx" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
@@ -1197,119 +1199,234 @@ export default function CreateRequest() {
             <BOQTable items={boqItems} setItems={setBoqItems} />
           </FormField>
 
-          {/* ── Technical Specifications (Vendor Voting) ── */}
+          {/* ── Technical Specifications – Requirements Builder ── */}
           <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <FaClipboardList className="text-emerald-600" size={16} />
-                <h3 className="text-sm font-bold text-slate-700">Technical Specifications</h3>
-                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold border border-blue-100">Vendors vote Yes/No on each</span>
+            {/* Section Header */}
+            <div className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 mb-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl pointer-events-none"></div>
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                    <FaClipboardList className="text-white" size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-bold text-white tracking-tight">Technical Specifications</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Vendors respond Yes/No to each requirement during bid submission</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {techSpecs.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-bold border border-emerald-500/30">
+                        {techSpecs.length} spec{techSpecs.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className="text-[11px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full font-bold border border-amber-500/30">
+                        {techSpecs.filter(s => s.isMandatory).length} mandatory
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true, priority: 'required' }])}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:shadow-emerald-400/30 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <FaPlus size={10} />
+                    <span>Add Requirement</span>
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true }])}
-                className="flex items-center space-x-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
-              >
-                <FaPlus size={10} />
-                <span>Add Specification</span>
-              </button>
             </div>
-            <p className="text-xs text-slate-500 mb-3">Define technical specifications that vendors must respond to (Yes/No compliance) when submitting bids. Mark mandatory specs that require a response.</p>
 
+            {/* AI Brand Warning */}
+            {aiWarning && (
+              <div className="flex items-start space-x-4 bg-linear-to-r from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-2xl px-5 py-4 shadow-sm mb-4 animate-[fadeIn_0.3s_ease-out]">
+                <div className="bg-amber-100/80 p-2.5 rounded-xl shrink-0">
+                  <FaRobot className="text-amber-600" size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">AI Specification Review</p>
+                  <p className="text-[13px] font-medium text-amber-700/90 mt-1 leading-relaxed">{aiWarning}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
             {techSpecs.length === 0 ? (
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
-                <FaClipboardList className="mx-auto text-slate-300 mb-2" size={24} />
-                <p className="text-sm text-slate-400 font-medium">No technical specifications added yet</p>
-                <p className="text-xs text-slate-400 mt-1">Click "Add Specification" to define requirements vendors will vote on</p>
-                <button
-                  type="button"
-                  onClick={() => setTechSpecs([{ title: '', description: '', isMandatory: true }])}
-                  className="mt-3 inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-200"
-                >
-                  <FaPlus size={10} />
-                  <span>Add First Specification</span>
-                </button>
+              <div className="border-2 border-dashed border-slate-200/80 rounded-2xl p-10 text-center bg-linear-to-b from-slate-50/50 to-white relative overflow-hidden">
+                <div className="absolute top-4 right-4 w-20 h-20 bg-emerald-100/40 rounded-full blur-2xl pointer-events-none"></div>
+                <div className="w-16 h-16 mx-auto bg-linear-to-br from-emerald-50 to-teal-50 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-emerald-100/60">
+                  <FaClipboardList className="text-emerald-400" size={28} />
+                </div>
+                <h4 className="text-[15px] font-bold text-slate-700 mb-1">No Technical Requirements Defined</h4>
+                <p className="text-[13px] text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Define the technical requirements that vendors must comply with. Each specification will be presented as a Yes/No compliance question during bid evaluation.
+                </p>
+                <div className="flex items-center justify-center space-x-2 mt-5">
+                  <button
+                    type="button"
+                    onClick={() => setTechSpecs([{ title: '', description: '', isMandatory: true, priority: 'required' }])}
+                    className="inline-flex items-center space-x-2 px-5 py-2.5 bg-linear-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <FaPlus size={11} />
+                    <span>Add First Requirement</span>
+                  </button>
+                </div>
+                <div className="mt-6 flex items-center justify-center space-x-6 text-[11px] text-slate-400">
+                  <div className="flex items-center space-x-1.5">
+                    <FaLightbulb className="text-amber-400" size={10} />
+                    <span>Tip: Use brand-neutral descriptions</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <FaCheckCircle className="text-emerald-400" size={10} />
+                    <span>AI scans for brand names automatically</span>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
                 {techSpecs.map((spec, i) => (
-                  <div key={i} className="border border-slate-200 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center space-x-2 shrink-0">
-                        <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-bold border border-emerald-100">
-                          {i + 1}
-                        </span>
-                      </div>
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Title *</label>
+                  <div
+                    key={i}
+                    className={`group relative border rounded-2xl bg-white transition-all duration-200 hover:shadow-md ${
+                      spec.isMandatory
+                        ? 'border-emerald-200/80 hover:border-emerald-300'
+                        : 'border-slate-200/80 hover:border-slate-300'
+                    }`}
+                    style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
+                  >
+                    {/* Left accent bar */}
+                    <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full transition-colors ${
+                      spec.isMandatory ? 'bg-emerald-500' : 'bg-slate-300'
+                    }`}></div>
+
+                    <div className="pl-5 pr-4 py-4">
+                      {/* Top Row: Drag handle + Number + Title + Controls */}
+                      <div className="flex items-start gap-3">
+                        {/* Drag handle & number */}
+                        <div className="flex flex-col items-center space-y-1.5 pt-1 shrink-0">
+                          <FaGripVertical className="text-slate-300 group-hover:text-slate-400 transition-colors cursor-grab" size={12} />
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold border ${
+                            spec.isMandatory
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-slate-50 text-slate-500 border-slate-200'
+                          }`}>
+                            {i + 1}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Requirement Title *</label>
                           <input
                             value={spec.title}
-                            onChange={e => {
-                              const updated = [...techSpecs];
-                              updated[i] = { ...updated[i], title: e.target.value };
-                              setTechSpecs(updated);
-                            }}
-                            placeholder="e.g. Print Speed"
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+                            onChange={e => updateTechSpec(i, 'title', e.target.value)}
+                            placeholder="e.g. Print Speed, Memory Capacity, Display Resolution..."
+                            className="w-full px-3.5 py-2.5 text-sm font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white hover:border-slate-300 transition-all placeholder:text-slate-300"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
-                          <input
-                            value={spec.description}
-                            onChange={e => {
-                              const updated = [...techSpecs];
-                              updated[i] = { ...updated[i], description: e.target.value };
-                              setTechSpecs(updated);
-                            }}
-                            placeholder="e.g. Minimum 30 ppm A4 mono"
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
-                          />
+
+                        {/* Mandatory toggle */}
+                        <div className="flex flex-col items-center shrink-0 pt-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mandatory</span>
+                          <button
+                            type="button"
+                            onClick={() => updateTechSpec(i, 'isMandatory', !spec.isMandatory)}
+                            className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                              spec.isMandatory
+                                ? 'bg-emerald-500 focus:ring-emerald-500/40 shadow-inner shadow-emerald-600/30'
+                                : 'bg-slate-300 focus:ring-slate-400/40'
+                            }`}
+                            title={spec.isMandatory ? 'Mandatory — vendors must comply' : 'Optional — nice to have'}
+                          >
+                            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${
+                              spec.isMandatory ? 'left-5.5' : 'left-0.5'
+                            }`}></span>
+                          </button>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-3 shrink-0 pt-5">
-                        <label className="flex items-center space-x-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={spec.isMandatory}
-                            onChange={e => {
-                              const updated = [...techSpecs];
-                              updated[i] = { ...updated[i], isMandatory: e.target.checked };
-                              setTechSpecs(updated);
-                            }}
-                            className="w-4 h-4 accent-emerald-600 rounded"
-                          />
-                          <span className="text-xs font-semibold text-slate-600">Mandatory</span>
-                        </label>
+
+                        {/* Delete */}
                         <button
                           type="button"
-                          onClick={() => setTechSpecs(techSpecs.filter((_, idx) => idx !== i))}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove specification"
+                          onClick={() => {
+                            const updated = techSpecs.filter((_, idx) => idx !== i);
+                            setTechSpecs(updated);
+                            scanTechSpecsBrands(updated);
+                          }}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100 shrink-0 mt-5"
+                          title="Remove requirement"
                         >
-                          <FaTrash size={12} />
+                          <FaTrash size={13} />
                         </button>
+                      </div>
+
+                      {/* Description textarea */}
+                      <div className="mt-3 ml-10">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Detailed Description & Acceptance Criteria</label>
+                        <textarea
+                          value={spec.description}
+                          onChange={e => updateTechSpec(i, 'description', e.target.value)}
+                          placeholder="Describe the full requirement in detail. E.g.: Must support A4 & A3 paper sizes; minimum 1200x1200 DPI resolution; duplex printing required; energy-star certified..."
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all resize-y min-h-18 placeholder:text-slate-300 leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Footer: Priority selector + status */}
+                      <div className="mt-3 ml-10 flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Priority:</span>
+                          {[
+                            { value: 'critical', label: 'Critical', color: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100', activeColor: 'bg-red-100 text-red-700 border-red-300 ring-2 ring-red-200', icon: FaExclamationTriangle },
+                            { value: 'required', label: 'Required', color: 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100', activeColor: 'bg-amber-100 text-amber-700 border-amber-300 ring-2 ring-amber-200', icon: FaStar },
+                            { value: 'nice-to-have', label: 'Nice to Have', color: 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100', activeColor: 'bg-slate-100 text-slate-700 border-slate-300 ring-2 ring-slate-200', icon: FaLightbulb },
+                          ].map(p => (
+                            <button
+                              key={p.value}
+                              type="button"
+                              onClick={() => updateTechSpec(i, 'priority', p.value)}
+                              className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all duration-200 ${
+                                (spec.priority || 'required') === p.value ? p.activeColor : p.color
+                              }`}
+                            >
+                              <p.icon size={9} />
+                              <span>{p.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center space-x-2 text-[10px] text-slate-400">
+                          {spec.isMandatory && <span className="flex items-center space-x-1 text-emerald-500 font-bold"><FaCheckCircle size={9} /><span>Compliance required</span></span>}
+                          {!spec.isMandatory && <span className="flex items-center space-x-1 text-slate-400 font-medium"><FaInfoCircle size={9} /><span>Optional</span></span>}
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
 
-            {techSpecs.length > 0 && (
-              <div className="mt-3 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true }])}
-                  className="inline-flex items-center space-x-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-                >
-                  <FaPlus size={10} />
-                  <span>Add Another Specification</span>
-                </button>
-                <span className="text-xs text-slate-400">
-                  {techSpecs.length} specification{techSpecs.length !== 1 ? 's' : ''} · {techSpecs.filter(s => s.isMandatory).length} mandatory
-                </span>
+                {/* Add More + Summary Footer */}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true, priority: 'required' }])}
+                    className="inline-flex items-center space-x-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors group/add"
+                  >
+                    <span className="w-6 h-6 rounded-lg bg-emerald-50 group-hover/add:bg-emerald-100 flex items-center justify-center transition-colors">
+                      <FaPlus size={10} />
+                    </span>
+                    <span>Add Another Requirement</span>
+                  </button>
+                  <div className="flex items-center space-x-3 text-[11px]">
+                    <span className="text-slate-400 font-medium">
+                      {techSpecs.length} requirement{techSpecs.length !== 1 ? 's' : ''}
+                    </span>
+                    {techSpecs.filter(s => (s.priority || 'required') === 'critical').length > 0 && (
+                      <span className="text-red-500 font-bold flex items-center space-x-1">
+                        <FaExclamationTriangle size={9} />
+                        <span>{techSpecs.filter(s => (s.priority || 'required') === 'critical').length} critical</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1599,7 +1716,7 @@ export default function CreateRequest() {
                   </button>
                 </>
               ) : (
-                <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                <div className="space-y-4 max-h-350px overflow-y-auto pr-1">
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-start space-x-3">
                     <div className="bg-emerald-500/20 text-emerald-400 p-2 rounded-xl shrink-0">
                       <FaCheckCircle size={18} />

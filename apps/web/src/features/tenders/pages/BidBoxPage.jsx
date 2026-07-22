@@ -5,7 +5,7 @@ import {
   FaBoxOpen, FaLock, FaClock, FaUpload, FaFileAlt, FaTimes, FaCheckCircle,
   FaShieldAlt, FaSpinner, FaPlus, FaTrash, FaBan, FaChevronDown, FaChevronUp,
   FaHistory, FaTrophy, FaExclamationTriangle, FaSearch, FaChevronRight,
-  FaClipboardList, FaThumbsUp, FaThumbsDown,
+  FaClipboardList, FaThumbsUp, FaThumbsDown, FaInfoCircle,
 } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -40,7 +40,7 @@ function CountdownTimer({ deadline }) {
         { val: timeLeft.seconds, label: 's' },
       ].map((u, i) => (
         <div key={i} className="flex items-center">
-          <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded min-w-[28px] text-center ${urgent ? 'bg-red-700 text-white animate-pulse' : 'bg-slate-800 text-white'}`}>
+          <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded min-w-7 text-center ${urgent ? 'bg-red-700 text-white animate-pulse' : 'bg-slate-800 text-white'}`}>
             {String(u.val || 0).padStart(2, '0')}
           </span>
           <span className="text-[10px] text-slate-400 ml-0.5 mr-1">{u.label}</span>
@@ -815,7 +815,7 @@ export default function BidBoxPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="p-4 space-y-3 max-h-[320px] overflow-y-auto">
+                  <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
                     {tenderSpecs.map((spec, i) => {
                       const vote = specVotes.find(v => v.specNumber === spec.specNumber) || {};
                       return (
@@ -959,6 +959,50 @@ export default function BidBoxPage() {
                   </div>
                 </div>
               )}
+
+              {/* ── NOTE TO BIDDERS (UWU Deputy Bursar) ── */}
+              <div className="border border-amber-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-linear-to-r from-amber-50 to-orange-50 border-b border-amber-200 flex items-center space-x-2">
+                  <FaInfoCircle className="text-amber-600" size={14} />
+                  <span className="text-sm font-bold text-amber-900">Note to Bidders — Uva Wellassa University</span>
+                </div>
+                <div className="p-4 bg-amber-50/30 space-y-2">
+                  <ul className="space-y-2 text-[11px] text-amber-900 leading-relaxed">
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">1</span>
+                      <span>All columns on the reverse of the form must be filled in <strong>ink</strong>.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">2</span>
+                      <span>Any alterations/deletions should be <strong>initialed by the bidder</strong>.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">3</span>
+                      <span>Please avoid using <strong>Tip-ex</strong> and any similar substance or writing one over the other.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">4</span>
+                      <span>Indicate any <strong>discounts applicable</strong> and any other <strong>taxes charged</strong> in addition to the amount quoted.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">5</span>
+                      <span>Submit the quotation with <strong>authorized signature</strong> and <strong>company seal</strong>.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">6</span>
+                      <span>All <strong>brochures/literature</strong> should be submitted with the offer. Details of <strong>guarantee/warranty</strong> and <strong>delivery date</strong> should be mentioned.</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="w-4 h-4 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">7</span>
+                      <span>Goods should be delivered to <strong>Uva Wellassa University, Passara Road, Badulla</strong>. Indicate transportation charges if any.</span>
+                    </li>
+                  </ul>
+                  <div className="pt-2 border-t border-amber-200 mt-3">
+                    <p className="text-[10px] text-amber-800 font-semibold">Yours Faithfully,</p>
+                    <p className="text-[11px] text-amber-900 font-black">Deputy Bursar (Supplies & Stores), Uva Wellassa University</p>
+                  </div>
+                </div>
+              </div>
 
               {/* Terms */}
               <label className="flex items-start space-x-3 cursor-pointer">

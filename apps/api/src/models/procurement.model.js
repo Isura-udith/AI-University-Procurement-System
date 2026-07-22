@@ -4,7 +4,7 @@ const procurementItemSchema = new mongoose.Schema({
   itemNumber: Number,
   description: { type: String, required: true },
   category: { type: String, enum: ['Goods', 'Services', 'Works', 'Consulting'], required: true },
-  specifications: String,
+  specifications: { type: String, required: true },
   quantity: { type: Number, required: true },
   unit: { type: String, required: true },
   estimatedUnitPrice: { type: Number, required: true },
