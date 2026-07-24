@@ -58,6 +58,7 @@ import UserManagement from "../features/users/pages/UserManagement";
 
 // Phase 1-4: Strategic Planning
 import StrategicPlanningHub from "../features/planning/pages/StrategicPlanningHub";
+import DraftMasterPlanSheet from "../features/planning/pages/DraftMasterPlanSheet";
 import MasterPlanList from "../features/planning/pages/MasterPlanList";
 import CreateMasterPlan from "../features/planning/pages/CreateMasterPlan";
 import MasterPlanDetail from "../features/planning/pages/MasterPlanDetail";
@@ -208,6 +209,7 @@ export default function RoutesConfig() {
 
         {/* Phase 1-4: Strategic Planning */}
         <Route path="/planning" element={<ProtectedRoute><StrategicPlanningHub /></ProtectedRoute>} />
+        <Route path="/planning/draft-sheet" element={<ProtectedRoute><DraftMasterPlanSheet /></ProtectedRoute>} />
         <Route path="/planning/master-plans" element={<ProtectedRoute><MasterPlanList /></ProtectedRoute>} />
         <Route path="/planning/master-plans/new" element={<ProtectedRoute><CreateMasterPlan /></ProtectedRoute>} />
         <Route path="/planning/master-plans/:id" element={<ProtectedRoute><MasterPlanDetail /></ProtectedRoute>} />

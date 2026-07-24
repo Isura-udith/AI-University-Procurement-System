@@ -6,7 +6,7 @@ import {
   FaFileAlt, FaBoxOpen, FaGavel, FaBalanceScale,
   FaFileContract, FaTruck, FaMoneyCheckAlt, FaChartBar,
   FaUsers, FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
-  FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot,
+  FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot, FaTable,
 } from 'react-icons/fa';
 import { logout } from '../app/store';
 
@@ -56,6 +56,7 @@ const navSections = [
     items: [
       { path: '/workflow', label: '45-Step Lifecycle', icon: FaSitemap },
       { path: '/planning', label: 'Planning Hub', icon: FaLayerGroup },
+      { path: '/planning/draft-sheet', label: 'Master Plan Sheet (Excel)', icon: FaTable },
       { path: '/planning/master-plans', label: 'Master Plans (3-Yr)', icon: FaLayerGroup },
       { path: '/planning/annual-plans', label: 'Annual Plans', icon: FaCalendarAlt },
       { path: '/planning/budget-distribution', label: 'Budget Distribution', icon: FaMoneyBillWave },

@@ -183,6 +183,7 @@ export const ROUTE_ACCESS = {
 
   // ── Strategic Planning (Phases 1–4) ──────────────────────────
   '/planning': APPROVAL_ROLES,
+  '/planning/draft-sheet': INTERNAL_ROLES,
   '/planning/master-plans': APPROVAL_ROLES,
   '/planning/master-plans/new': [
     ROLES.DEPARTMENT_HEAD, ROLES.PROCUREMENT_OFFICER,
