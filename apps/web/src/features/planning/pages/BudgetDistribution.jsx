@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { FaCheck, FaPlus, FaShoppingCart, FaCheckCircle, FaArrowRight } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import planningService from '../../../services/planning.service';
+import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
 
 const DISTRIBUTION_STEPS = [
   { key: 'vc_distributed', label: 'VC → Finance Committee', role: 'vc' },
@@ -12,12 +13,6 @@ const DISTRIBUTION_STEPS = [
   { key: 'dean_notified', label: 'Deans Notified', role: 'dean' },
   { key: 'hod_notified', label: 'HODs Notified', role: 'department_head' },
   { key: 'complete', label: 'Distribution Complete', role: null },
-];
-
-const FACULTIES = [
-  'Faculty of Applied Sciences', 'Faculty of Medicine', 'Faculty of Management Studies',
-  'Faculty of Technology', 'Faculty of Graduate Studies', 'ICT Centre', 'Library',
-  'Works Division', 'Supplies Division', 'Finance Division',
 ];
 
 
@@ -71,7 +66,7 @@ export default function BudgetDistribution() {
   const [createForm, setCreateForm] = useState({
     annualPlanId: '', budgetYear: new Date().getFullYear(),
     totalUniversityBudget: '', procurementBudget: '',
-    departmentAllocations: [{ faculty: FACULTIES[0], department: '', allocatedAmount: '' }],
+    departmentAllocations: [{ faculty: DEPARTMENTS_AND_FACULTIES[0], department: DEPARTMENTS_BY_FACULTY[DEPARTMENTS_AND_FACULTIES[0]]?.[0] || '', allocatedAmount: '' }],
   });
 
   useEffect(() => {
@@ -121,7 +116,7 @@ export default function BudgetDistribution() {
     } catch (err) { console.error(err); toast.error(err?.message || err?.response?.data?.message || 'Failed to create allocation'); }
   };
 
-  const addDeptRow = () => setCreateForm(f => ({ ...f, departmentAllocations: [...f.departmentAllocations, { faculty: FACULTIES[0], department: '', allocatedAmount: '' }] }));
+  const addDeptRow = () => setCreateForm(f => ({ ...f, departmentAllocations: [...f.departmentAllocations, { faculty: DEPARTMENTS_AND_FACULTIES[0], department: DEPARTMENTS_BY_FACULTY[DEPARTMENTS_AND_FACULTIES[0]]?.[0] || '', allocatedAmount: '' }] }));
   const removeDeptRow = (i) => setCreateForm(f => ({ ...f, departmentAllocations: f.departmentAllocations.filter((_, idx) => idx !== i) }));
 
   const fmtCurrency = (n) => n ? `LKR ${(Number(n) / 1000000).toFixed(1)}M` : '—';
@@ -179,23 +174,42 @@ export default function BudgetDistribution() {
               <label className="text-xs font-semibold text-slate-600">Department Allocations</label>
               <button type="button" onClick={addDeptRow} className="text-xs text-emerald-600 font-semibold hover:underline"><FaPlus size={10} className="inline mr-1" /> Add Row</button>
             </div>
-            {createForm.departmentAllocations.map((row, i) => (
-              <div key={i} className="grid grid-cols-3 gap-2">
-                <select value={row.faculty} onChange={e => setCreateForm(f => { const d = [...f.departmentAllocations]; d[i].faculty = e.target.value; return { ...f, departmentAllocations: d }; })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                  {FACULTIES.map(f => <option key={f}>{f}</option>)}
-                </select>
-                <input placeholder="Department" value={row.department} onChange={e => setCreateForm(f => { const d = [...f.departmentAllocations]; d[i].department = e.target.value; return { ...f, departmentAllocations: d }; })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                <div className="flex gap-2">
-                  <input type="number" placeholder="Amount (LKR)" value={row.allocatedAmount} onChange={e => setCreateForm(f => { const d = [...f.departmentAllocations]; d[i].allocatedAmount = e.target.value; return { ...f, departmentAllocations: d }; })}
-                    className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                  {createForm.departmentAllocations.length > 1 && (
-                    <button type="button" onClick={() => removeDeptRow(i)} className="text-red-400 hover:text-red-600 px-2">✕</button>
-                  )}
+            {createForm.departmentAllocations.map((row, i) => {
+              const deptOptions = DEPARTMENTS_BY_FACULTY[row.faculty] || ALL_DEPARTMENTS;
+              return (
+                <div key={i} className="grid grid-cols-3 gap-2">
+                  <select value={row.faculty} onChange={e => setCreateForm(f => {
+                    const d = [...f.departmentAllocations];
+                    d[i].faculty = e.target.value;
+                    const opts = DEPARTMENTS_BY_FACULTY[e.target.value] || ALL_DEPARTMENTS;
+                    d[i].department = opts[0] || '';
+                    return { ...f, departmentAllocations: d };
+                  })}
+                    className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
+                    <option value="">Select Faculty / Division</option>
+                    {DEPARTMENTS_AND_FACULTIES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+
+                  <select value={row.department} onChange={e => setCreateForm(f => {
+                    const d = [...f.departmentAllocations];
+                    d[i].department = e.target.value;
+                    return { ...f, departmentAllocations: d };
+                  })}
+                    className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
+                    <option value="">Select Department</option>
+                    {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+
+                  <div className="flex gap-2">
+                    <input type="number" placeholder="Amount (LKR)" value={row.allocatedAmount} onChange={e => setCreateForm(f => { const d = [...f.departmentAllocations]; d[i].allocatedAmount = e.target.value; return { ...f, departmentAllocations: d }; })}
+                      className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    {createForm.departmentAllocations.length > 1 && (
+                      <button type="button" onClick={() => removeDeptRow(i)} className="text-red-400 hover:text-red-600 px-2">✕</button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <button onClick={() => setShowCreate(false)} className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200">Cancel</button>

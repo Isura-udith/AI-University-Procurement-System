@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { FaPlus, FaSearch, FaEye, FaCalendarAlt } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
+import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Status' },
@@ -40,6 +41,7 @@ export default function AnnualPlanList() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
 
   const canCreate = ['procurement_officer', 'admin', 'super_admin', 'department_head'].includes(user?.role);
 
@@ -61,8 +63,9 @@ export default function AnnualPlanList() {
   const filtered = plans.filter(p => {
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchYear = yearFilter === 'all' || String(p.planYear) === yearFilter;
+    const matchDept = deptFilter === 'all' || p.faculty === deptFilter || p.department === deptFilter || p.items?.some(i => i.faculty === deptFilter || i.department === deptFilter);
     const matchSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.referenceNumber?.includes(search);
-    return matchStatus && matchYear && matchSearch;
+    return matchStatus && matchYear && matchDept && matchSearch;
   });
 
   return (
@@ -90,6 +93,11 @@ export default function AnnualPlanList() {
           className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="all">All Years</option>
           {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="all">All Departments / Faculties</option>
+          {DEPARTMENTS_AND_FACULTIES.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">

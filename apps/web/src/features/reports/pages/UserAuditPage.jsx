@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import auditLogService from '../../../services/audit.log.service';
 import userService from '../../../services/user.service';
 import useAuth from '../../../hooks/useAuth';
+import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
 /* ── helpers ──────────────────────────────────────────────────── */
 const ACTION_LABELS = {
@@ -125,25 +126,7 @@ const ALL_ROLES = [
   { value: 'auditor', label: 'System Auditor' },
 ];
 
-const DEPARTMENTS_AND_FACULTIES = [
-  'Faculty of Management',
-  'Faculty of Applied Sciences',
-  'Faculty of Medicine',
-  'Faculty of Technological Studies',
-  'Faculty of Animal Science & Export Agriculture',
-  'Faculty of Science & Technology',
-  'Procurement Management Division',
-  'Finance Division',
-  'Registrar Office',
-  'Vice Chancellor Office',
-  'Supplies Division',
-  'Works Division',
-  'Examination Division',
-  'Student Affairs Division',
-  'Library',
-  'Security Unit',
-  'General',
-];
+
 
 const ROLE_COLOR_BADGES = {
   super_admin: 'bg-rose-100 text-rose-700 border-rose-200',
