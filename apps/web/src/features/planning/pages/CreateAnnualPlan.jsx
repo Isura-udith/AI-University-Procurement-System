@@ -8,11 +8,78 @@ import planningService from '../../../services/planning.service';
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const QUARTERS = [1, 2, 3, 4];
-const FACULTIES = [
-  'Faculty of Applied Sciences', 'Faculty of Medicine', 'Faculty of Management Studies',
-  'Faculty of Technology', 'Faculty of Graduate Studies', 'ICT Centre', 'Library',
-  'Works Division', 'Supplies Division', 'Finance Division', 'Administration',
+const DEPARTMENTS_AND_FACULTIES = [
+  'Faculty of Management',
+  'Faculty of Applied Sciences',
+  'Faculty of Medicine',
+  'Faculty of Technological Studies',
+  'Faculty of Animal Science & Export Agriculture',
+  'Faculty of Science & Technology',
+  'Procurement Management Division',
+  'Finance Division',
+  'Registrar Office',
+  'Vice Chancellor Office',
+  'Supplies Division',
+  'Works Division',
+  'Examination Division',
+  'Student Affairs Division',
+  'Library',
+  'Security Unit',
+  'General',
 ];
+
+const DEPARTMENTS_BY_FACULTY = {
+  'Faculty of Management': [
+    'Entrepreneurship & Management',
+    'Hospitality, Tourism and Events Management',
+    'Human Resources and development',
+    'Department of English Language Teaching',
+    'Faculty of Management (General)',
+  ],
+  'Faculty of Applied Sciences': [
+    'Computer Science and Technology',
+    'Science and Technology',
+    'Mineral Resources & Technology',
+    'Industrial Information Technology',
+    'Faculty of Applied Sciences (General)',
+  ],
+  'Faculty of Medicine': [
+    'Department of Medicine',
+    'Faculty of Medicine (General)',
+  ],
+  'Faculty of Technological Studies': [
+    'Department of Engineering Technology',
+    'Department of Biosystems Technology',
+    'Department of Information and Communication Technology',
+    'Faculty of Technological Studies (General)',
+  ],
+  'Faculty of Animal Science & Export Agriculture': [
+    'Animal Science',
+    'Export Agriculture',
+    'Tea Technology & Value Addition',
+    'Palm and Latex Technology and Value Addition',
+    'Aquatic Resources and Technology', 
+    'Faculty of Animal Science & Export Agriculture (General)',
+  ],
+  'Faculty of Science & Technology': [
+    'Department of Science & Technology',
+    'Department of Applied Earth Sciences',
+    'Faculty of Science & Technology (General)',
+  ],
+  'Procurement Management Division': ['Procurement Management Division', 'Procurement Section', 'Tender & Contracts Section'],
+  'Finance Division': ['Finance Division', 'Accounts Section', 'Salaries & Payments', 'Budget Section'],
+  'Registrar Office': ['Registrar Office', 'Main Secretariat', 'Legal & Council Affairs'],
+  'Vice Chancellor Office': ['Vice Chancellor Office', 'Executive Secretariat', 'Internal Audit Unit'],
+  'Supplies Division': ['Supplies Division', 'Store & Inventory', 'Logistics Section'],
+  'Works Division': ['Works Division', 'Maintenance & Civil', 'Electrical & Mechanical'],
+  'Examination Division': ['Examination Division', 'Exams Section', 'Records & Transcripts'],
+  'Student Affairs Division': ['Student Affairs Division', 'Student Welfare', 'Hostel Administration'],
+  'Library': ['Library', 'Main Library', 'Digital Resources Section'],
+  'Security Unit': ['Security Unit', 'Main Campus Security', 'Surveillance'],
+  'General': ['General Institutional Requirements'],
+};
+
+const ALL_DEPARTMENTS = Object.values(DEPARTMENTS_BY_FACULTY).flat();
 
 export default function CreateAnnualPlan() {
   const navigate = useNavigate();
@@ -23,7 +90,7 @@ export default function CreateAnnualPlan() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    planningService.getMasterPlans({ status: 'active', limit: 50 })
+    planningService.getMasterPlans({ limit: 50 })
       .then(res => setMasterPlans(res.data?.data || res.data || []))
       .catch(() => {});
   }, []);
@@ -132,7 +199,7 @@ export default function CreateAnnualPlan() {
                   <option key={m._id} value={m._id}>{m.referenceNumber} — {m.title}</option>
                 ))}
                 {masterPlans.length === 0 && (
-                  <option value="demo-mpp-id">UWU/MPP/2025-2028/001 — University Master Procurement Plan (Demo)</option>
+                  <option value="" disabled>No Master Plans found. Please create a Master Plan first.</option>
                 )}
               </select>
               {errors.masterPlanId && <p className="text-red-500 text-xs mt-1">{errors.masterPlanId.message}</p>}
@@ -189,6 +256,9 @@ export default function CreateAnnualPlan() {
               const qty = Number(watchItems[index]?.estimatedQuantity || 0);
               const unitCost = Number(watchItems[index]?.estimatedUnitCost || 0);
               const lineTotal = qty * unitCost;
+              const selectedFaculty = watchItems[index]?.faculty || field.faculty;
+              const deptOptions = DEPARTMENTS_BY_FACULTY[selectedFaculty] || ALL_DEPARTMENTS;
+
               return (
                 <div key={field.id} className="border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -216,10 +286,19 @@ export default function CreateAnnualPlan() {
                         placeholder="e.g. UWU/DAPP/2026/001" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty</label>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty / Division</label>
                       <select {...register(`items.${index}.faculty`)}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        {FACULTIES.map(f => <option key={f}>{f}</option>)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                        <option value="">Select Faculty / Division</option>
+                        {DEPARTMENTS_AND_FACULTIES.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Department</label>
+                      <select {...register(`items.${index}.department`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                        <option value="">Select Department</option>
+                        {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     <div>
@@ -257,12 +336,6 @@ export default function CreateAnnualPlan() {
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                         {PRIORITIES.map(p => <option key={p}>{p}</option>)}
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Department</label>
-                      <input {...register(`items.${index}.department`)}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Department" />
                     </div>
                   </div>
                 </div>

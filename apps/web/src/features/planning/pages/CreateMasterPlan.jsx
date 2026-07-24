@@ -9,11 +9,79 @@ import planningService from '../../../services/planning.service';
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const YEARS = [1, 2, 3];
-const FACULTIES = [
-  'Faculty of Applied Sciences', 'Faculty of Medicine', 'Faculty of Management Studies',
-  'Faculty of Technology', 'Faculty of Graduate Studies', 'ICT Centre', 'Library',
-  'Works Division', 'Supplies Division', 'Finance Division', 'Administration',
+
+const DEPARTMENTS_AND_FACULTIES = [
+  'Faculty of Management',
+  'Faculty of Applied Sciences',
+  'Faculty of Medicine',
+  'Faculty of Technological Studies',
+  'Faculty of Animal Science & Export Agriculture',
+  'Faculty of Science & Technology',
+  'Procurement Management Division',
+  'Finance Division',
+  'Registrar Office',
+  'Vice Chancellor Office',
+  'Supplies Division',
+  'Works Division',
+  'Examination Division',
+  'Student Affairs Division',
+  'Library',
+  'Security Unit',
+  'General',
 ];
+
+const DEPARTMENTS_BY_FACULTY = {
+  'Faculty of Management': [
+    'Entrepreneurship & Management',
+    'Hospitality, Tourism and Events Management',
+    'Human Resources and development',
+    'Department of English Language Teaching',
+    'Faculty of Management (General)',
+  ],
+  'Faculty of Applied Sciences': [
+    'Computer Science and Technology',
+    'Science and Technology',
+    'Mineral Resources & Technology',
+    'Industrial Information Technology',
+    'Faculty of Applied Sciences (General)',
+  ],
+  'Faculty of Medicine': [
+    'Department of Medicine',
+    'Faculty of Medicine (General)',
+  ],
+  'Faculty of Technological Studies': [
+    'Department of Engineering Technology',
+    'Department of Biosystems Technology',
+    'Department of Information and Communication Technology',
+    'Faculty of Technological Studies (General)',
+  ],
+  'Faculty of Animal Science & Export Agriculture': [
+    'Animal Science',
+    'Export Agriculture',
+    'Tea Technology & Value Addition',
+    'Palm and Latex Technology and Value Addition',
+    'Aquatic Resources and Technology', 
+    'Faculty of Animal Science & Export Agriculture (General)',
+  ],
+  'Faculty of Science & Technology': [
+    'Department of Science & Technology',
+    'Department of Applied Earth Sciences',
+    'Faculty of Science & Technology (General)',
+  ],
+  'Procurement Management Division': ['Procurement Management Division', 'Procurement Section', 'Tender & Contracts Section'],
+  'Finance Division': ['Finance Division', 'Accounts Section', 'Salaries & Payments', 'Budget Section'],
+  'Registrar Office': ['Registrar Office', 'Main Secretariat', 'Legal & Council Affairs'],
+  'Vice Chancellor Office': ['Vice Chancellor Office', 'Executive Secretariat', 'Internal Audit Unit'],
+  'Supplies Division': ['Supplies Division', 'Store & Inventory', 'Logistics Section'],
+  'Works Division': ['Works Division', 'Maintenance & Civil', 'Electrical & Mechanical'],
+  'Examination Division': ['Examination Division', 'Exams Section', 'Records & Transcripts'],
+  'Student Affairs Division': ['Student Affairs Division', 'Student Welfare', 'Hostel Administration'],
+  'Library': ['Library', 'Main Library', 'Digital Resources Section'],
+  'Security Unit': ['Security Unit', 'Main Campus Security', 'Surveillance'],
+  'General': ['General Institutional Requirements'],
+};
+
+const ALL_DEPARTMENTS = Object.values(DEPARTMENTS_BY_FACULTY).flat();
 
 export default function CreateMasterPlan() {
   const { user } = useSelector(s => s.auth);
@@ -21,6 +89,9 @@ export default function CreateMasterPlan() {
   const [saving, setSaving] = useState(false);
 
   const currentYear = new Date().getFullYear();
+  const defaultFaculty = user?.faculty || DEPARTMENTS_AND_FACULTIES[0];
+  const defaultDept = user?.department || DEPARTMENTS_BY_FACULTY[defaultFaculty]?.[0] || DEPARTMENTS_AND_FACULTIES[0];
+
   const { register, control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       title: '',
@@ -28,7 +99,7 @@ export default function CreateMasterPlan() {
       cycleStart: currentYear + 1,
       cycleEnd: currentYear + 4,
       requirements: [
-        { department: '', faculty: user?.faculty || '', description: '', category: 'Goods', estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '', plannedYear: 1, priority: 'medium', justification: '' }
+        { department: defaultDept, faculty: defaultFaculty, description: '', category: 'Goods', estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '', plannedYear: 1, priority: 'medium', justification: '' }
       ],
     }
   });
@@ -45,7 +116,7 @@ export default function CreateMasterPlan() {
         estimatedQuantity: Number(r.estimatedQuantity),
         estimatedUnitCost: Number(r.estimatedUnitCost),
       }));
-      const payload = { ...data, cycleStart: Number(data.cycleStart), cycleEnd: Number(data.cycleEnd), requirements };
+      const payload = { ...data, cycleStart: Number(data.cycleStart), cycleEnd: Number(data.cycleStart) + 3, requirements };
       const res = await planningService.createMasterPlan(payload);
       const newId = res.data?.data?._id || res.data?._id;
       toast.success('Master Plan saved!');
@@ -62,9 +133,10 @@ export default function CreateMasterPlan() {
   };
 
   const cycleStart = useWatch({ control, name: 'cycleStart' });
+  const watchRequirements = useWatch({ control, name: 'requirements' });
 
   const addRequirement = () => append({
-    department: '', faculty: user?.faculty || '', description: '', category: 'Goods',
+    department: defaultDept, faculty: defaultFaculty, description: '', category: 'Goods',
     estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '',
     plannedYear: 1, priority: 'medium', justification: '', dappNumber: '',
   });
@@ -125,49 +197,56 @@ export default function CreateMasterPlan() {
           </div>
 
           <div className="space-y-4">
-            {fields.map((field, index) => (
-              <div key={field.id} className="border border-slate-200 rounded-xl p-4 space-y-3 relative">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg">Item {index + 1}</span>
-                  {fields.length > 1 && (
-                    <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-600 transition-colors">
-                      <FaTrash size={13} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Description *</label>
-                    <input {...register(`requirements.${index}.description`, { required: true })}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      placeholder="Item description" />
+            {fields.map((field, index) => {
+              const selectedFaculty = watchRequirements?.[index]?.faculty || field.faculty;
+              const deptOptions = DEPARTMENTS_BY_FACULTY[selectedFaculty] || ALL_DEPARTMENTS;
+
+              return (
+                <div key={field.id} className="border border-slate-200 rounded-xl p-4 space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg">Item {index + 1}</span>
+                    {fields.length > 1 && (
+                      <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-600 transition-colors">
+                        <FaTrash size={13} />
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">DAPP Number</label>
-                    <input {...register(`requirements.${index}.dappNumber`)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      placeholder="e.g. UWU/DAPP/2026/001" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty</label>
-                    <select {...register(`requirements.${index}.faculty`)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400">
-                      {FACULTIES.map(f => <option key={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Department</label>
-                    <input {...register(`requirements.${index}.department`)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      placeholder="Dept. / Division" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Category *</label>
-                    <select {...register(`requirements.${index}.category`)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400">
-                      {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Description *</label>
+                      <input {...register(`requirements.${index}.description`, { required: true })}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
+                        placeholder="Item description" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">DAPP Number</label>
+                      <input {...register(`requirements.${index}.dappNumber`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
+                        placeholder="e.g. UWU/DAPP/2026/001" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Faculty / Division</label>
+                      <select {...register(`requirements.${index}.faculty`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white">
+                        <option value="">Select Faculty / Division</option>
+                        {DEPARTMENTS_AND_FACULTIES.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Department</label>
+                      <select {...register(`requirements.${index}.department`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white">
+                        <option value="">Select Department</option>
+                        {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">Category *</label>
+                      <select {...register(`requirements.${index}.category`)}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400">
+                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Planned Year</label>
                     <select {...register(`requirements.${index}.plannedYear`, { valueAsNumber: true })}
@@ -206,7 +285,8 @@ export default function CreateMasterPlan() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
 

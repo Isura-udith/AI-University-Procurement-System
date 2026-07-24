@@ -33,14 +33,12 @@ export default function BudgetLockPage() {
     try {
       await procurementService.lockBudget(lockTarget._id || lockTarget.id);
       const tceVal = lockTarget.totalEstimatedCost || lockTarget.tce || 0;
-      setItems(prev => prev.map(item =>
-        (item._id || item.id) === (lockTarget._id || lockTarget.id)
-          ? { ...item, status: 'budget_locked', budgetLockedAt: new Date().toISOString().split('T')[0] }
-          : item
-      ));
       toast.success(`🔒 Budget locked for "${lockTarget.title}" — LKR ${tceVal.toLocaleString()} reserved.`);
-    } catch {
-      toast.error('Failed to lock budget');
+      const res = await procurementService.getBudgetStatus();
+      setItems(res.data || []);
+    } catch (err) {
+      const msg = err?.message || err?.error || 'Failed to lock budget';
+      toast.error(`❌ ${msg}`);
     } finally {
       setLockTarget(null);
     }
@@ -50,14 +48,12 @@ export default function BudgetLockPage() {
     if (!unlockTarget) return;
     try {
       await procurementService.unlockBudget(unlockTarget._id || unlockTarget.id);
-      setItems(prev => prev.map(item =>
-        (item._id || item.id) === (unlockTarget._id || unlockTarget.id)
-          ? { ...item, status: 'pmd_review', budgetLockedAt: null }
-          : item
-      ));
       toast.info(`🔓 Budget unlocked for "${unlockTarget.title}" — Funds released back to DAPP pool.`);
-    } catch {
-      toast.error('Failed to unlock budget');
+      const res = await procurementService.getBudgetStatus();
+      setItems(res.data || []);
+    } catch (err) {
+      const msg = err?.message || err?.error || 'Failed to unlock budget';
+      toast.error(`❌ ${msg}`);
     } finally {
       setUnlockTarget(null);
     }
@@ -185,7 +181,7 @@ export default function BudgetLockPage() {
                   const balanceVal = item.budgetRemaining !== undefined ? item.budgetRemaining : (item.dappBalance !== undefined ? item.dappBalance : 50000000);
                   const sufficient = tceVal <= balanceVal;
                   const isLocked = ['locked', 'budget_locked'].includes(item.status);
-                  const isPending = ['pending', 'pmd_review', 'submitted'].includes(item.status);
+                  const isPending = !isLocked && item.status !== 'rejected';
                   const isRejected = item.status === 'rejected';
 
                   return (

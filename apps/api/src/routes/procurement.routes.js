@@ -81,15 +81,14 @@ router.post('/:id/submit',
   submitProcurement
 );
 router.post('/:id/approve',
-  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'admin', 'vc', 'super_admin'),
+  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'admin', 'vc', 'super_admin'),
   readOnlyGuard,
-  checkApprovalThreshold,
   requireSameFaculty,
   requireWorkflowPhase,
   approveProcurement
 );
 router.post('/:id/reject',
-  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'admin', 'vc', 'super_admin'),
+  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'admin', 'vc', 'super_admin'),
   readOnlyGuard,
   requireSameFaculty,
   requireWorkflowPhase,

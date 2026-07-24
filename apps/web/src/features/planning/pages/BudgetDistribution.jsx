@@ -77,7 +77,7 @@ export default function BudgetDistribution() {
   useEffect(() => {
     Promise.all([
       planningService.getBudgetAllocations(),
-      planningService.getAnnualPlans({ status: 'budget_received' }),
+      planningService.getAnnualPlans({ limit: 50 }),
     ]).then(([allocRes, planRes]) => {
       const data = allocRes.data?.data || allocRes.data || [];
       setAllocations(data);
@@ -101,6 +101,10 @@ export default function BudgetDistribution() {
   };
 
   const handleCreate = async () => {
+    if (!createForm.annualPlanId) {
+      toast.error('Please select an Annual Plan');
+      return;
+    }
     try {
       const payload = {
         ...createForm,
@@ -114,7 +118,7 @@ export default function BudgetDistribution() {
       setAllocations(prev => [newAlloc, ...prev]);
       setShowCreate(false);
       toast.success('Budget allocation created!');
-    } catch (err) { console.error(err); toast.error('Failed to create allocation'); }
+    } catch (err) { console.error(err); toast.error(err?.message || err?.response?.data?.message || 'Failed to create allocation'); }
   };
 
   const addDeptRow = () => setCreateForm(f => ({ ...f, departmentAllocations: [...f.departmentAllocations, { faculty: FACULTIES[0], department: '', allocatedAmount: '' }] }));

@@ -9,12 +9,45 @@ const { ROLE_PERMISSIONS } = require('../middlewares/role.middleware');
 const logger = require('../config/logger');
 const auditLogService = require('./audit.log.service');
 
+const normalizeOrgFields = (data) => {
+  if (typeof data.department === 'string') {
+    data.department = data.department.trim();
+    if (!data.department) delete data.department;
+  }
+  if (typeof data.faculty === 'string') {
+    data.faculty = data.faculty.trim();
+    if (!data.faculty) delete data.faculty;
+  }
+
+  const facultyMap = {
+    'Faculty of Management': 'Faculty of Management',
+    'Faculty of Management Studies': 'Faculty of Management',
+    'Management': 'Faculty of Management',
+    'Faculty of Medicine': 'Faculty of Medicine',
+    'Medicine': 'Faculty of Medicine',
+    'Faculty of Applied Sciences': 'Faculty of Applied Sciences',
+    'Applied Sciences': 'Faculty of Applied Sciences',
+    'Faculty of Technological Studies': 'Faculty of Technological Studies',
+    'Technological Studies': 'Faculty of Technological Studies',
+    'Faculty of Animal Science & Export Agriculture': 'Faculty of Animal Science & Export Agriculture',
+    'Animal Science': 'Faculty of Animal Science & Export Agriculture',
+    'Faculty of Science & Technology': 'Faculty of Science & Technology',
+    'Science & Technology': 'Faculty of Science & Technology',
+  };
+
+  if (data.department && facultyMap[data.department] && !data.faculty) {
+    data.faculty = facultyMap[data.department];
+  }
+};
+
 class UserService {
   /**
    * Create a new user (admin action).
    * Assigns default permissions based on role if none provided.
    */
   async create(userData, adminId) {
+    normalizeOrgFields(userData);
+
     // Check for duplicate email
     const existing = await User.findOne({ email: userData.email });
     if (existing) {
@@ -100,6 +133,8 @@ class UserService {
    * Update user (admin action). Allows updating role, permissions, department, etc.
    */
   async update(id, updates, adminId) {
+    normalizeOrgFields(updates);
+
     // Prevent updating sensitive fields
     const forbidden = ['password', 'mfaSecret', 'passwordResetToken', 'passwordResetExpires'];
     forbidden.forEach(f => delete updates[f]);

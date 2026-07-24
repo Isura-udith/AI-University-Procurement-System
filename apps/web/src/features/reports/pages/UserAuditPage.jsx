@@ -125,6 +125,26 @@ const ALL_ROLES = [
   { value: 'auditor', label: 'System Auditor' },
 ];
 
+const DEPARTMENTS_AND_FACULTIES = [
+  'Faculty of Management',
+  'Faculty of Applied Sciences',
+  'Faculty of Medicine',
+  'Faculty of Technological Studies',
+  'Faculty of Animal Science & Export Agriculture',
+  'Faculty of Science & Technology',
+  'Procurement Management Division',
+  'Finance Division',
+  'Registrar Office',
+  'Vice Chancellor Office',
+  'Supplies Division',
+  'Works Division',
+  'Examination Division',
+  'Student Affairs Division',
+  'Library',
+  'Security Unit',
+  'General',
+];
+
 const ROLE_COLOR_BADGES = {
   super_admin: 'bg-rose-100 text-rose-700 border-rose-200',
   admin: 'bg-rose-100 text-rose-700 border-rose-200',
@@ -1275,13 +1295,16 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Department / Faculty</label>
-                  <input
-                    type="text"
+                  <select
                     value={userFormData.department}
                     onChange={(e) => setUserFormData({ ...userFormData, department: e.target.value })}
-                    placeholder="Faculty of Applied Sciences"
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                  />
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                  >
+                    <option value="">Select Department / Faculty</option>
+                    {DEPARTMENTS_AND_FACULTIES.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -1404,12 +1427,19 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Department / Faculty</label>
-                  <input
-                    type="text"
+                  <select
                     value={userFormData.department}
                     onChange={(e) => setUserFormData({ ...userFormData, department: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
-                  />
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                  >
+                    <option value="">Select Department / Faculty</option>
+                    {DEPARTMENTS_AND_FACULTIES.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                    {userFormData.department && !DEPARTMENTS_AND_FACULTIES.includes(userFormData.department) && (
+                      <option value={userFormData.department}>{userFormData.department}</option>
+                    )}
+                  </select>
                 </div>
               </div>
 

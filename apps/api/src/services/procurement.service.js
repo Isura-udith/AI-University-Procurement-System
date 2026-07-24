@@ -14,8 +14,8 @@ class ProcurementService {
     const requestor = await User.findById(userId).select('department faculty');
     const createData = { ...data, requestedBy: userId, tenantId, status: 'draft' };
     if (requestor) {
-      if (requestor.department) createData.department = requestor.department;
-      if (requestor.faculty) createData.faculty = requestor.faculty;
+      if (!createData.department && requestor.department) createData.department = requestor.department;
+      if (!createData.faculty && requestor.faculty) createData.faculty = requestor.faculty;
     }
     
     const procurement = await Procurement.create(createData);
@@ -177,13 +177,9 @@ class ProcurementService {
 
     if (!complianceResult.passed) {
       if (complianceResult.requiresSpecialApproval) {
-        // Within 10% grace — flag for special approval, still route through workflow
+        // Within 10% grace — flag for special approval, still route through full workflow
         procurement.status = 'flagged_special_approval';
         procurement.submittedAt = new Date();
-
-        // Set up a minimal approval chain (HOD must still review)
-        procurement.approvalChain = [{ stage: 'hod', status: 'pending' }];
-        await procurement.save();
 
         // Notify requester of special approval flag
         try {
@@ -201,7 +197,6 @@ class ProcurementService {
           ref: procurement.referenceNumber,
           overBudgetPercent: complianceResult.overBudgetPercent,
         });
-        return procurement;
       }
 
       // Hard fail — budget compliance not met
@@ -258,7 +253,9 @@ class ProcurementService {
     const anomalies = detectProcessAnomalies(procurement);
     if (anomalies.length > 0) procurement.aiAnalysis.anomalyFlags = anomalies;
 
-    procurement.status = 'submitted';
+    if (procurement.status !== 'flagged_special_approval') {
+      procurement.status = 'submitted';
+    }
     procurement.submittedAt = new Date();
     procurement.currentStage = 3; // Stage 3 = Multi-Level Approval
     
@@ -415,7 +412,7 @@ class ProcurementService {
       } catch (err) { logger.warn('Notification failed', { error: err.message }); }
     } else {
       // Progress status based on completed stage
-      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', pmd: 'pmd_approved', bursar: 'bursar_approved', finance_committee: 'finance_committee_approved', vice_chancellor: 'vc_approved' };
+      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', pmd: 'pmd_approved', bursar: 'bursar_approved', finance_committee: 'finance_committee_approved', vice_chancellor: 'vc_approved', procurement_committee: 'procurement_committee_approved' };
       procurement.status = stageMap[stage] || procurement.status;
       procurement.currentStage = 3; // Still in approval phase
 
@@ -490,6 +487,7 @@ class ProcurementService {
       bursar: ['bursar', 'admin', 'super_admin'],
       finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
+      procurement_committee: ['procurement_committee', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
     if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -533,11 +531,52 @@ class ProcurementService {
   async lockBudget(id, userId, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId });
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
+
+    // Validate budget compliance & update BudgetAllocation consumed amount if available
+    const complianceResult = await budgetValidationService.checkCompliance({
+      annualPlanId: procurement.annualPlanId,
+      annualPlanItemId: procurement.annualPlanItemId,
+      department: procurement.department,
+      faculty: procurement.faculty,
+      totalEstimatedCost: procurement.totalEstimatedCost,
+      budgetYear: procurement.budgetYear,
+      tenantId,
+    });
+
+    if (complianceResult.allocationId) {
+      const BudgetAllocation = require('../models/budget.allocation.model');
+      const alloc = await BudgetAllocation.findById(complianceResult.allocationId);
+      if (alloc) {
+        const deptEntry = alloc.departmentAllocations?.find(
+          d => (procurement.department && d.department === procurement.department) || (procurement.faculty && d.faculty === procurement.faculty)
+        );
+        if (deptEntry) {
+          deptEntry.consumedAmount = (deptEntry.consumedAmount || 0) + (procurement.totalEstimatedCost || 0);
+          await alloc.save();
+        }
+      }
+    }
+
     procurement.budgetValidated = true;
     procurement.budgetLockedAt = new Date();
     procurement.status = 'budget_locked';
     procurement.currentStage = 4;
     await procurement.save();
+
+    // Send notification
+    try {
+      await Notification.create({
+        tenantId,
+        recipient: procurement.requestedBy,
+        type: 'budget_locked',
+        title: 'Budget Locked & Reserved',
+        message: `Budget of LKR ${(procurement.totalEstimatedCost || 0).toLocaleString()} has been locked and reserved for requisition ${procurement.referenceNumber}.`,
+        referenceType: 'procurement',
+        referenceId: procurement._id,
+        link: `/procurements/${procurement._id}`,
+      });
+    } catch (err) { logger.warn('Budget lock notification failed', { error: err.message }); }
+
     logger.audit('BUDGET_LOCKED', userId, { procurementId: procurement._id, amount: procurement.totalEstimatedCost });
     return procurement;
   }
@@ -627,7 +666,7 @@ class ProcurementService {
     if (role === 'admin' || role === 'super_admin') {
       return Procurement.find({
         tenantId,
-        status: { $in: ['submitted', 'flagged_special_approval', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved'] },
+        status: { $nin: ['draft', 'rejected', 'cancelled', 'completed'] },
         'approvalChain.status': 'pending',
       })
         .populate('requestedBy', 'firstName lastName email department')
@@ -687,6 +726,23 @@ class ProcurementService {
   async unlockBudget(id, userId, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId });
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
+
+    // Restore consumed amount if allocation existed
+    if (procurement.budgetValidated) {
+      const year = procurement.budgetYear || new Date().getFullYear();
+      const BudgetAllocation = require('../models/budget.allocation.model');
+      const alloc = await BudgetAllocation.findOne({ tenantId, budgetYear: year });
+      if (alloc) {
+        const deptEntry = alloc.departmentAllocations?.find(
+          d => (procurement.department && d.department === procurement.department) || (procurement.faculty && d.faculty === procurement.faculty)
+        );
+        if (deptEntry) {
+          deptEntry.consumedAmount = Math.max(0, (deptEntry.consumedAmount || 0) - (procurement.totalEstimatedCost || 0));
+          await alloc.save();
+        }
+      }
+    }
+
     procurement.budgetValidated = false;
     procurement.budgetLockedAt = null;
     procurement.status = 'pmd_review';
@@ -697,10 +753,10 @@ class ProcurementService {
   }
 
   async getBudgetStatus(query, tenantId) {
-    const filters = { tenantId, status: { $in: ['pmd_review', 'budget_locked', 'committee_assigned'] } };
+    const filters = { tenantId, status: { $nin: ['draft', 'rejected', 'cancelled'] } };
     if (query.faculty) filters.faculty = query.faculty;
     const data = await Procurement.find(filters)
-      .select('referenceNumber title faculty department totalEstimatedCost budgetValidated budgetLockedAt status budgetRemaining budgetAllocated')
+      .select('referenceNumber title faculty department totalEstimatedCost budgetValidated budgetLockedAt status budgetRemaining budgetAllocated dappReference budgetComplianceCheck')
       .populate('requestedBy', 'firstName lastName')
       .sort('-createdAt');
     return data;

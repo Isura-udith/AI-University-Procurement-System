@@ -37,7 +37,7 @@ export const ROUTE_ACCESS = {
   ],
   '/approvals': APPROVAL_ROLES,
   '/budget-lock': [
-    ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN,
+    ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.VC, ROLES.AUDITOR, ROLES.SUPER_ADMIN,
   ],
 
   // ── Tendering ────────────────────────────────────────────────

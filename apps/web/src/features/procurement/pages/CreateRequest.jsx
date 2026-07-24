@@ -2,13 +2,31 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch, FaPlus, FaTrash, FaClipboardList, FaGripVertical, FaStar, FaLightbulb } from 'react-icons/fa';
+import { FaExclamationTriangle, FaUpload, FaRobot, FaCalendarAlt, FaSpinner, FaCheckCircle, FaInfoCircle, FaCheck, FaTimesCircle, FaShieldAlt, FaSearch, FaPlus, FaTrash, FaClipboardList, FaStar, FaLightbulb, FaArrowUp, FaArrowDown, FaMagic, FaSyncAlt, FaCompressAlt, FaExpandAlt } from 'react-icons/fa';
 import aiService from '../../../services/ai.service';
 import procurementService from '../../../services/procurement.service';
 import planningService from '../../../services/planning.service';
 import FormSection from '../components/FormSection';
 import FormField, { TextInput, SelectInput, TextArea } from '../components/FormField';
 import BOQTable from '../components/BOQTable';
+
+
+
+const BRAND_KEYWORDS = [
+  'apple', 'macbook', 'ipad', 'iphone',
+  'dell', 'latitude', 'optiplex', 'alienware',
+  'hp', 'hewlett', 'packard', 'probook', 'elitebook', 'laserjet',
+  'lenovo', 'thinkpad', 'thinkcentre', 'ideapad',
+  'asus', 'acer', 'msi', 'toshiba',
+  'cisco', 'catalyst', 'aruba', 'fortinet',
+  'samsung', 'sony', 'lg', 'panasonic',
+  'canon', 'epson', 'brother', 'xerox',
+  'microsoft', 'surface',
+  'intel', 'core i3', 'core i5', 'core i7', 'core i9', 'amd', 'ryzen',
+  'toyota', 'nissan', 'mitsubishi', 'honda',
+  'bosch', 'philips', 'zebra', 'dahua', 'hikvision'
+];
+
 
 const FACULTY_MAP = {
   fom: 'Faculty of Medicine',
@@ -34,11 +52,11 @@ const FACULTY_MAP = {
 // Map from faculty dropdown code → DAPP item department/faculty field names
 // Some DAPP data uses shorter names (e.g. "Medicine" not "Faculty of Medicine")
 const FACULTY_TO_DAPP_NAMES = {
-  fom: ['Medicine'],
-  fots: ['Technological Studies'],
-  foas: ['Applied Sciences'],
-  foahs: ['Animal Science', 'Animal Science & Export Agriculture'],
-  'fom-mgt': ['Management'],
+  fom: ['Medicine', 'Faculty of Medicine'],
+  fots: ['Technological Studies', 'Faculty of Technological Studies'],
+  foas: ['Applied Sciences', 'Faculty of Applied Sciences'],
+  foahs: ['Animal Science', 'Animal Science & Export Agriculture', 'Faculty of Animal Science & Export Agriculture'],
+  'fom-mgt': ['Management', 'Faculty of Management'],
   supplies: ['Supplies Division'],
   works: ['Works Division'],
   'vc-office': ['Vice Chancellor Office', "Vice Chancellor's Office"],
@@ -54,20 +72,35 @@ const FACULTY_TO_DAPP_NAMES = {
   'security-unit': ['Security Unit'],
 };
 
-// Common/university-wide departments (not academic faculties)
-const COMMON_DEPARTMENTS = new Set([
-  'Library', 'Main Canteen', 'Main Canteen (Samajaya)', 'Gallery Canteen', 'G Canteen',
-  'Security Unit', 'Sports Unit', 'Sports & Physical Education Unit',
-  'Hostels', 'Admin Building', 'Administration Building',
-  'Student Affairs', 'Student Affairs Division',
-  'Exam Division', 'Examination Division',
-  'Works Division', 'Supplies Division',
-  'Vice Chancellor Office', "Vice Chancellor's Office",
-]);
+/** Resolve logged-in user's department/faculty to FACULTIES dropdown option key */
+const getUserFacultyKey = (user) => {
+  if (!user) return '';
+  const dept = user.faculty || user.department || '';
+  if (!dept) return '';
 
-// Roles that can see and add common department DAPP items
+  const cleanDept = dept.toLowerCase().trim();
+
+  for (const [key, names] of Object.entries(FACULTY_TO_DAPP_NAMES)) {
+    if (names.some(n => n.toLowerCase() === cleanDept)) return key;
+  }
+  for (const [key, label] of Object.entries(FACULTY_MAP)) {
+    if (label.toLowerCase() === cleanDept) return key;
+  }
+  for (const [key, label] of Object.entries(FACULTY_MAP)) {
+    const cleanLabel = label.toLowerCase();
+    if (cleanLabel.includes(cleanDept) || cleanDept.includes(cleanLabel)) {
+      return key;
+    }
+  }
+  return '';
+};
+
+// Roles that can select and add procurement for any originating faculty/department (System, Executive, Bursar, Procurement Officer)
 const TOP_OFFICER_ROLES = new Set([
-  'dean', 'vc', 'bursar', 'admin', 'super_admin', 'procurement_officer',
+  'super_admin', 'admin',
+  'vc', 'dean',
+  'bursar', 'finance_officer', 'finance_committee',
+  'procurement_officer', 'procurement_committee',
 ]);
 
 const FACULTIES = [
@@ -129,6 +162,8 @@ export default function CreateRequest() {
   const { id } = useParams();
   const isEditMode = !!id;
 
+  const userFacultyKey = useMemo(() => getUserFacultyKey(user), [user]);
+
   // AI Assist States
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -138,9 +173,9 @@ export default function CreateRequest() {
   const [aiError, setAiError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     refNo: genRef,
-    faculty: '',
+    faculty: !isEditMode ? userFacultyKey : '',
     officerName: user ? `${user.firstName} ${user.lastName}` : 'Dr. A. Perera',
     officerDesignation: user?.jobTitle || 'Senior Lecturer',
     officerEmpId: user?.employeeId || 'UWU/EMP/2024/045',
@@ -153,9 +188,11 @@ export default function CreateRequest() {
     invitationDate: '', bidClosingDate: '', deliveryDate: '',
     deliveryLocation: 'UWU Supplies Division, Passara Road, Badulla', priority: 'normal',
     conflictDeclared: false, ethicsDeclared: false,
-  });
+  }));
   const [boqItems, setBoqItems] = useState([{ description: '', specifications: '', unit: '', qty: '', unitPrice: '' }]);
   const [techSpecs, setTechSpecs] = useState([]);
+  const [specFilter, setSpecFilter] = useState('all');
+  const [isSpecsCollapsed, setIsSpecsCollapsed] = useState(false);
   const [files, setFiles] = useState([]);
   const [aiWarning, setAiWarning] = useState('');
   const [errors, setErrors] = useState({});
@@ -192,6 +229,15 @@ export default function CreateRequest() {
     }
   }
 
+  // Pre-fill user's department/faculty if loaded after initial mount and not set yet (avoiding useEffect cascading renders)
+  const [prevUserFacultyKey, setPrevUserFacultyKey] = useState(userFacultyKey);
+  if (!isEditMode && userFacultyKey !== prevUserFacultyKey) {
+    setPrevUserFacultyKey(userFacultyKey);
+    if (!form.faculty && userFacultyKey) {
+      setForm((prev) => ({ ...prev, faculty: userFacultyKey }));
+    }
+  }
+
   // Load approved annual plans and department budget on mount
   useEffect(() => {
     if (!isEditMode) {
@@ -201,7 +247,11 @@ export default function CreateRequest() {
       ]).then(([planRes, budgetRes]) => {
         if (planRes.status === 'fulfilled') {
           const plans = planRes.value.data?.data || planRes.value.data || [];
-          setAnnualPlans(Array.isArray(plans) ? plans : []);
+          const planList = Array.isArray(plans) ? plans : [];
+          setAnnualPlans(planList);
+          if (planList.length > 0) {
+            setSelectedPlanId(planList[0]._id || planList[0].id);
+          }
         }
         if (budgetRes.status === 'fulfilled') {
           setMyBudget(budgetRes.value.data?.data || budgetRes.value.data || null);
@@ -408,11 +458,122 @@ export default function CreateRequest() {
       setBoqItems(parsedItems);
     }
 
+    if (aiResult.identifiedSpecs && aiResult.identifiedSpecs.length > 0) {
+      const generatedTechSpecs = aiResult.identifiedSpecs.map((specStr) => {
+        const parts = specStr.split(':');
+        const title = parts.length > 1 ? parts[0].trim() : specStr.trim();
+        const description = parts.length > 1 ? parts.slice(1).join(':').trim() : specStr.trim();
+        return {
+          title,
+          description: description || title,
+          isMandatory: true,
+          priority: 'required',
+        };
+      });
+      setTechSpecs(generatedTechSpecs);
+      scanTechSpecsBrands(generatedTechSpecs);
+    }
+
     setIsAiModalOpen(false);
   };
 
+  // Expanded NPA brand-neutrality scanner
+  const scanTechSpecsBrands = (specs) => {
+    const allText = specs.map(s => `${s.title} ${s.description}`).join(' ').toLowerCase();
+    const found = BRAND_KEYWORDS.filter(b => allText.includes(b.toLowerCase()));
+    if (found.length > 0) {
+      const uniqueFound = Array.from(new Set(found));
+      setAiWarning(`NPA Compliance Alert: Proprietary brand phrase(s) detected — "${uniqueFound.slice(0, 5).join('", "')}". Government procurement guidelines require brand-neutral technical specifications (e.g. use "15.6-inch IPS Laptop" instead of "Dell Latitude").`);
+      return false;
+    } else {
+      setAiWarning('');
+      return true;
+    }
+  };
 
+  // Section 3 Action: Extract specifications from BOQ table
+  const handleSyncFromBOQ = () => {
+    const validBoq = boqItems.filter(item => item.description?.trim());
+    if (validBoq.length === 0) {
+      toast.warn('Please enter at least one BOQ item description first.');
+      return;
+    }
+    const syncedSpecs = validBoq.map(item => ({
+      title: item.description.trim(),
+      description: item.specifications?.trim() || `Technical compliance requirement for supply of ${item.description.trim()} (${item.qty || '1'} ${item.unit || 'nos'})`,
+      isMandatory: true,
+      priority: 'required',
+    }));
+    setTechSpecs(prev => {
+      const merged = [...prev, ...syncedSpecs];
+      scanTechSpecsBrands(merged);
+      return merged;
+    });
+    toast.success(`Extracted ${syncedSpecs.length} requirement(s) from BOQ schedule.`);
+  };
 
+  // Section 3 Action: Re-order items (move up/down)
+  const handleMoveSpec = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= techSpecs.length) return;
+    const updated = [...techSpecs];
+    const [movedItem] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, movedItem);
+    setTechSpecs(updated);
+  };
+
+  // Section 3 Action: Clear all specs
+  const handleClearAllSpecs = () => {
+    if (techSpecs.length === 0) return;
+    if (window.confirm('Are you sure you want to clear all technical specification requirements?')) {
+      setTechSpecs([]);
+      setAiWarning('');
+      toast.info('Technical specifications cleared.');
+    }
+  };
+
+  // Section 3 Action: Direct AI Generator for Specs
+  const handleAiGenerateSpecsInline = async () => {
+    const titleText = form.contractTitle || boqItems.map(i => i.description).filter(Boolean).join(', ');
+    if (!titleText.trim()) {
+      toast.warn('Please enter a Contract Title or BOQ item description first.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const prompt = `Generate 5 detailed brand-neutral technical specifications for procurement of: ${titleText}. Category: ${form.category || 'Goods'}. Format as clear technical specs without brand names.`;
+      const response = await aiService.getMarketPrice({ rawText: prompt });
+      if (response.data?.nlpResult?.identifiedSpecs?.length > 0) {
+        const generated = response.data.nlpResult.identifiedSpecs.map(specStr => {
+          const parts = specStr.split(':');
+          return {
+            title: parts.length > 1 ? parts[0].trim() : specStr.trim(),
+            description: parts.length > 1 ? parts.slice(1).join(':').trim() : specStr.trim(),
+            isMandatory: true,
+            priority: 'required',
+          };
+        });
+        setTechSpecs(generated);
+        scanTechSpecsBrands(generated);
+        toast.success(`AI generated ${generated.length} brand-neutral technical specifications.`);
+      } else {
+        toast.info('AI generated response parsed. Review requirements below.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('AI spec generation failed. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Update a tech spec field and run brand scan
+  const updateTechSpec = (index, field, value) => {
+    const updated = [...techSpecs];
+    updated[index] = { ...updated[index], [field]: value };
+    setTechSpecs(updated);
+    scanTechSpecsBrands(updated);
+  };
 
   const set = (field) => (e) => {
     const val = e.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e;
@@ -427,23 +588,38 @@ export default function CreateRequest() {
     }
   };
 
-  const isTopOfficer = user && TOP_OFFICER_ROLES.has(user.role);
+  const isTopOfficer = useMemo(() => {
+    if (!user || !user.role) return false;
+    return TOP_OFFICER_ROLES.has(user.role.toLowerCase());
+  }, [user]);
 
   const getFilteredDappItems = (plan) => {
-    if (!plan?.items || !form.faculty) return [];
+    if (!plan?.items) return [];
+    if (!form.faculty && !isTopOfficer) return [];
+    if (!form.faculty) return plan.items;
+
+    const facultyLabel = FACULTY_MAP[form.faculty] || '';
     const dappNames = FACULTY_TO_DAPP_NAMES[form.faculty] || [];
+    const searchTargets = [
+      form.faculty,
+      facultyLabel,
+      ...dappNames,
+    ].filter(Boolean).map(s => s.toLowerCase().trim());
+
     return plan.items.filter(item => {
-      const itemDept = item.department || '';
-      const itemFaculty = item.faculty || '';
-      // Check if item belongs to the selected faculty/department
-      const matchesFaculty = dappNames.some(name =>
-        itemDept === name || itemFaculty === name
+      const itemDept = (item.department || '').toLowerCase().trim();
+      const itemFaculty = (item.faculty || '').toLowerCase().trim();
+
+      const matchesFaculty = searchTargets.some(target =>
+        (itemDept && (itemDept === target || itemDept.includes(target) || target.includes(itemDept))) ||
+        (itemFaculty && (itemFaculty === target || itemFaculty.includes(target) || target.includes(itemFaculty)))
       );
+
       if (matchesFaculty) return true;
-      // For top officers, also show common/university-wide department items
-      if (isTopOfficer && (COMMON_DEPARTMENTS.has(itemDept) || COMMON_DEPARTMENTS.has(itemFaculty))) {
-        return true;
-      }
+
+      // For top officers, allow selecting items across all departments/faculties in the plan
+      if (isTopOfficer) return true;
+
       return false;
     });
   };
@@ -460,26 +636,6 @@ export default function CreateRequest() {
   const contExceeded = contNum > contCap && baseNum > 0;
 
   const needsJustification = form.method === 'direct' || form.method === 'shopping';
-
-  // Brand-name AI scan across all tech spec titles and descriptions
-  const scanTechSpecsBrands = (specs) => {
-    const brands = ['Samsung', 'Apple', 'HP', 'Dell', 'Lenovo', 'Sony', 'LG', 'Canon', 'Epson', 'Huawei'];
-    const allText = specs.map(s => `${s.title} ${s.description}`).join(' ').toLowerCase();
-    const found = brands.filter(b => allText.includes(b.toLowerCase()));
-    if (found.length > 0) {
-      setAiWarning(`AI Alert: Brand name(s) detected — "${found.join('", "')}". Specifications appear to be brand-specific. Please use generic descriptions to ensure fair competition per NPA guidelines.`);
-    } else {
-      setAiWarning('');
-    }
-  };
-
-  // Update a tech spec field and run brand scan
-  const updateTechSpec = (index, field, value) => {
-    const updated = [...techSpecs];
-    updated[index] = { ...updated[index], [field]: value };
-    setTechSpecs(updated);
-    scanTechSpecsBrands(updated);
-  };
 
   const handleFileUpload = (e) => {
     const allowed = ['.pdf', '.docx', '.xlsx'];
@@ -504,15 +660,11 @@ export default function CreateRequest() {
     if (!form.conflictDeclared) errs.conflictDeclared = 'You must declare';
     if (!form.ethicsDeclared) errs.ethicsDeclared = 'You must affirm';
     if (baseNum <= 0) errs.baseAmount = 'Enter a valid amount';
-    // Validate that every BOQ item has specifications
-    const missingSpecs = boqItems.some(item => item.description?.trim() && !item.specifications?.trim());
-    if (missingSpecs) errs.specifications = 'All items must have full specifications';
-    setErrors(errs);
-    
-    if (Object.keys(errs).length > 0) {
-      toast.error(errs.specifications || 'Please fix the validation errors before proceeding.');
-      return;
-    }
+    // Ensure BOQ items have specifications (default to description if missing)
+    const processedBoqItems = boqItems.map(item => ({
+      ...item,
+      specifications: item.specifications?.trim() || item.description?.trim() || ''
+    }));
 
     // Block submission if compliance check has been run and failed (hard fail, not special approval)
     if (submitToWorkflow && budgetCheck && !budgetCheck.passed && !budgetCheck.requiresSpecialApproval) {
@@ -531,7 +683,7 @@ export default function CreateRequest() {
       else if (form.method === 'shopping') dbMethod = 'Shopping';
       else if (form.method === 'direct') dbMethod = 'Direct';
 
-      const dbItems = boqItems.map(item => ({
+      const dbItems = processedBoqItems.map(item => ({
         description: item.description,
         specifications: item.specifications || '',
         category: dbCategory,
@@ -650,214 +802,7 @@ export default function CreateRequest() {
 
       <div className="space-y-6">
 
-        {/* ── DAPP Linkage & Budget Compliance Panel (Phase 5 — Step 27) ──── */}
-        {!isEditMode && (
-          <div className="bg-linear-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-5 space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
-                  <FaShieldAlt className="text-emerald-600" size={14} />
-                  Step 27: Link to Approved Annual Plan (DAPP) — Budget Compliance Required
-                </h2>
-                <p className="text-xs text-emerald-600 mt-0.5">Procurement requests must be linked to an approved DAPP item and remain within allocated budget.</p>
-              </div>
-              {myBudget && (
-                <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0">
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dept. Budget Remaining</p>
-                  <p className={`text-lg font-bold ${(myBudget.remainingAmount || myBudget.allocatedAmount - myBudget.consumedAmount) > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                    LKR {((myBudget.remainingAmount || (myBudget.allocatedAmount - (myBudget.consumedAmount || 0))) || 0).toLocaleString()}
-                  </p>
-                  <div className="w-32 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${myBudget.allocatedAmount > 0 ? Math.min(100, 100 - ((myBudget.consumedAmount || 0) / myBudget.allocatedAmount * 100)) : 100}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Plan + Item Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
-                <select
-                  value={selectedPlanId}
-                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); setDappSearch(''); }}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">— Select Annual Plan —</option>
-                  {annualPlans.map(p => (
-                    <option key={p._id} value={p._id}>{p.referenceNumber} · {p.planYear}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item</label>
-                <div className="relative mb-2">
-                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-                  <input
-                    type="text"
-                    placeholder="Search DAPP Item..."
-                    value={dappSearch}
-                    onChange={e => setDappSearch(e.target.value)}
-                    disabled={!selectedPlanId}
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-                  />
-                </div>
-                <select
-                  value={selectedItemId}
-                  onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
-                  disabled={!selectedPlanId}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-                >
-                  <option value="">— Select Item —</option>
-                  {annualPlans.find(p => p._id === selectedPlanId)?.items
-                    ?.filter(item => !dappSearch || item.description?.toLowerCase().includes(dappSearch.toLowerCase()))
-                    ?.map(item => (
-                      <option key={item._id || item.id} value={item._id || item.id}>
-                        {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Auto-populated confirmation */}
-            {selectedItemId && !budgetCheck && (
-              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100 rounded-lg px-3 py-2">
-                <FaCheck size={10} /> Form fields auto-populated from DAPP item. Review amounts below, then run the compliance check.
-              </div>
-            )}
-
-            {/* No approved plans warning */}
-            {annualPlans.length === 0 && (
-              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
-                <FaExclamationTriangle size={10} /> No approved annual plans found. Budget must be distributed before raising requisitions (Steps 21–26).
-              </div>
-            )}
-
-            {/* ── Live Budget Compliance Check Panel ── */}
-            {selectedItemId && savedDocId && (
-              <div className="border border-slate-200 bg-white rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Budget Compliance Check</span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setBudgetCheckLoading(true);
-                      try {
-                        const res = await procurementService.checkBudget(savedDocId);
-                        setBudgetCheck(res.data?.data || res.data);
-                      } catch {
-                        toast.error('Could not run compliance check. Please save draft first.');
-                      } finally {
-                        setBudgetCheckLoading(false);
-                      }
-                    }}
-                    disabled={budgetCheckLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
-                  >
-                    {budgetCheckLoading ? <FaSpinner className="animate-spin" size={10} /> : <FaShieldAlt size={10} />}
-                    {budgetCheckLoading ? 'Checking…' : 'Run Check'}
-                  </button>
-                </div>
-
-                {budgetCheck && (
-                  <div className="space-y-2">
-                    {/* Annual Plan Status row */}
-                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
-                      budgetCheck.annualPlanPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}>
-                      <span className="flex items-center gap-1.5">
-                        {budgetCheck.annualPlanPassed
-                          ? <FaCheckCircle className="text-emerald-500" size={11} />
-                          : <FaTimesCircle className="text-red-500" size={11} />}
-                        Annual Procurement Plan (DAPP)
-                      </span>
-                      <span className="font-semibold">
-                        {budgetCheck.annualPlanPassed
-                          ? `✓ ${budgetCheck.annualPlanRef || 'Approved'}`
-                          : budgetCheck.failureReason === 'no_annual_plan_linked' ? 'Not Linked'
-                          : budgetCheck.failureReason === 'plan_not_approved' ? `Not Approved (${budgetCheck.annualPlanStatus})`
-                          : budgetCheck.failureReason === 'item_not_found' ? 'Item Not Found'
-                          : 'Failed'}
-                      </span>
-                    </div>
-
-                    {/* Budget Sufficiency row */}
-                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium ${
-                      budgetCheck.budgetPassed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : budgetCheck.requiresSpecialApproval ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                      : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}>
-                      <span className="flex items-center gap-1.5">
-                        {budgetCheck.budgetPassed
-                          ? <FaCheckCircle className="text-emerald-500" size={11} />
-                          : budgetCheck.requiresSpecialApproval
-                            ? <FaExclamationTriangle className="text-amber-500" size={11} />
-                            : <FaTimesCircle className="text-red-500" size={11} />}
-                        Department Budget
-                      </span>
-                      <span className="font-semibold">
-                        {budgetCheck.budgetPassed
-                          ? `✓ LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} remaining`
-                          : budgetCheck.failureReason === 'no_budget_allocated' ? 'No Allocation Found'
-                          : `LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()} / Need LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()}`}
-                      </span>
-                    </div>
-
-                    {/* Special Approval Banner */}
-                    {budgetCheck.requiresSpecialApproval && (
-                      <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
-                        <FaExclamationTriangle className="text-amber-500 mt-0.5 shrink-0" size={12} />
-                        <div>
-                          <p className="text-xs font-bold text-amber-800">Special Approval Required</p>
-                          <p className="text-[11px] text-amber-700 mt-0.5">
-                            This request exceeds budget by {budgetCheck.overBudgetPercent}% (within the 10% grace threshold). It will be flagged for special HOD approval.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Hard Fail Banner */}
-                    {!budgetCheck.passed && !budgetCheck.requiresSpecialApproval && (
-                      <div className="flex items-start gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2.5">
-                        <FaTimesCircle className="text-red-500 mt-0.5 shrink-0" size={12} />
-                        <div>
-                          <p className="text-xs font-bold text-red-800">Compliance Failed — Cannot Submit</p>
-                          <p className="text-[11px] text-red-700 mt-0.5">
-                            {budgetCheck.failureReason === 'no_annual_plan_linked' && 'This requisition must be linked to an approved DAPP item.'}
-                            {budgetCheck.failureReason === 'plan_not_approved' && `The annual plan is not fully approved (status: ${budgetCheck.annualPlanStatus}). Budget must be distributed before procurement.`}
-                            {budgetCheck.failureReason === 'item_not_found' && 'The selected DAPP item does not exist in the linked plan. Re-select a valid item.'}
-                            {budgetCheck.failureReason === 'insufficient_budget' && `Requested LKR ${(budgetCheck.requiredBudget || 0).toLocaleString()} exceeds the 10% grace limit over remaining budget of LKR ${(budgetCheck.remainingBudget || 0).toLocaleString()}.`}
-                            {budgetCheck.failureReason === 'no_budget_allocated' && 'No budget has been allocated to your department. Contact the Finance Division.'}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* All Pass Banner */}
-                    {budgetCheck.passed && (
-                      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2">
-                        <FaCheckCircle className="text-emerald-500" size={12} />
-                        <p className="text-xs font-bold text-emerald-800">All compliance checks passed — ready to submit</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!budgetCheck && !budgetCheckLoading && (
-                  <p className="text-[11px] text-slate-400">Click "Run Check" to validate DAPP linkage and budget availability before submitting.</p>
-                )}
-              </div>
-            )}
-
-            {/* Prompt user to save draft first to enable check */}
-            {selectedItemId && !savedDocId && (
-              <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 border border-blue-200">
-                <FaInfoCircle size={10} /> Save as draft first to enable the budget compliance pre-check.
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Section 1: Identity */}
 
@@ -866,8 +811,19 @@ export default function CreateRequest() {
             <FormField label="Procurement Reference Number" hint="Auto-generated. Format: UWU/[Category]/[Method]/YYYY/NNN">
               <TextInput value={form.refNo} readOnly />
             </FormField>
-            <FormField label="Originating Faculty / Department" required error={errors.faculty}>
-              <SelectInput value={form.faculty} onChange={set('faculty')} options={FACULTIES} placeholder="Select faculty or unit (Tenant)..." />
+            <FormField 
+              label="Originating Faculty / Department" 
+              required 
+              error={errors.faculty}
+              hint={isTopOfficer ? "Authorized (System / Executive / Bursar / Procurement Officer): You can select any originating faculty or department." : userFacultyKey ? "Auto-selected based on your logged-in department." : undefined}
+            >
+              <SelectInput 
+                value={form.faculty} 
+                onChange={set('faculty')} 
+                options={FACULTIES} 
+                placeholder="Select faculty or unit (Tenant)..." 
+                disabled={!isTopOfficer && !!userFacultyKey}
+              />
             </FormField>
             <FormField label="Contract Title" required error={errors.contractTitle}>
               <TextInput value={form.contractTitle} onChange={set('contractTitle')} placeholder='e.g. "Supply of Laboratory Spectrophotometers for Faculty of Applied Sciences"' />
@@ -930,7 +886,7 @@ export default function CreateRequest() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item <span className="text-slate-400 font-normal">(filtered by selected faculty)</span></label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item <span className="text-slate-400 font-normal">(filtered by {FACULTY_MAP[form.faculty] || 'selected department'})</span></label>
                 <div className="relative mb-2">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <input
@@ -957,6 +913,9 @@ export default function CreateRequest() {
                         item.description?.toLowerCase().includes(dappSearch.toLowerCase())
                       );
                     }
+                    if (filtered.length === 0) {
+                      return <option value="" disabled>No DAPP items found for your department</option>;
+                    }
                     return filtered.map(item => (
                       <option key={item._id || item.id} value={item._id || item.id}>
                         [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
@@ -965,7 +924,7 @@ export default function CreateRequest() {
                   })()}
                 </select>
                 {form.faculty && selectedPlanId && !isTopOfficer && (
-                  <p className="text-[10px] text-slate-400 mt-1">Common university department items (Library, Security, etc.) are managed by authorized officers (Dean / VC / Bursar).</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Showing items belonging strictly to your department ({FACULTY_MAP[form.faculty] || form.faculty}).</p>
                 )}
                 {form.faculty && selectedPlanId && isTopOfficer && (
                   <p className="text-[10px] text-emerald-600 mt-1">As a senior officer, you can also see common university department items.</p>
@@ -1115,8 +1074,8 @@ export default function CreateRequest() {
         {/* Section 2: Financial */}
         <FormSection title="Strategic Planning &amp; Budget Linkage" step="2" subtitle="DAPP/MPP linkage, funding source, and cost estimates (Section 4.1.3)">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <FormField label="DAPP Line Item Linkage" required error={errors.dappItem} hint="Per Section 4.1.3: No procurement without an approved DAPP linkage">
-              <TextInput value={form.dappItem} onChange={set('dappItem')} placeholder="Search DAPP approved items..." />
+            <FormField label="DAPP Line Item Linkage" required error={errors.dappItem} hint="Auto-linked via DAPP selector panel above">
+              <TextInput value={form.dappItem ? `Linked: ${form.dappItem}` : ''} readOnly placeholder="Select DAPP Item from the panel above..." />
             </FormField>
             <FormField label="Master Procurement Plan (MPP) Ref" hint="Read-only reference to the 3-year Master Plan item">
               <TextInput value={form.mppRef} readOnly />
@@ -1205,47 +1164,122 @@ export default function CreateRequest() {
             <div className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 mb-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl pointer-events-none"></div>
-              <div className="flex items-center justify-between relative z-10">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
                     <FaClipboardList className="text-white" size={18} />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-bold text-white tracking-tight">Technical Specifications</h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Vendors respond Yes/No to each requirement during bid submission</p>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-[15px] font-bold text-white tracking-tight">Technical Specifications</h3>
+                      {techSpecs.length > 0 && !aiWarning && (
+                        <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                          <FaCheckCircle size={9} /> NPA Compliant
+                        </span>
+                      )}
+                      {aiWarning && (
+                        <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1">
+                          <FaExclamationTriangle size={9} /> Brand Warning
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Vendors respond Yes/No to each requirement during bid evaluation per NPA guidelines</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  {techSpecs.length > 0 && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-bold border border-emerald-500/30">
-                        {techSpecs.length} spec{techSpecs.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className="text-[11px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full font-bold border border-amber-500/30">
-                        {techSpecs.filter(s => s.isMandatory).length} mandatory
-                      </span>
-                    </div>
-                  )}
+
+                {/* Quick Actions Header Toolbar */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSyncFromBOQ}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all flex items-center space-x-1.5"
+                    title="Extract item descriptions & specifications from the BOQ table"
+                  >
+                    <FaSyncAlt className="text-emerald-400" size={10} />
+                    <span>Sync from BOQ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleAiGenerateSpecsInline}
+                    disabled={aiLoading}
+                    className="px-3.5 py-1.5 bg-linear-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                  >
+                    {aiLoading ? <FaSpinner className="animate-spin" size={10} /> : <FaMagic className="text-amber-300" size={10} />}
+                    <span>AI Spec Generator</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true, priority: 'required' }])}
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:shadow-emerald-400/30 hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <FaPlus size={10} />
                     <span>Add Requirement</span>
                   </button>
                 </div>
               </div>
+
+              {/* Filter Toolbar Row */}
+              <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+                {/* Filter Pills & View Controls */}
+                <div className="flex items-center space-x-2 shrink-0">
+                  <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSpecFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${specFilter === 'all' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      All ({techSpecs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpecFilter('mandatory')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${specFilter === 'mandatory' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      Mandatory ({techSpecs.filter(s => s.isMandatory).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpecFilter('critical')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${specFilter === 'critical' ? 'bg-red-500 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      Critical ({techSpecs.filter(s => (s.priority || 'required') === 'critical').length})
+                    </button>
+                  </div>
+
+                  {techSpecs.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsSpecsCollapsed(!isSpecsCollapsed)}
+                        className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+                        title={isSpecsCollapsed ? 'Expand Descriptions' : 'Collapse Descriptions'}
+                      >
+                        {isSpecsCollapsed ? <FaExpandAlt size={11} /> : <FaCompressAlt size={11} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllSpecs}
+                        className="p-1.5 bg-slate-800 hover:bg-red-950 hover:text-red-400 text-slate-400 rounded-lg transition-colors"
+                        title="Clear All Requirements"
+                      >
+                        <FaTrash size={11} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* AI Brand Warning */}
+            {/* AI Brand Warning / NPA Compliance Alert */}
             {aiWarning && (
               <div className="flex items-start space-x-4 bg-linear-to-r from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-2xl px-5 py-4 shadow-sm mb-4 animate-[fadeIn_0.3s_ease-out]">
                 <div className="bg-amber-100/80 p-2.5 rounded-xl shrink-0">
                   <FaRobot className="text-amber-600" size={18} />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-amber-800">AI Specification Review</p>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-800">AI Specification &amp; Brand Neutrality Review</p>
                   <p className="text-[13px] font-medium text-amber-700/90 mt-1 leading-relaxed">{aiWarning}</p>
                 </div>
               </div>
@@ -1260,34 +1294,58 @@ export default function CreateRequest() {
                 </div>
                 <h4 className="text-[15px] font-bold text-slate-700 mb-1">No Technical Requirements Defined</h4>
                 <p className="text-[13px] text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Define the technical requirements that vendors must comply with. Each specification will be presented as a Yes/No compliance question during bid evaluation.
+                  Define the technical requirements that vendors must comply with. You can type requirements manually, sync from BOQ items, or generate specs using AI.
                 </p>
-                <div className="flex items-center justify-center space-x-2 mt-5">
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
                   <button
                     type="button"
                     onClick={() => setTechSpecs([{ title: '', description: '', isMandatory: true, priority: 'required' }])}
-                    className="inline-flex items-center space-x-2 px-5 py-2.5 bg-linear-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 bg-linear-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <FaPlus size={11} />
-                    <span>Add First Requirement</span>
+                    <FaPlus size={10} />
+                    <span>Add Manual Requirement</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSyncFromBOQ}
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all"
+                  >
+                    <FaSyncAlt className="text-emerald-600" size={10} />
+                    <span>Sync from BOQ Items</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAiGenerateSpecsInline}
+                    disabled={aiLoading}
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-xs font-bold shadow-sm transition-all"
+                  >
+                    <FaMagic className="text-amber-400" size={10} />
+                    <span>Generate Specs with AI</span>
                   </button>
                 </div>
                 <div className="mt-6 flex items-center justify-center space-x-6 text-[11px] text-slate-400">
                   <div className="flex items-center space-x-1.5">
                     <FaLightbulb className="text-amber-400" size={10} />
-                    <span>Tip: Use brand-neutral descriptions</span>
+                    <span>Tip: Use functional brand-neutral criteria per NPA</span>
                   </div>
                   <div className="flex items-center space-x-1.5">
                     <FaCheckCircle className="text-emerald-400" size={10} />
-                    <span>AI scans for brand names automatically</span>
+                    <span>AI scans for proprietary brand names automatically</span>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
-                {techSpecs.map((spec, i) => (
+                {techSpecs
+                  .map((spec, originalIndex) => ({ spec, originalIndex }))
+                  .filter(({ spec }) => {
+                    if (specFilter === 'mandatory') return spec.isMandatory;
+                    if (specFilter === 'critical') return (spec.priority || 'required') === 'critical';
+                    return true;
+                  })
+                  .map(({ spec, originalIndex }) => (
                   <div
-                    key={i}
+                    key={originalIndex}
                     className={`group relative border rounded-2xl bg-white transition-all duration-200 hover:shadow-md ${
                       spec.isMandatory
                         ? 'border-emerald-200/80 hover:border-emerald-300'
@@ -1301,18 +1359,35 @@ export default function CreateRequest() {
                     }`}></div>
 
                     <div className="pl-5 pr-4 py-4">
-                      {/* Top Row: Drag handle + Number + Title + Controls */}
+                      {/* Top Row: Reorder buttons + Number + Title + Controls */}
                       <div className="flex items-start gap-3">
-                        {/* Drag handle & number */}
-                        <div className="flex flex-col items-center space-y-1.5 pt-1 shrink-0">
-                          <FaGripVertical className="text-slate-300 group-hover:text-slate-400 transition-colors cursor-grab" size={12} />
-                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold border ${
+                        {/* Re-order & number stack */}
+                        <div className="flex flex-col items-center space-y-1 pt-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveSpec(originalIndex, 'up')}
+                            disabled={originalIndex === 0}
+                            className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 transition-colors"
+                            title="Move Up"
+                          >
+                            <FaArrowUp size={9} />
+                          </button>
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold border ${
                             spec.isMandatory
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-slate-50 text-slate-500 border-slate-200'
                           }`}>
-                            {i + 1}
+                            {originalIndex + 1}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveSpec(originalIndex, 'down')}
+                            disabled={originalIndex === techSpecs.length - 1}
+                            className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 transition-colors"
+                            title="Move Down"
+                          >
+                            <FaArrowDown size={9} />
+                          </button>
                         </div>
 
                         {/* Title */}
@@ -1320,8 +1395,8 @@ export default function CreateRequest() {
                           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Requirement Title *</label>
                           <input
                             value={spec.title}
-                            onChange={e => updateTechSpec(i, 'title', e.target.value)}
-                            placeholder="e.g. Print Speed, Memory Capacity, Display Resolution..."
+                            onChange={e => updateTechSpec(originalIndex, 'title', e.target.value)}
+                            placeholder="e.g. Print Speed, Memory Capacity, Optical Bandwidth..."
                             className="w-full px-3.5 py-2.5 text-sm font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white hover:border-slate-300 transition-all placeholder:text-slate-300"
                           />
                         </div>
@@ -1331,7 +1406,7 @@ export default function CreateRequest() {
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mandatory</span>
                           <button
                             type="button"
-                            onClick={() => updateTechSpec(i, 'isMandatory', !spec.isMandatory)}
+                            onClick={() => updateTechSpec(originalIndex, 'isMandatory', !spec.isMandatory)}
                             className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
                               spec.isMandatory
                                 ? 'bg-emerald-500 focus:ring-emerald-500/40 shadow-inner shadow-emerald-600/30'
@@ -1349,7 +1424,7 @@ export default function CreateRequest() {
                         <button
                           type="button"
                           onClick={() => {
-                            const updated = techSpecs.filter((_, idx) => idx !== i);
+                            const updated = techSpecs.filter((_, idx) => idx !== originalIndex);
                             setTechSpecs(updated);
                             scanTechSpecsBrands(updated);
                           }}
@@ -1360,20 +1435,22 @@ export default function CreateRequest() {
                         </button>
                       </div>
 
-                      {/* Description textarea */}
-                      <div className="mt-3 ml-10">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Detailed Description & Acceptance Criteria</label>
-                        <textarea
-                          value={spec.description}
-                          onChange={e => updateTechSpec(i, 'description', e.target.value)}
-                          placeholder="Describe the full requirement in detail. E.g.: Must support A4 & A3 paper sizes; minimum 1200x1200 DPI resolution; duplex printing required; energy-star certified..."
-                          rows={3}
-                          className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all resize-y min-h-18 placeholder:text-slate-300 leading-relaxed"
-                        />
-                      </div>
+                      {/* Description textarea (with toggle collapse) */}
+                      {!isSpecsCollapsed && (
+                        <div className="mt-3 ml-9">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Detailed Description &amp; Acceptance Criteria</label>
+                          <textarea
+                            value={spec.description}
+                            onChange={e => updateTechSpec(originalIndex, 'description', e.target.value)}
+                            placeholder="Describe the full requirement in detail. E.g.: Minimum 16GB DDR5 memory; 3 Years On-Site warranty; Energy-Star certified..."
+                            rows={2}
+                            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all resize-y min-h-16 placeholder:text-slate-300 leading-relaxed"
+                          />
+                        </div>
+                      )}
 
                       {/* Footer: Priority selector + status */}
-                      <div className="mt-3 ml-10 flex items-center justify-between">
+                      <div className="mt-3 ml-9 flex items-center justify-between">
                         <div className="flex items-center space-x-1.5">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Priority:</span>
                           {[
@@ -1384,7 +1461,7 @@ export default function CreateRequest() {
                             <button
                               key={p.value}
                               type="button"
-                              onClick={() => updateTechSpec(i, 'priority', p.value)}
+                              onClick={() => updateTechSpec(originalIndex, 'priority', p.value)}
                               className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all duration-200 ${
                                 (spec.priority || 'required') === p.value ? p.activeColor : p.color
                               }`}
@@ -1417,7 +1494,7 @@ export default function CreateRequest() {
                   </button>
                   <div className="flex items-center space-x-3 text-[11px]">
                     <span className="text-slate-400 font-medium">
-                      {techSpecs.length} requirement{techSpecs.length !== 1 ? 's' : ''}
+                      Showing {techSpecs.length} requirement{techSpecs.length !== 1 ? 's' : ''}
                     </span>
                     {techSpecs.filter(s => (s.priority || 'required') === 'critical').length > 0 && (
                       <span className="text-red-500 font-bold flex items-center space-x-1">
@@ -1588,9 +1665,6 @@ export default function CreateRequest() {
             </FormField>
           </div>
         </FormSection>
-
-        {/* Section 5 (Timeline) is now merged into Section 4 above */}
-
         {/* Section 5: Ethics, Compliance & Security */}
         <FormSection title="Ethics, Compliance &amp; Security" step="5" subtitle="Mandatory declarations per Section 1.5.4, Anti-Corruption Act, and Electronic Transactions Act">
           <div className="space-y-4">
@@ -1613,21 +1687,9 @@ export default function CreateRequest() {
               </label>
             </div>
           </div>
-
         </FormSection>
 
-        {/* Budget Guard Warning */}
-        {tce > 0 && (
-          <div className="flex items-start space-x-4 bg-linear-to-r from-blue-50 to-indigo-50/50 border border-blue-200/60 rounded-2xl px-6 py-5 shadow-sm">
-            <div className="bg-blue-100/80 p-2.5 rounded-xl shrink-0 mt-0.5">
-              <FaExclamationTriangle className="text-blue-600" size={18} />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold text-blue-900 tracking-tight">System Validation Logic (Budget Guard)</p>
-              <p className="text-[13px] font-medium text-blue-800/80 mt-1.5 leading-relaxed">On submission, the system will verify: (1) TCE ≤ DAPP Remaining Balance — otherwise error: "Insufficient Budget in Annual Plan", (2) Threshold routing matches your role's financial delegation, (3) No duplicate requisition with the same Title and Vote Code exists in FY {new Date().getFullYear()}.</p>
-            </div>
-          </div>
-        )}
+
 
         {/* Bottom Actions */}
         <div className="flex items-center justify-between pt-6 pb-12 border-t border-slate-200/80">

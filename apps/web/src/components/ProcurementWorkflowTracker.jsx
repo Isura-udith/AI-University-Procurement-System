@@ -239,7 +239,7 @@ export default function ProcurementWorkflowTracker({ currentStep = 1, compact = 
                       return (
                         <div key={step.step} className={`relative py-2.5 ${status === 'active' ? 'animate-fade-in' : ''}`}>
                           {/* Connector dot */}
-                          <div className={`absolute left-31px w-4 h-4 rounded-full border-2 ${
+                          <div className={`absolute left-7.75 w-4 h-4 rounded-full border-2 ${
                             status === 'completed' ? 'bg-emerald-500 border-emerald-500' :
                             status === 'active' ? `${c.bg} border-white ring-2 ring-${phase.color}-300` :
                             'bg-white border-slate-300'

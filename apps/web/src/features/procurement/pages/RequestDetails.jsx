@@ -458,24 +458,38 @@ export default function RequestDetails() {
 
           {/* Approval Chain */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center space-x-2">
-              <FaCheckCircle className="text-emerald-600" size={14} />
-              <h3 className="text-sm font-bold text-slate-800">Approval Chain</h3>
+            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FaCheckCircle className="text-emerald-600" size={14} />
+                <h3 className="text-sm font-bold text-slate-800">Approval Chain</h3>
+              </div>
+              <Link to="/approvals" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline">
+                Approval Queue →
+              </Link>
             </div>
             <div className="p-5 space-y-3">
               {mappedApprovals.map((a, i) => (
-                <div key={i} className={`flex items-center space-x-3 p-3 rounded-lg border ${
-                  a.status === 'approved' ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'
+                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${
+                  a.status === 'approved' ? 'border-emerald-200 bg-emerald-50' :
+                  a.status === 'rejected' ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-slate-50'
                 }`}>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                    a.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
-                  }`}>
-                    {a.status === 'approved' ? <FaCheckCircle size={11} /> : i + 1}
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      a.status === 'approved' ? 'bg-emerald-500 text-white' :
+                      a.status === 'rejected' ? 'bg-red-500 text-white' : 'bg-slate-300 text-slate-600'
+                    }`}>
+                      {a.status === 'approved' ? <FaCheckCircle size={11} /> : i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-700">{a.role}</p>
+                      <p className="text-[10px] text-slate-500">{a.name}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700">{a.role}</p>
-                    <p className="text-[10px] text-slate-500">{a.name}</p>
-                    {a.date && <p className="text-[10px] text-emerald-600">{a.date}</p>}
+                  <div className="text-right">
+                    <span className={`text-[11px] font-bold ${a.status === 'approved' ? 'text-emerald-700' : a.status === 'rejected' ? 'text-red-700' : 'text-amber-600'}`}>
+                      {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                    </span>
+                    {a.date && <p className="text-[10px] text-slate-400">{a.date}</p>}
                   </div>
                 </div>
               ))}

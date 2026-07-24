@@ -46,7 +46,23 @@ const EXTERNAL_STATUS_LABELS = {
 
 function ExternalStepCard({ step, approval, canRecord, onRecord }) {
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ status: 'submitted', referenceNumber: '', allocatedAmount: '', notes: '' });
+  const [prevApproval, setPrevApproval] = useState(approval);
+  const [form, setForm] = useState({
+    status: approval?.status || 'submitted',
+    referenceNumber: approval?.referenceNumber || '',
+    allocatedAmount: approval?.allocatedAmount || '',
+    notes: approval?.notes || '',
+  });
+
+  if (approval !== prevApproval) {
+    setPrevApproval(approval);
+    setForm({
+      status: approval?.status || 'submitted',
+      referenceNumber: approval?.referenceNumber || '',
+      allocatedAmount: approval?.allocatedAmount || '',
+      notes: approval?.notes || '',
+    });
+  }
 
   const statusColors = {
     not_submitted: 'bg-slate-100 text-slate-500',

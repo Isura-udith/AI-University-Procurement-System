@@ -81,16 +81,11 @@ const userSchema = new mongoose.Schema({
   }],
   department: {
     type: String,
-    enum: [
-      'Medicine', 'Applied Sciences', 'Technological Studies',
-      'Management', 'Animal Science', 'Science & Technology',
-      'Procurement Management Division', 'Procurement Management Division (PMD)', 'Finance Division',
-      'Registrar Office', 'Vice Chancellor Office', 'Supplies Division',
-    ],
+    trim: true,
   },
   faculty: {
     type: String,
-    enum: ['Medicine', 'Applied Sciences', 'Technological Studies', 'Management', 'Animal Science', 'Science & Technology'],
+    trim: true,
   },
   phone: { type: String },
   avatar: { type: String },
