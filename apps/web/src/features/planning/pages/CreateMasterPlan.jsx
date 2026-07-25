@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaLayerGroup } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaLayerGroup, FaCloudDownloadAlt } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
 
@@ -15,6 +15,7 @@ export default function CreateMasterPlan() {
   const { user } = useSelector(s => s.auth);
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [loadingImport, setLoadingImport] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const defaultFaculty = user?.faculty || DEPARTMENTS_AND_FACULTIES[0];
@@ -32,7 +33,7 @@ export default function CreateMasterPlan() {
     }
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'requirements' });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: 'requirements' });
 
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
@@ -60,6 +61,43 @@ export default function CreateMasterPlan() {
     }
   };
 
+  // Import approved draft items from DraftProcurementItem database table
+  const handleImportApprovedDraftItems = async () => {
+    setLoadingImport(true);
+    try {
+      const res = await planningService.getApprovedDraftItems();
+      const items = res.data?.data || res.data || [];
+
+      if (!Array.isArray(items) || items.length === 0) {
+        toast.info('No approved draft procurement items found for your department.');
+        return;
+      }
+
+      const formattedRequirements = items.map(item => ({
+        dappNumber: item.itemCode || '',
+        description: item.description || '',
+        faculty: item.faculty || defaultFaculty,
+        department: item.department || defaultDept,
+        category: CATEGORIES.includes(item.category) ? item.category : 'Goods',
+        estimatedQuantity: Number(item.estimatedQuantity) || 1,
+        unit: item.unit || 'Units',
+        estimatedUnitCost: Number(item.estimatedUnitCost) || 0,
+        estimatedTotalCost: Number(item.estimatedTotalCost) || 0,
+        plannedYear: Number(item.plannedYear) || 1,
+        priority: (item.priority || 'medium').toLowerCase(),
+        justification: item.justification || item.notes || 'Imported from Dean-approved draft items pool',
+      }));
+
+      replace(formattedRequirements);
+      toast.success(`Imported ${formattedRequirements.length} Dean-approved draft item(s) into Master Plan!`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to import approved draft items.');
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
   const cycleStart = useWatch({ control, name: 'cycleStart' });
   const watchRequirements = useWatch({ control, name: 'requirements' });
 
@@ -72,14 +110,27 @@ export default function CreateMasterPlan() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center">
-          <FaLayerGroup className="text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center">
+            <FaLayerGroup className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Create 3-Year Master Procurement Plan</h1>
+            <p className="text-sm text-slate-500">Phase 1 · HOD → Dean → Bursar → Finance Committee → VC → Council</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Create 3-Year Master Procurement Plan</h1>
-          <p className="text-sm text-slate-500">Phase 1 · HOD → Dean → Bursar → Finance Committee → VC → Council</p>
-        </div>
+
+        {/* Action to import approved draft items */}
+        <button
+          type="button"
+          onClick={handleImportApprovedDraftItems}
+          disabled={loadingImport}
+          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50"
+        >
+          <FaCloudDownloadAlt className="text-sm" />
+          <span>{loadingImport ? 'Importing...' : 'Import Approved Draft Items'}</span>
+        </button>
       </div>
 
       <form onSubmit={handleSubmit(d => onSave(d, false))} className="space-y-6">
@@ -118,10 +169,12 @@ export default function CreateMasterPlan() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="font-semibold text-slate-800">Procurement Requirements</h2>
-            <button type="button" onClick={addRequirement}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
-              <FaPlus size={10} /> Add Item
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={addRequirement}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
+                <FaPlus size={10} /> Add Item
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">

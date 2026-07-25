@@ -10,6 +10,15 @@ export const planningService = {
   approveMasterPlan: (id, data) => api.post(`/master-plans/${id}/approve`, data),
   getPendingMasterPlans: () => api.get('/master-plans/pending'),
 
+  // ── Draft Procurement Items (University User Inputs & Dean Approvals) ──
+  getDraftItems: (params) => api.get('/draft-procurements', { params }),
+  saveDraftItems: (items) => api.post('/draft-procurements/save', { items }),
+  submitDraftItems: (itemIds) => api.post('/draft-procurements/submit', { itemIds }),
+  getPendingDraftItems: () => api.get('/draft-procurements/pending'),
+  approveDraftItem: (id, data) => api.post(`/draft-procurements/${id}/approve`, data),
+  getApprovedDraftItems: (params) => api.get('/draft-procurements/approved', { params }),
+  deleteDraftItem: (id) => api.delete(`/draft-procurements/${id}`),
+
   // ── Annual Procurement Plans (Phases 2 & 3) ─────────────
   getAnnualPlans: (params) => api.get('/annual-plans', { params }),
   getAnnualPlan: (id) => api.get(`/annual-plans/${id}`),
