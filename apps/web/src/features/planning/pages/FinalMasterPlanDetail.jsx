@@ -11,8 +11,6 @@ import {
 import planningService from '../../../services/planning.service';
 
 const STAGE_LABELS = {
-  hod: 'Department HOD',
-  dean: 'Faculty Dean',
   bursar: 'Chief Bursar',
   finance_committee: 'Finance Committee',
   vice_chancellor: 'Vice-Chancellor',
@@ -22,10 +20,6 @@ const STAGE_LABELS = {
 const STATUS_CONFIG = {
   draft: { label: 'Draft', color: 'bg-slate-100 text-slate-700', icon: FaEdit },
   submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-800', icon: FaPaperPlane },
-  hod_review: { label: 'HOD Review', color: 'bg-amber-100 text-amber-800', icon: FaClock },
-  hod_approved: { label: 'HOD Approved', color: 'bg-teal-100 text-teal-800', icon: FaCheckCircle },
-  dean_review: { label: 'Dean Review', color: 'bg-purple-100 text-purple-800', icon: FaClock },
-  dean_approved: { label: 'Dean Approved', color: 'bg-indigo-100 text-indigo-800', icon: FaCheckCircle },
   bursar_review: { label: 'Bursar Review', color: 'bg-blue-100 text-blue-800', icon: FaClock },
   bursar_approved: { label: 'Bursar Approved', color: 'bg-cyan-100 text-cyan-800', icon: FaCheckCircle },
   finance_committee_review: { label: 'Finance Committee Review', color: 'bg-orange-100 text-orange-800', icon: FaClock },
@@ -39,25 +33,23 @@ const STATUS_CONFIG = {
   archived: { label: 'Archived', color: 'bg-gray-100 text-gray-700', icon: FaClipboardList },
 };
 
-// Approval chain stages in order
-const APPROVAL_STAGES = ['hod', 'dean', 'bursar', 'finance_committee', 'vice_chancellor', 'council'];
+// Approval chain stages in order (Starts at Chief Bursar)
+const APPROVAL_STAGES = ['bursar', 'finance_committee', 'vice_chancellor', 'council'];
 
 // Which roles can approve at which stage
 const ROLE_CAN_APPROVE = {
-  department_head: 'hod',
-  dean: 'dean',
   bursar: 'bursar',
   finance_committee: 'finance_committee',
   finance_officer: 'finance_committee',
   vc: 'vice_chancellor',
+  council: 'council',
+  council_member: 'council',
   admin: 'council',
   super_admin: '*', // can approve any stage
 };
 
 // Status → required stage for approval
 const STATUS_REQUIRED_STAGE = {
-  hod_review: 'hod',
-  dean_review: 'dean',
   bursar_review: 'bursar',
   finance_committee_review: 'finance_committee',
   vc_review: 'vice_chancellor',
@@ -114,7 +106,7 @@ export default function FinalMasterPlanDetail() {
     setActionLoading(true);
     try {
       await planningService.submitFinalMasterPlan(id);
-      toast.success('Plan submitted for HOD review!');
+      toast.success('Plan submitted for Bursar review!');
       await loadPlan();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to submit');

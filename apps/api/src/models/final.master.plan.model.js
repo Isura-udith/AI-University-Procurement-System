@@ -29,7 +29,7 @@ const fmpItemSchema = new mongoose.Schema({
 const fmpApprovalStageSchema = new mongoose.Schema({
   stage: {
     type: String,
-    enum: ['hod', 'dean', 'bursar', 'finance_committee', 'vice_chancellor', 'council'],
+    enum: ['bursar', 'finance_committee', 'vice_chancellor', 'council'],
   },
   approver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'info_requested'], default: 'pending' },

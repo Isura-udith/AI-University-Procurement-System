@@ -9,20 +9,18 @@ const { success, created, paginated } = require('../utils/response');
 
 // Role → approval stage mapping
 const ROLE_TO_STAGE = {
-  department_head: 'hod',
-  dean: 'dean',
   bursar: 'bursar',
   finance_committee: 'finance_committee',
   finance_officer: 'finance_committee',
   vc: 'vice_chancellor',
+  council: 'council',
+  council_member: 'council',
   admin: 'council',
   super_admin: 'council',
 };
 
 // Status transitions on approval
 const APPROVAL_TRANSITIONS = {
-  hod: 'dean_review',
-  dean: 'bursar_review',
   bursar: 'finance_committee_review',
   finance_committee: 'vc_review',
   vice_chancellor: 'council_review',
@@ -31,15 +29,13 @@ const APPROVAL_TRANSITIONS = {
 
 // Map plan status to required stage
 const STATUS_TO_STAGE = {
-  hod_review: 'hod',
-  dean_review: 'dean',
   bursar_review: 'bursar',
   finance_committee_review: 'finance_committee',
   vc_review: 'vice_chancellor',
   council_review: 'council',
 };
 
-const STATUS_ON_SUBMIT = 'hod_review';
+const STATUS_ON_SUBMIT = 'bursar_review';
 
 /** POST /api/final-master-plans — Create a new Final Master Plan */
 const createFinalMasterPlan = async (req, res, next) => {
@@ -159,7 +155,7 @@ const addItemsToFinalPlan = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/final-master-plans/:id/submit — Submit for HOD review */
+/** POST /api/final-master-plans/:id/submit — Submit for Bursar review */
 const submitFinalMasterPlan = async (req, res, next) => {
   try {
     const plan = await FinalMasterPlan.findOne({ _id: req.params.id, tenantId: req.tenantId });
@@ -170,13 +166,13 @@ const submitFinalMasterPlan = async (req, res, next) => {
     plan.status = STATUS_ON_SUBMIT;
     plan.submittedAt = new Date();
     plan.approvalChain.push({
-      stage: 'hod',
+      stage: 'bursar',
       status: 'pending',
-      comments: 'Submitted for HOD review',
+      comments: 'Submitted for Bursar review',
       actionDate: new Date(),
     });
     await plan.save();
-    return success(res, plan, 'Submitted for HOD review');
+    return success(res, plan, 'Submitted for Bursar review');
   } catch (err) { next(err); }
 };
 
@@ -243,7 +239,7 @@ const getPendingFinalMasterPlans = async (req, res, next) => {
     if (userRole === 'super_admin') {
       const plans = await FinalMasterPlan.find({
         tenantId: req.tenantId,
-        status: { $in: ['hod_review', 'dean_review', 'bursar_review', 'finance_committee_review', 'vc_review', 'council_review'] },
+        status: { $in: ['bursar_review', 'finance_committee_review', 'vc_review', 'council_review'] },
       })
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 });
@@ -251,12 +247,12 @@ const getPendingFinalMasterPlans = async (req, res, next) => {
     }
 
     const stageFilter = {
-      department_head: 'hod_review',
-      dean: 'dean_review',
       bursar: 'bursar_review',
       finance_committee: 'finance_committee_review',
       finance_officer: 'finance_committee_review',
       vc: 'vc_review',
+      council: 'council_review',
+      council_member: 'council_review',
       admin: 'council_review',
     };
     const statusToFilter = stageFilter[userRole];

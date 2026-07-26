@@ -216,9 +216,7 @@ export default function CouncilDashboard() {
       st === "submitted" ||
       st === "pending" ||
       st === "vc_review" ||
-      st === "bursar_review" ||
-      st === "dean_review" ||
-      st === "hod_review"
+      st === "bursar_review"
     );
   }).length;
 
@@ -265,8 +263,6 @@ export default function CouncilDashboard() {
         draftCount++;
       } else if (
         st === "submitted" ||
-        st === "hod_review" ||
-        st === "dean_review" ||
         st === "bursar_review" ||
         st === "finance_committee_review" ||
         st === "vc_review"
