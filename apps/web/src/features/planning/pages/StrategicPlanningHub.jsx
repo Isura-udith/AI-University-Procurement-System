@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaGlobeAsia, FaChevronRight, FaPlus, FaLayerGroup, FaSitemap, FaBolt } from 'react-icons/fa';
+import { FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaGlobeAsia, FaChevronRight, FaPlus, FaLayerGroup, FaSitemap, FaBolt, FaClipboardCheck, FaTable } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import ProcurementWorkflowTracker from '../../../components/ProcurementWorkflowTracker';
 
@@ -229,6 +229,31 @@ export default function StrategicPlanningHub() {
             );
           })}
         </div>
+      </div>
+
+      {/* Draft Sheet & Final Master Plans Quick Access */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link to="/planning/draft-sheet" className="group flex items-center gap-4 p-5 rounded-2xl border border-teal-200 bg-teal-50/50 hover:bg-teal-50 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">
+            <FaTable size={20} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-teal-900">Draft Plan Sheet</h3>
+            <p className="text-xs text-teal-700 mt-0.5">Enter draft procurement requirements. Items go through HOD → Dean approval.</p>
+          </div>
+          <FaChevronRight className="text-teal-400 group-hover:text-teal-600 transition-colors" />
+        </Link>
+
+        <Link to="/planning/final-master-plans" className="group flex items-center gap-4 p-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+            <FaClipboardCheck size={20} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-emerald-900">Final Master Plans</h3>
+            <p className="text-xs text-emerald-700 mt-0.5">Compile approved drafts into Final Plans with 6-stage approval before procurement.</p>
+          </div>
+          <FaChevronRight className="text-emerald-400 group-hover:text-emerald-600 transition-colors" />
+        </Link>
       </div>
 
       {/* Two-column: Recent MPPs + Recent Annual Plans */}

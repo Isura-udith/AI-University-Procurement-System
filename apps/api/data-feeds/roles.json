@@ -242,5 +242,18 @@
       { "resource": "requisitions", "actions": ["read", "approve", "reject"] },
       { "resource": "reports",      "actions": ["read", "export"] }
     ]
+  },
+  {
+    "name": "University Council",
+    "slug": "council",
+    "hierarchy": 95,
+    "isSystem": true,
+    "description": "Highest university governing body for final Master Procurement Plan approvals.",
+    "maxApprovalAmount": 100000000,
+    "committeeType": "none",
+    "permissions": [
+      { "resource": "requisitions", "actions": ["read", "approve", "reject"] },
+      { "resource": "reports",      "actions": ["read", "export"] }
+    ]
   }
 ]

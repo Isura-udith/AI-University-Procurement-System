@@ -30,6 +30,8 @@ const ROLE_TO_STAGE = {
   procurement_officer: 'pmd',
   vc: 'vice_chancellor',
   procurement_committee: 'procurement_committee',
+  council: 'procurement_committee',
+  council_member: 'procurement_committee',
   admin: null,       // admin can approve any stage
   super_admin: null,  // super_admin can approve any stage
 };

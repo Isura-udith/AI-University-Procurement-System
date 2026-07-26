@@ -22,6 +22,8 @@ const ROLES = {
   TEC_MEMBER:          'tec_member',
   FINANCE_COMMITTEE:   'finance_committee',
   PROCUREMENT_COMMITTEE: 'procurement_committee',
+  COUNCIL:             'council',
+  COUNCIL_MEMBER:      'council_member',
   DEPARTMENT_HEAD:     'department_head',
   DEPARTMENT_USER:     'department_user',
   STORE_MANAGER:       'store_manager',
@@ -85,6 +87,8 @@ const ROLE_HIERARCHY = {
   [ROLES.SUPER_ADMIN]:         100,
   [ROLES.ADMIN]:                95,
   [ROLES.VC]:                   90,
+  [ROLES.COUNCIL]:              92,
+  [ROLES.COUNCIL_MEMBER]:       92,
   [ROLES.AUDITOR]:              80,  // High read authority for oversight
   [ROLES.BURSAR]:               75,
   [ROLES.DEAN]:                 70,
@@ -158,6 +162,16 @@ const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.PROCUREMENT_COMMITTEE]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.COUNCIL]: [
+    PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
+    PERMISSIONS.VIEW_REPORTS,
+  ],
+
+  [ROLES.COUNCIL_MEMBER]: [
     PERMISSIONS.CREATE_REQUISITION, PERMISSIONS.APPROVE_REQUISITION, PERMISSIONS.REJECT_REQUISITION,
     PERMISSIONS.VIEW_REPORTS,
   ],
@@ -240,6 +254,14 @@ const ROLE_ACCESS_MAP = {
     'dashboard', 'requisitions', 'approvals',
     'reports', 'communications', 'documents',
   ],
+  [ROLES.COUNCIL]: [
+    'dashboard', 'executive_dashboard', 'requisitions', 'approvals',
+    'reports', 'communications', 'documents',
+  ],
+  [ROLES.COUNCIL_MEMBER]: [
+    'dashboard', 'executive_dashboard', 'requisitions', 'approvals',
+    'reports', 'communications', 'documents',
+  ],
   [ROLES.DEPARTMENT_HEAD]: [
     'dashboard', 'departmental_queue', 'requisitions', 'approvals',
     'communications', 'documents',
@@ -271,6 +293,8 @@ const CROSS_TENANT_ROLES = [
   ROLES.SUPER_ADMIN,
   ROLES.ADMIN,
   ROLES.VC,
+  ROLES.COUNCIL,
+  ROLES.COUNCIL_MEMBER,
   ROLES.BURSAR,
   ROLES.PROCUREMENT_OFFICER,
   ROLES.AUDITOR,

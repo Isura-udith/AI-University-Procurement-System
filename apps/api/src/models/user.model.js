@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema({
       'store_manager',
       'supplier',
       'auditor',
+      'council',
       'guest',
     ],
     default: 'department_user',

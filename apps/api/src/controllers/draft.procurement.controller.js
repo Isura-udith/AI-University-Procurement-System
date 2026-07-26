@@ -1,11 +1,49 @@
 /**
  * Draft Procurement Plan Controller
- * Handles user draft items, bulk saving, Dean verification workflow,
- * and fetching approved items for Master Procurement Plan integration.
+ * Handles user draft items, bulk saving, multi-stage approval workflow with strict role authorization:
+ * Staff Input -> HOD (Faculty items) -> Dean (Faculty items) -> Bursar (ALL items) -> FC -> VC -> Council -> Approved
+ * and compiling approved items into a Final Master Plan.
  */
 const mongoose = require('mongoose');
 const DraftProcurementItem = require('../models/draft.procurement.model');
+const FinalMasterPlan = require('../models/final.master.plan.model');
+const User = require('../models/user.model');
 const { success, created, paginated } = require('../utils/response');
+
+const STAGE_ROLES = {
+  hod: ['department_head', 'academic_staff', 'hod', 'super_admin', 'admin'],
+  dean: ['dean', 'super_admin', 'admin'],
+  bursar: ['bursar', 'super_admin', 'admin'],
+  fc: ['finance_committee', 'finance_officer', 'super_admin', 'admin'],
+  finance_committee: ['finance_committee', 'finance_officer', 'super_admin', 'admin'],
+  vc: ['vc', 'vice_chancellor', 'super_admin', 'admin'],
+  vice_chancellor: ['vc', 'vice_chancellor', 'super_admin', 'admin'],
+  council: ['council', 'super_admin', 'admin'],
+};
+
+const ROLE_DEFAULT_STAGE = {
+  department_head: 'hod',
+  academic_staff: 'hod',
+  hod: 'hod',
+  dean: 'dean',
+  bursar: 'bursar',
+  finance_committee: 'fc',
+  finance_officer: 'fc',
+  vc: 'vc',
+  vice_chancellor: 'vc',
+  council: 'council',
+};
+
+const handleControllerError = (err, res, next) => {
+  if (typeof next === 'function') {
+    return next(err);
+  }
+  const statusCode = err.statusCode || (err.name === 'ValidationError' || err.name === 'CastError' ? 400 : 500);
+  return res.status(statusCode).json({
+    success: false,
+    message: err.message || 'Server error',
+  });
+};
 
 /**
  * GET /api/draft-procurements
@@ -21,8 +59,8 @@ const getDraftItems = async (req, res, next) => {
     if (status && status !== 'ALL') filter.status = status;
 
     // Regular users see their department's or their own created draft items
-    if (['department_user', 'department_head', 'academic_staff'].includes(req.user.role)) {
-      if (!department && req.user.department) {
+    if (['department_user', 'department_head', 'academic_staff'].includes(req.user?.role)) {
+      if (!department && req.user?.department) {
         filter.department = req.user.department;
       }
     }
@@ -33,8 +71,26 @@ const getDraftItems = async (req, res, next) => {
 
     return success(res, items, 'Draft procurement items retrieved');
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
   }
+};
+
+/**
+ * Helper to normalize user/frontend status strings to valid schema enum values
+ */
+const normalizeStatus = (statusStr) => {
+  if (!statusStr) return 'draft';
+  const s = String(statusStr).toLowerCase().trim();
+  if (s === 'submitted to hod' || s === 'submitted_to_hod') return 'submitted_to_hod';
+  if (s === 'hod approved' || s === 'hod_approved') return 'hod_approved';
+  if (s === 'submitted to dean' || s === 'submitted_to_dean') return 'submitted_to_dean';
+  if (s === 'submitted to bursar' || s === 'submitted_to_bursar') return 'submitted_to_bursar';
+  if (s === 'submitted to fc' || s === 'submitted_to_fc') return 'submitted_to_fc';
+  if (s === 'submitted to vc' || s === 'submitted_to_vc') return 'submitted_to_vc';
+  if (s === 'submitted to council' || s === 'submitted_to_council') return 'submitted_to_council';
+  if (s === 'approved' || s === 'council_approved') return 'approved';
+  if (s === 'rejected') return 'rejected';
+  return 'draft';
 };
 
 /**
@@ -54,8 +110,8 @@ const saveDraftItems = async (req, res, next) => {
         tenantId: req.tenantId || 'uwu-main',
         itemCode: item.itemCode || item.dappNumber,
         description: item.description || 'Draft Procurement Item',
-        faculty: item.faculty || req.user.faculty || 'Faculty of Applied Sciences',
-        department: item.department || req.user.department || 'Computer Science & Informatics',
+        faculty: item.faculty || (req.user && req.user.faculty) || 'Faculty of Applied Sciences',
+        department: item.department || (req.user && req.user.department) || 'Computer Science & Informatics',
         targetOffice: item.targetOffice || '',
         category: item.category || 'Goods',
         estimatedQuantity: Number(item.quantity || item.estimatedQuantity) || 1,
@@ -71,13 +127,13 @@ const saveDraftItems = async (req, res, next) => {
         q4Amount: Number(item.q4Amount) || 0,
         justification: item.justification || item.notes || '',
         notes: item.notes || '',
-        status: item.status && item.status !== 'Draft' ? item.status : 'draft',
-        createdBy: req.user._id,
+        status: normalizeStatus(item.status),
+        createdBy: req.user?._id,
       };
 
       // Check if item has a valid MongoDB ID
-      if (item._id || (item.id && mongoose.Types.ObjectId.isValid(item.id))) {
-        const targetId = item._id || item.id;
+      const targetId = item._id || item.dbId || (item.id && mongoose.Types.ObjectId.isValid(item.id) ? item.id : null);
+      if (targetId) {
         const updated = await DraftProcurementItem.findOneAndUpdate(
           { _id: targetId, tenantId: req.tenantId || 'uwu-main' },
           { $set: payload },
@@ -97,122 +153,266 @@ const saveDraftItems = async (req, res, next) => {
 
     return success(res, savedItems, `Saved ${savedItems.length} draft procurement item(s)`);
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
   }
 };
 
 /**
  * POST /api/draft-procurements/submit
- * Submit draft procurement items for Dean verification workflow
+ * Submit draft procurement items for HOD verification workflow (Step 1)
  */
 const submitDraftItems = async (req, res, next) => {
   try {
     const { itemIds } = req.body;
-    const filter = { tenantId: req.tenantId || 'uwu-main', status: 'draft' };
+    const filter = { tenantId: req.tenantId || 'uwu-main' };
     
     if (Array.isArray(itemIds) && itemIds.length > 0) {
-      filter._id = { $in: itemIds };
+      const validIds = itemIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length > 0) {
+        filter._id = { $in: validIds };
+      }
     } else {
-      // If no specific IDs passed, submit all 'draft' items for user's department
-      if (req.user.department) filter.department = req.user.department;
+      if (req.user && req.user.department) filter.department = req.user.department;
+      filter.status = 'draft';
     }
 
     const updated = await DraftProcurementItem.updateMany(filter, {
       $set: {
-        status: 'submitted_to_dean',
+        status: 'submitted_to_hod',
         submittedAt: new Date(),
       },
       $push: {
         approvalChain: {
-          stage: 'dean',
+          stage: 'hod',
           status: 'pending',
-          comments: 'Submitted for Dean verification',
+          comments: 'Submitted for HOD verification',
           actionDate: new Date(),
         }
       }
     });
 
-    return success(res, { modifiedCount: updated.modifiedCount }, `Submitted ${updated.modifiedCount} draft item(s) for Dean Review`);
+    return success(res, { modifiedCount: updated.modifiedCount }, `Submitted ${updated.modifiedCount} draft item(s) for HOD Review`);
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
   }
 };
 
 /**
- * GET /api/draft-procurements/pending
- * Retrieve items pending verification for Faculty Deans and Officers
+ * GET /api/draft-procurements/pending-hod
+ * Retrieve items pending HOD verification (HOD role authorized only)
  */
-const getPendingDraftItems = async (req, res, next) => {
+const getPendingHodItems = async (req, res, next) => {
   try {
+    const userRole = req.user?.role;
+    if (!STAGE_ROLES.hod.includes(userRole)) {
+      return res.status(403).json({ message: 'Unauthorized. Only HOD / Department Head role can access HOD queue.' });
+    }
+
     const filter = {
       tenantId: req.tenantId || 'uwu-main',
-      status: 'submitted_to_dean',
+      status: 'submitted_to_hod',
     };
 
-    // Filter by Dean's faculty if not super admin
-    if (req.user.role === 'dean' && req.user.faculty) {
-      filter.faculty = req.user.faculty;
+    if (req.user?.faculty && userRole !== 'super_admin' && userRole !== 'admin') {
+      const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
+      if (cleanFaculty) {
+        filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+      }
     }
 
     const pendingItems = await DraftProcurementItem.find(filter)
       .populate('createdBy', 'name email department faculty')
       .sort({ submittedAt: -1 });
 
-    return success(res, pendingItems, 'Pending draft items for verification');
+    return success(res, pendingItems, 'Pending draft items for HOD verification');
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
   }
 };
 
 /**
- * POST /api/draft-procurements/:id/approve
- * Dean or Officer approves/rejects a draft procurement item
+ * POST /api/draft-procurements/:id/hod-approve
+ * HOD approves/rejects a draft procurement item
  */
-const approveDraftItem = async (req, res, next) => {
+const hodApproveDraftItem = async (req, res, next) => {
   try {
-    const { action, comments } = req.body; // action: 'approve' | 'reject'
+    const userRole = req.user?.role;
+    if (!STAGE_ROLES.hod.includes(userRole)) {
+      return res.status(403).json({ message: 'Unauthorized. Only HOD / Department Head role can approve items at HOD stage.' });
+    }
+
+    const { action, comments } = req.body;
     const item = await DraftProcurementItem.findOne({ _id: req.params.id, tenantId: req.tenantId || 'uwu-main' });
     
     if (!item) {
       return res.status(404).json({ message: 'Draft procurement item not found' });
     }
 
+    if (item.status !== 'submitted_to_hod') {
+      return res.status(400).json({ message: 'Item is not pending HOD approval' });
+    }
+
     const isApprove = action === 'approve';
-    item.status = isApprove ? 'approved' : 'rejected';
-    if (isApprove) item.approvedAt = new Date();
 
     item.approvalChain.push({
-      stage: 'dean',
-      approver: req.user._id,
+      stage: 'hod',
+      approver: req.user?._id,
       status: isApprove ? 'approved' : 'rejected',
-      comments: comments || (isApprove ? 'Approved by Faculty Dean' : 'Rejected during verification'),
+      comments: comments || (isApprove ? 'Approved by Department HOD' : 'Rejected by HOD'),
       actionDate: new Date(),
     });
 
+    if (isApprove) {
+      item.status = 'submitted_to_dean';
+    } else {
+      item.status = 'rejected';
+    }
+
     await item.save();
-    return success(res, item, isApprove ? 'Item approved for Master Procurement Plan' : 'Item rejected');
+    return success(res, item, isApprove ? 'Item approved by HOD and forwarded to Dean' : 'Item rejected by HOD');
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
+  }
+};
+
+/**
+ * GET /api/draft-procurements/pending
+ * Retrieve pending items for requested stage with strict role checking
+ */
+const getPendingDraftItems = async (req, res, next) => {
+  try {
+    const { stage } = req.query;
+    const userRole = req.user?.role;
+
+    let targetStage = stage ? stage.toLowerCase().trim() : (ROLE_DEFAULT_STAGE[userRole] || 'dean');
+
+    const allowedRoles = STAGE_ROLES[targetStage] || STAGE_ROLES.dean;
+    if (userRole && !allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        message: `Unauthorized. Role '${userRole}' is not permitted to access or view the ${targetStage.toUpperCase()} approval queue.`
+      });
+    }
+
+    const filter = { tenantId: req.tenantId || 'uwu-main' };
+
+    if (targetStage === 'hod') {
+      filter.status = 'submitted_to_hod';
+      if (req.user?.faculty && !['super_admin', 'admin'].includes(userRole)) {
+        const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
+        if (cleanFaculty) filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+      }
+    } else if (targetStage === 'dean') {
+      filter.status = 'submitted_to_dean';
+      if (userRole === 'dean' && req.user?.faculty) {
+        const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
+        if (cleanFaculty) filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+      }
+    } else if (targetStage === 'bursar') {
+      filter.status = 'submitted_to_bursar';
+    } else if (targetStage === 'fc' || targetStage === 'finance_committee') {
+      filter.status = 'submitted_to_fc';
+    } else if (targetStage === 'vc' || targetStage === 'vice_chancellor') {
+      filter.status = 'submitted_to_vc';
+    } else if (targetStage === 'council') {
+      filter.status = 'submitted_to_council';
+    } else {
+      filter.status = 'submitted_to_dean';
+    }
+
+    const pendingItems = await DraftProcurementItem.find(filter)
+      .populate('createdBy', 'name email department faculty')
+      .sort({ submittedAt: -1, createdAt: -1 });
+
+    return success(res, pendingItems, `Pending draft items for stage: ${targetStage}`);
+  } catch (err) {
+    return handleControllerError(err, res, next);
+  }
+};
+
+/**
+ * POST /api/draft-procurements/:id/approve
+ * Approves/rejects a draft procurement item at a specific stage with strict role verification
+ */
+const approveDraftItem = async (req, res, next) => {
+  try {
+    const { action, comments, stage } = req.body;
+    const userRole = req.user?.role;
+
+    const item = await DraftProcurementItem.findOne({ _id: req.params.id, tenantId: req.tenantId || 'uwu-main' });
+    
+    if (!item) {
+      return res.status(404).json({ message: 'Draft procurement item not found' });
+    }
+
+    const currentStage = stage || (
+      item.status === 'submitted_to_hod' ? 'hod' :
+      item.status === 'submitted_to_dean' ? 'dean' :
+      item.status === 'submitted_to_bursar' ? 'bursar' :
+      item.status === 'submitted_to_fc' ? 'fc' :
+      item.status === 'submitted_to_vc' ? 'vc' :
+      item.status === 'submitted_to_council' ? 'council' : 'dean'
+    );
+
+    const allowedRoles = STAGE_ROLES[currentStage] || STAGE_ROLES.dean;
+    if (userRole && !allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        message: `Unauthorized. Role '${userRole}' is not permitted to approve items at the ${currentStage.toUpperCase()} stage.`
+      });
+    }
+
+    const isApprove = action === 'approve';
+
+    item.approvalChain.push({
+      stage: currentStage,
+      approver: req.user?._id,
+      status: isApprove ? 'approved' : 'rejected',
+      comments: comments || (isApprove ? `Approved at ${currentStage.toUpperCase()} stage` : `Rejected at ${currentStage.toUpperCase()} stage`),
+      actionDate: new Date(),
+    });
+
+    if (isApprove) {
+      if (currentStage === 'hod') {
+        item.status = 'submitted_to_dean';
+      } else if (currentStage === 'dean') {
+        item.status = 'submitted_to_bursar';
+      } else if (currentStage === 'bursar') {
+        item.status = 'submitted_to_fc';
+      } else if (currentStage === 'fc' || currentStage === 'finance_committee') {
+        item.status = 'submitted_to_vc';
+      } else if (currentStage === 'vc' || currentStage === 'vice_chancellor') {
+        item.status = 'submitted_to_council';
+      } else if (currentStage === 'council') {
+        item.status = 'approved';
+        item.approvedAt = new Date();
+      } else {
+        item.status = 'approved';
+        item.approvedAt = new Date();
+      }
+    } else {
+      item.status = 'rejected';
+    }
+
+    await item.save();
+    return success(res, item, isApprove ? `Item approved at ${currentStage.toUpperCase()} stage` : `Item rejected at ${currentStage.toUpperCase()} stage`);
+  } catch (err) {
+    return handleControllerError(err, res, next);
   }
 };
 
 /**
  * GET /api/draft-procurements/approved
- * Fetch approved draft items ready for Master Procurement Plan inclusion
+ * Fetch approved draft items ready for Final Master Plan inclusion
  */
 const getApprovedDraftItems = async (req, res, next) => {
   try {
     const { department, faculty } = req.query;
     const filter = {
       tenantId: req.tenantId || 'uwu-main',
-      status: { $in: ['approved', 'dean_approved'] },
+      status: { $in: ['approved', 'council_approved', 'dean_approved', 'bursar_approved', 'fc_approved', 'vc_approved'] },
     };
 
-    if (department) filter.department = department;
-    else if (req.user.department) filter.department = req.user.department;
-
-    if (faculty) filter.faculty = faculty;
-    else if (req.user.faculty) filter.faculty = req.user.faculty;
+    if (department && department !== 'ALL') filter.department = department;
+    if (faculty && faculty !== 'ALL') filter.faculty = faculty;
 
     const approvedItems = await DraftProcurementItem.find(filter)
       .populate('createdBy', 'name email')
@@ -220,7 +420,84 @@ const getApprovedDraftItems = async (req, res, next) => {
 
     return success(res, approvedItems, 'Approved draft procurement items retrieved');
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
+  }
+};
+
+/**
+ * POST /api/draft-procurements/compile-final
+ * Compiles approved draft procurement items into a Final Master Plan document
+ */
+const compileToFinalMasterPlan = async (req, res, next) => {
+  try {
+    const userRole = req.user?.role;
+    const allowedCompileRoles = ['bursar', 'procurement_officer', 'admin', 'super_admin', 'council'];
+    if (userRole && !allowedCompileRoles.includes(userRole)) {
+      return res.status(403).json({ message: `Unauthorized. Role '${userRole}' cannot compile Final Master Plans.` });
+    }
+
+    const { title, planYear, draftItemIds } = req.body;
+
+    if (!Array.isArray(draftItemIds) || draftItemIds.length === 0) {
+      return res.status(400).json({ message: 'draftItemIds array is required' });
+    }
+
+    const approvedDraftItems = await DraftProcurementItem.find({
+      _id: { $in: draftItemIds },
+      tenantId: req.tenantId || 'uwu-main',
+      status: { $in: ['approved', 'council_approved', 'dean_approved', 'bursar_approved', 'fc_approved', 'vc_approved'] },
+    });
+
+    if (approvedDraftItems.length === 0) {
+      return res.status(400).json({ message: 'No eligible approved draft items found for compilation' });
+    }
+
+    const year = Number(planYear) || new Date().getFullYear();
+    const referenceNumber = `FMP-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const fmpItems = approvedDraftItems.map(d => ({
+      draftItemId: d._id,
+      description: d.description,
+      department: d.department,
+      faculty: d.faculty,
+      category: d.category,
+      dappNumber: d.itemCode,
+      estimatedQuantity: d.estimatedQuantity,
+      unit: d.unit,
+      estimatedUnitCost: d.estimatedUnitCost,
+      estimatedTotalCost: d.estimatedTotalCost,
+      plannedYear: d.plannedYear,
+      priority: (d.priority || 'medium').toLowerCase(),
+      fundingSource: d.fundingSource,
+      justification: d.justification || d.notes,
+    }));
+
+    const totalEstimatedBudget = fmpItems.reduce((acc, curr) => acc + (curr.estimatedTotalCost || 0), 0);
+
+    const newFinalPlan = new FinalMasterPlan({
+      tenantId: req.tenantId || 'uwu-main',
+      referenceNumber,
+      title: title || `Final Master Procurement Plan ${year}`,
+      description: `Compiled from ${approvedDraftItems.length} approved DAPP items`,
+      planYear: year,
+      items: fmpItems,
+      totalEstimatedBudget,
+      status: 'draft',
+      createdBy: req.user?._id,
+      department: req.user?.department || approvedDraftItems[0].department,
+      faculty: req.user?.faculty || approvedDraftItems[0].faculty,
+    });
+
+    await newFinalPlan.save();
+
+    await DraftProcurementItem.updateMany(
+      { _id: { $in: approvedDraftItems.map(i => i._id) } },
+      { $set: { masterPlanId: newFinalPlan._id } }
+    );
+
+    return created(res, newFinalPlan, `Successfully compiled ${approvedDraftItems.length} approved draft items into Final Master Plan (${referenceNumber})`);
+  } catch (err) {
+    return handleControllerError(err, res, next);
   }
 };
 
@@ -237,7 +514,7 @@ const deleteDraftItem = async (req, res, next) => {
     await item.deleteOne();
     return success(res, null, 'Draft procurement item deleted');
   } catch (err) {
-    next(err);
+    return handleControllerError(err, res, next);
   }
 };
 
@@ -245,8 +522,11 @@ module.exports = {
   getDraftItems,
   saveDraftItems,
   submitDraftItems,
+  getPendingHodItems,
+  hodApproveDraftItem,
   getPendingDraftItems,
   approveDraftItem,
   getApprovedDraftItems,
+  compileToFinalMasterPlan,
   deleteDraftItem,
 };

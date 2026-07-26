@@ -1,5 +1,6 @@
 
 const Procurement = require('../models/procurement.model');
+const FinalMasterPlan = require('../models/final.master.plan.model');
 const Notification = require('../models/notification.model');
 const User = require('../models/user.model');
 const aiService = require('./ai.service');
@@ -18,7 +19,34 @@ class ProcurementService {
       if (!createData.faculty && requestor.faculty) createData.faculty = requestor.faculty;
     }
     
+    // If fmpItemId or dappItem is provided, verify linkage to active Final Master Plan
+    const targetItemId = data.fmpItemId || data.dappItem;
+    if (targetItemId) {
+      const fmp = await FinalMasterPlan.findOne({
+        tenantId,
+        status: 'active',
+        'items._id': targetItemId,
+      });
+      if (fmp) {
+        createData.mppReference = fmp.referenceNumber;
+      }
+    }
+
     const procurement = await Procurement.create(createData);
+
+    // Mark Final Master Plan item as procurementCreated if linked
+    if (targetItemId) {
+      await FinalMasterPlan.updateOne(
+        { tenantId, status: 'active', 'items._id': targetItemId },
+        {
+          $set: {
+            'items.$.procurementCreated': true,
+            'items.$.procurementId': procurement._id,
+          }
+        }
+      );
+    }
+
     logger.audit('PROCUREMENT_CREATED', userId, { procurementId: procurement._id, ref: procurement.referenceNumber });
     return procurement;
   }
@@ -353,7 +381,7 @@ class ProcurementService {
       bursar: ['bursar', 'admin', 'super_admin'],
       finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
-      procurement_committee: ['procurement_committee', 'admin', 'super_admin'],
+      procurement_committee: ['procurement_committee', 'council', 'council_member', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
     if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -487,7 +515,7 @@ class ProcurementService {
       bursar: ['bursar', 'admin', 'super_admin'],
       finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
-      procurement_committee: ['procurement_committee', 'admin', 'super_admin'],
+      procurement_committee: ['procurement_committee', 'council', 'council_member', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
     if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -659,6 +687,8 @@ class ProcurementService {
       procurement_officer: 'pmd',
       vc: 'vice_chancellor',
       procurement_committee: 'procurement_committee',
+      council: 'procurement_committee',
+      council_member: 'procurement_committee',
     };
     const targetStage = roleToStage[role];
 

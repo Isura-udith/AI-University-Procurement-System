@@ -56,7 +56,8 @@ const navSections = [
     items: [
       { path: '/workflow', label: '45-Step Lifecycle', icon: FaSitemap },
       { path: '/planning', label: 'Planning Hub', icon: FaLayerGroup },
-      { path: '/planning/draft-sheet', label: 'Master Plan Sheet (Excel)', icon: FaTable },
+      { path: '/planning/draft-sheet', label: 'Draft Plan Sheet', icon: FaTable },
+      { path: '/planning/final-master-plans', label: 'Final Master Plans', icon: FaClipboardList },
       { path: '/planning/master-plans', label: 'Master Plans (3-Yr)', icon: FaLayerGroup },
       { path: '/planning/annual-plans', label: 'Annual Plans', icon: FaCalendarAlt },
       { path: '/planning/budget-distribution', label: 'Budget Distribution', icon: FaMoneyBillWave },

@@ -19,7 +19,7 @@ router.use(protect);
 // Dashboard & Pending (most internal roles can view)
 router.get('/dashboard-stats', getDashboardStats);
 router.get('/pending-approvals',
-  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'admin', 'vc', 'super_admin'),
+  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'admin', 'vc', 'super_admin'),
   getPendingApprovals
 );
 
@@ -40,7 +40,7 @@ router.get('/',
   authorize(
     'department_user', 'department_head', 'dean',
     'procurement_officer', 'admin', 'vc',
-    'bursar', 'finance_officer', 'finance_committee', 'auditor', 'super_admin'
+    'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,
   getAllProcurements
@@ -49,7 +49,7 @@ router.get('/:id',
   authorize(
     'department_user', 'department_head', 'dean',
     'procurement_officer', 'admin', 'vc',
-    'bursar', 'finance_officer', 'finance_committee', 'auditor', 'super_admin'
+    'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,
   getProcurement
@@ -81,14 +81,14 @@ router.post('/:id/submit',
   submitProcurement
 );
 router.post('/:id/approve',
-  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'admin', 'vc', 'super_admin'),
+  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'admin', 'vc', 'super_admin'),
   readOnlyGuard,
   requireSameFaculty,
   requireWorkflowPhase,
   approveProcurement
 );
 router.post('/:id/reject',
-  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'admin', 'vc', 'super_admin'),
+  authorize('department_head', 'dean', 'procurement_officer', 'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'admin', 'vc', 'super_admin'),
   readOnlyGuard,
   requireSameFaculty,
   requireWorkflowPhase,

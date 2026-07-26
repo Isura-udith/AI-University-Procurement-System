@@ -195,6 +195,15 @@ const ROLES = [
       { resource: 'reports',      actions: ['read', 'export'] },
     ],
   },
+  {
+    name: 'University Council', slug: 'council', hierarchy: 95, isSystem: true,
+    description: 'Highest university governing body for final Master Procurement Plan approvals.',
+    maxApprovalAmount: 100000000, committeeType: 'none',
+    permissions: [
+      { resource: 'requisitions', actions: ['read', 'approve', 'reject'] },
+      { resource: 'reports',      actions: ['read', 'export'] },
+    ],
+  },
 ];
 
 const DEMO_USERS = [
@@ -239,6 +248,14 @@ const DEMO_USERS = [
     role: 'dean', firstName: 'Faculty', lastName: 'Dean',
     email: 'dean@uwu.ac.lk', employeeId: 'UWU-EXE-002',
     department: 'Medicine', faculty: 'Medicine',
+    permissions: [
+      'approve_requisition', 'reject_requisition', 'view_reports',
+    ],
+  },
+  {
+    role: 'council', firstName: 'University', lastName: 'Council',
+    email: 'council@uwu.ac.lk', employeeId: 'UWU-EXE-003',
+    department: 'Executive Governance', faculty: 'Administration',
     permissions: [
       'approve_requisition', 'reject_requisition', 'view_reports',
     ],

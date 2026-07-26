@@ -11,6 +11,7 @@ const DEMO_USERS = [
   // ─── Executive Leadership ─────────────────────────────────────
   { role: 'vc',                  firstName: 'Vice',        lastName: 'Chancellor',  email: 'vc@uwu.ac.lk',            employeeId: 'UWU-EXE-001', jobTitle: 'Vice Chancellor (AO)',      category: 'Executive',   color: 'purple',  accessArea: 'Executive Dashboard & Legal Finalization' },
   { role: 'dean',                firstName: 'Faculty',     lastName: 'Dean',        email: 'dean@uwu.ac.lk',          employeeId: 'UWU-EXE-002', jobTitle: 'Faculty Dean (Medicine)',    category: 'Executive',   color: 'purple',  accessArea: 'Faculty Approvals & Budget Utilization', faculty: 'Medicine' },
+  { role: 'council',             firstName: 'University',  lastName: 'Council',     email: 'council@uwu.ac.lk',       employeeId: 'UWU-EXE-003', jobTitle: 'University Council',        category: 'Executive',   color: 'purple',  accessArea: 'Council Master Plan Approvals' },
   // ─── Finance & Budgetary Control ──────────────────────────────
   { role: 'bursar',              firstName: 'Chief',       lastName: 'Bursar',      email: 'bursar@uwu.ac.lk',        employeeId: 'UWU-FIN-001', jobTitle: 'Chief Bursar',              category: 'Finance',     color: 'blue',    accessArea: 'Financial Reconciliation Module' },
   { role: 'finance_officer',     firstName: 'Finance',     lastName: 'Officer',     email: 'finance@uwu.ac.lk',       employeeId: 'UWU-FIN-002', jobTitle: 'Finance Officer',           category: 'Finance',     color: 'blue',    accessArea: 'Accounts Payable' },

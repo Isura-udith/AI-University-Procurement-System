@@ -20,6 +20,7 @@ const documentRoutes = require('./document.routes');
 // Phase 1-4: Strategic Planning & Budget
 const masterPlanRoutes = require('./master.plan.routes');
 const draftProcurementRoutes = require('./draft.procurement.routes');
+const finalMasterPlanRoutes = require('./final.master.plan.routes');
 const annualPlanRoutes = require('./annual.plan.routes');
 const budgetAllocationRoutes = require('./budget.allocation.routes');
 // Phase 7-8: Store & Inventory
@@ -43,6 +44,7 @@ router.use('/documents', documentRoutes);
 // Strategic Planning (Phases 1-4)
 router.use('/master-plans', masterPlanRoutes);
 router.use('/draft-procurements', draftProcurementRoutes);
+router.use('/final-master-plans', finalMasterPlanRoutes);
 router.use('/annual-plans', annualPlanRoutes);
 router.use('/budget-allocations', budgetAllocationRoutes);
 // Store & Inventory (Phases 7-8)

@@ -2,6 +2,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
 import SupplierDashboard from "./SupplierDashboard";
+import CouncilDashboard from "./CouncilDashboard";
 import {
   FaClipboardList,
   FaMoneyCheckAlt,
@@ -184,7 +185,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, path, loading }) {
   const c = colorMap[color] || colorMap.blue;
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between min-h-[148px]">
+      <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between min-h-37">
         <div className="flex items-center justify-between">
           <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
           <Skeleton className="h-5 w-16 rounded-full" />
@@ -205,7 +206,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, path, loading }) {
   return (
     <Link
       to={path}
-      className="group bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[148px] h-full"
+      className="group bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-37 h-full"
     >
       <div
         className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${c.light} opacity-40 group-hover:scale-150 transition-transform duration-500 pointer-events-none`}
@@ -218,7 +219,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, path, loading }) {
         >
           <Icon size={20} />
         </div>
-        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${badgeBg} ${badgeTextClass} max-w-[110px] truncate shrink-0`}>
+        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${badgeBg} ${badgeTextClass} max-w-27.5 truncate shrink-0`}>
           {badgeText}
         </span>
       </div>
@@ -294,6 +295,7 @@ export default function DashboardPage() {
           "store_manager",
           "tec_member",
           "auditor",
+          "council",
         ].includes(userRole);
 
         const filterParams = {};
@@ -335,8 +337,9 @@ export default function DashboardPage() {
 
   const [now] = useState(() => Date.now());
 
-  // ── Supplier short-circuit ─────────────────────────────────────────────────
+  // ── Role-specific short-circuits ──────────────────────────────────────────
   if (user?.role === "supplier") return <SupplierDashboard />;
+  if (user?.role === "council") return <CouncilDashboard />;
 
   // ── Extract typed data ────────────────────────────────────────────────────
   const procStats = rawData?.procStatsRaw?.data || null;

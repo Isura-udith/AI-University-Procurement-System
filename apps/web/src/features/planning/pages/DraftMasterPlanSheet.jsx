@@ -6,7 +6,8 @@ import {
   FaSave, FaPaperPlane, FaSearch, FaRedo, FaUndo,
   FaCalculator, FaCheckCircle, FaBuilding, FaMoneyBillWave,
   FaExclamationTriangle, FaTimes, FaSpinner, FaCloudDownloadAlt,
-  FaUserCheck, FaThumbsUp, FaThumbsDown
+  FaUserCheck, FaThumbsUp, FaThumbsDown, FaUserTie, FaLandmark,
+  FaGavel, FaCheckDouble, FaLayerGroup, FaUniversity
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
@@ -14,29 +15,64 @@ import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } fr
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 const FUNDING_SOURCES = ['Recurrent Budget', 'Capital Budget', 'Research Grant', 'Trust Fund', 'Self-Generated Fund'];
-const STATUSES = ['Draft', 'Submitted to Dean', 'Approved', 'Rejected'];
+const STATUSES = ['Draft', 'Submitted to HOD', 'Submitted to Dean', 'Submitted to Bursar', 'Submitted to FC', 'Submitted to VC', 'Submitted to Council', 'Approved', 'Rejected'];
 
 export default function DraftMasterPlanSheet() {
   const { user } = useSelector(s => s.auth);
   const fileInputRef = useRef(null);
 
+  const userRole = user?.role || 'department_user';
+  const isSuperOrAdmin = ['super_admin', 'admin'].includes(userRole);
+
+  // Role Access Flags for Stage Queues
+  const canAccessHod = isSuperOrAdmin || ['department_head', 'academic_staff', 'hod'].includes(userRole);
+  const canAccessDean = isSuperOrAdmin || ['dean'].includes(userRole);
+  const canAccessBursar = isSuperOrAdmin || ['bursar'].includes(userRole);
+  const canAccessFc = isSuperOrAdmin || ['finance_committee', 'finance_officer'].includes(userRole);
+  const canAccessVc = isSuperOrAdmin || ['vc', 'vice_chancellor'].includes(userRole);
+  const canAccessCouncil = isSuperOrAdmin || ['council'].includes(userRole);
+  const canAccessCompilation = isSuperOrAdmin || ['bursar', 'procurement_officer', 'council'].includes(userRole);
+
   // Department default setting based on user role/faculty
   const defaultFaculty = user?.faculty || DEPARTMENTS_AND_FACULTIES[0];
   const defaultDept = user?.department || DEPARTMENTS_BY_FACULTY[defaultFaculty]?.[0] || ALL_DEPARTMENTS[0];
 
-  // Active View Tab: 'sheet' (Grid Editor) vs 'verification' (Dean Approval Queue)
-  const [activeTab, setActiveTab] = useState('sheet');
+  // Default active tab based on user's role
+  const defaultTab = useMemo(() => {
+    if (['department_head', 'academic_staff', 'hod'].includes(userRole)) return 'hod_verification';
+    if (userRole === 'dean') return 'dean_verification';
+    if (userRole === 'bursar') return 'bursar_verification';
+    if (['finance_committee', 'finance_officer'].includes(userRole)) return 'fc_verification';
+    if (['vc', 'vice_chancellor'].includes(userRole)) return 'vc_verification';
+    if (userRole === 'council') return 'council_verification';
+    return 'sheet';
+  }, [userRole]);
+
+  // Active View Tab
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   // Loading States
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [compiling, setCompiling] = useState(false);
 
-  // Main Rows State (Initialized empty until fetched from backend)
+  // Main Rows State
   const [rows, setRows] = useState([]);
 
-  // Pending Items for Dean Verification
-  const [pendingItems, setPendingItems] = useState([]);
+  // Multi-stage pending queues
+  const [hodPendingItems, setHodPendingItems] = useState([]);
+  const [deanPendingItems, setDeanPendingItems] = useState([]);
+  const [bursarPendingItems, setBursarPendingItems] = useState([]);
+  const [fcPendingItems, setFcPendingItems] = useState([]);
+  const [vcPendingItems, setVcPendingItems] = useState([]);
+  const [councilPendingItems, setCouncilPendingItems] = useState([]);
+  const [approvedItems, setApprovedItems] = useState([]);
+
+  // Verification & Compilation selection states
   const [verifyingId, setVerifyingId] = useState(null);
+  const [selectedApprovedIds, setSelectedApprovedIds] = useState([]);
+  const [compilationTitle, setCompilationTitle] = useState(`Master Procurement Plan ${new Date().getFullYear()}`);
+  const [compilationYear, setCompilationYear] = useState(new Date().getFullYear());
 
   // Cell Selection & Focus State
   const [selectedCell, setSelectedCell] = useState({ rowIndex: 0, colKey: 'description' });
@@ -75,8 +111,13 @@ export default function DraftMasterPlanSheet() {
       q3Amount: item.q3Amount ?? 0,
       q4Amount: item.q4Amount ?? 0,
       fundingSource: item.fundingSource || 'Recurrent Budget',
-      status: item.status === 'submitted_to_dean' ? 'Submitted to Dean' :
-              item.status === 'approved' || item.status === 'dean_approved' ? 'Approved' :
+      status: item.status === 'submitted_to_hod' ? 'Submitted to HOD' :
+              item.status === 'submitted_to_dean' ? 'Submitted to Dean' :
+              item.status === 'submitted_to_bursar' ? 'Submitted to Bursar' :
+              item.status === 'submitted_to_fc' ? 'Submitted to FC' :
+              item.status === 'submitted_to_vc' ? 'Submitted to VC' :
+              item.status === 'submitted_to_council' ? 'Submitted to Council' :
+              item.status === 'approved' || item.status === 'council_approved' ? 'Approved' :
               item.status === 'rejected' ? 'Rejected' : 'Draft',
       notes: item.justification || item.notes || ''
     }));
@@ -85,7 +126,7 @@ export default function DraftMasterPlanSheet() {
     setHistoryIndex(0);
   }, [defaultDept, defaultFaculty, user]);
 
-  // Load draft items & pending approvals from backend
+  // Load draft items & authorized pending approvals from backend
   const loadBackendData = useCallback(async () => {
     try {
       // 1. Fetch user/department draft procurement items
@@ -93,10 +134,67 @@ export default function DraftMasterPlanSheet() {
       const items = res.data?.data || res.data || [];
       parseDraftItems(items);
 
-      // 2. Fetch pending items if user is Dean, Admin or Bursar
-      if (['dean', 'super_admin', 'admin', 'bursar'].includes(user?.role)) {
-        const pendingRes = await planningService.getPendingDraftItems();
-        setPendingItems(pendingRes.data?.data || pendingRes.data || []);
+      // 2. Fetch HOD pending items (if authorized)
+      if (canAccessHod) {
+        try {
+          const hodRes = await planningService.getPendingHodItems();
+          const hodData = hodRes?.data?.data || hodRes?.data || [];
+          setHodPendingItems(Array.isArray(hodData) ? hodData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 3. Fetch Dean pending items (if authorized)
+      if (canAccessDean) {
+        try {
+          const deanRes = await planningService.getPendingDraftItems('dean');
+          const deanData = deanRes?.data?.data || deanRes?.data || [];
+          setDeanPendingItems(Array.isArray(deanData) ? deanData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 4. Fetch Bursar pending items (ALL items university-wide, if authorized)
+      if (canAccessBursar) {
+        try {
+          const bursarRes = await planningService.getPendingDraftItems('bursar');
+          const bursarData = bursarRes?.data?.data || bursarRes?.data || [];
+          setBursarPendingItems(Array.isArray(bursarData) ? bursarData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 5. Fetch Finance Committee pending items (if authorized)
+      if (canAccessFc) {
+        try {
+          const fcRes = await planningService.getPendingDraftItems('fc');
+          const fcData = fcRes?.data?.data || fcRes?.data || [];
+          setFcPendingItems(Array.isArray(fcData) ? fcData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 6. Fetch VC pending items (if authorized)
+      if (canAccessVc) {
+        try {
+          const vcRes = await planningService.getPendingDraftItems('vc');
+          const vcData = vcRes?.data?.data || vcRes?.data || [];
+          setVcPendingItems(Array.isArray(vcData) ? vcData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 7. Fetch Council pending items (if authorized)
+      if (canAccessCouncil) {
+        try {
+          const councilRes = await planningService.getPendingDraftItems('council');
+          const councilData = councilRes?.data?.data || councilRes?.data || [];
+          setCouncilPendingItems(Array.isArray(councilData) ? councilData : []);
+        } catch { /* Non-blocking */ }
+      }
+
+      // 8. Fetch Fully Approved draft items (if authorized)
+      if (canAccessCompilation) {
+        try {
+          const approvedRes = await planningService.getApprovedDraftItems();
+          const approvedData = approvedRes?.data?.data || approvedRes?.data || [];
+          setApprovedItems(Array.isArray(approvedData) ? approvedData : []);
+        } catch { /* Non-blocking */ }
       }
     } catch (err) {
       console.error('Error fetching draft procurement data:', err);
@@ -104,22 +202,17 @@ export default function DraftMasterPlanSheet() {
     } finally {
       setLoading(false);
     }
-  }, [parseDraftItems, user]);
+  }, [canAccessHod, canAccessDean, canAccessBursar, canAccessFc, canAccessVc, canAccessCouncil, canAccessCompilation, parseDraftItems]);
 
   useEffect(() => {
     let ignore = false;
-
     const fetchData = async () => {
       if (!ignore) {
         await loadBackendData();
       }
     };
-
     fetchData();
-
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, [loadBackendData]);
 
   // Filtered rows memo
@@ -183,7 +276,7 @@ export default function DraftMasterPlanSheet() {
     };
   }, [filteredRows]);
 
-  // Focused active cell information display
+  // Focused active cell info
   const activeCellObj = useMemo(() => {
     if (!filteredRows[selectedCell.rowIndex]) return null;
     const targetRow = filteredRows[selectedCell.rowIndex];
@@ -195,7 +288,7 @@ export default function DraftMasterPlanSheet() {
     };
   }, [filteredRows, selectedCell]);
 
-  // Auto-Save effect to Local Storage as secondary cache
+  // Auto-Save effect
   useEffect(() => {
     if (loading) return;
     const timer = setTimeout(() => {
@@ -310,11 +403,10 @@ export default function DraftMasterPlanSheet() {
     }
 
     const remaining = rows.filter(r => !selectedRows.includes(r.id));
-    // Also delete from database if they have dbId
     for (const id of selectedRows) {
       const target = rows.find(r => r.id === id);
       if (target?.dbId) {
-        try { await planningService.deleteDraftItem(target.dbId); } catch { /* silent catch */ }
+        try { await planningService.deleteDraftItem(target.dbId); } catch { /* silent */ }
       }
     }
     updateRowsState(remaining);
@@ -420,7 +512,7 @@ export default function DraftMasterPlanSheet() {
     e.target.value = null;
   };
 
-  // Save / Submit Draft Procurement Items to New Database Table (`DraftProcurementItem`)
+  // Save / Submit Draft Procurement Items
   const handleSavePlan = async (isSubmit = false) => {
     if (rows.length === 0) {
       toast.warning('Spreadsheet is empty! Please add at least one row before saving.');
@@ -429,45 +521,71 @@ export default function DraftMasterPlanSheet() {
 
     setSaving(true);
     try {
-      // 1. Bulk save to DraftProcurementItem database table
       const res = await planningService.saveDraftItems(rows);
-      const savedItems = res.data?.data || res.data || [];
+      const savedItems = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
       toast.success(`Saved ${savedItems.length} draft procurement item(s) to database!`);
 
-      // 2. Submit items to Dean for verification if requested
       if (isSubmit) {
-        const itemIds = savedItems.map(i => i._id).filter(Boolean);
-        await planningService.submitDraftItems(itemIds);
-        toast.success('Draft procurement items submitted to Faculty Dean for verification!');
+        const itemIds = savedItems.map(i => i._id || i.id).filter(id => id && String(id).length === 24);
+        await planningService.submitDraftItems(itemIds.length > 0 ? itemIds : undefined);
+        toast.success('Draft procurement items submitted to Faculty HOD for verification!');
       }
 
-      // Reload fresh database state
       await loadBackendData();
     } catch (err) {
-      console.error(err);
-      toast.error(err?.response?.data?.message || 'Failed to save draft procurement items to database.');
+      console.error('Save/Submit plan error:', err);
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save draft procurement items to database.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Dean / Office Verification Handler
-  const handleApproveRejectItem = async (itemId, action) => {
+  // Multi-Stage Verification Action Handler with strict authorization check
+  const handleStageApproveReject = async (itemId, action, stage, stageLabel) => {
     setVerifyingId(itemId);
     try {
-      const comments = action === 'approve' ? 'Approved by Faculty Dean' : 'Rejected during procurement verification';
-      await planningService.approveDraftItem(itemId, { action, comments });
-      toast.success(action === 'approve' ? 'Draft procurement item approved!' : 'Item rejected.');
+      const comments = action === 'approve' ? `Approved by ${stageLabel}` : `Rejected during ${stageLabel} verification`;
+      if (stage === 'hod') {
+        await planningService.hodApproveDraftItem(itemId, { action, comments });
+      } else {
+        await planningService.approveDraftItem(itemId, { action, comments, stage });
+      }
+      toast.success(action === 'approve' ? `Item approved by ${stageLabel}!` : `Item rejected by ${stageLabel}.`);
       await loadBackendData();
     } catch (err) {
       console.error(err);
-      toast.error(err?.response?.data?.message || 'Verification action failed.');
+      toast.error(err?.response?.data?.message || `${stageLabel} verification action failed.`);
     } finally {
       setVerifyingId(null);
     }
   };
 
-  // Toggle row selection
+  // Final Master Plan Compilation Handler
+  const handleCompileFinalPlan = async () => {
+    if (selectedApprovedIds.length === 0) {
+      toast.warning('Please select at least one approved draft item to compile.');
+      return;
+    }
+    setCompiling(true);
+    try {
+      const res = await planningService.compileFinalMasterPlan({
+        title: compilationTitle,
+        planYear: Number(compilationYear),
+        draftItemIds: selectedApprovedIds,
+      });
+      const planData = res.data?.data || res.data;
+      toast.success(`Successfully compiled ${selectedApprovedIds.length} item(s) into Final Master Plan (${planData.referenceNumber || 'FMP'})!`);
+      setSelectedApprovedIds([]);
+      await loadBackendData();
+    } catch (err) {
+      console.error('Compilation error:', err);
+      toast.error(err?.response?.data?.message || 'Failed to compile Final Master Plan.');
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  // Toggle row selection for spreadsheet
   const toggleSelectRow = (id) => {
     if (selectedRows.includes(id)) {
       setSelectedRows(selectedRows.filter(i => i !== id));
@@ -481,6 +599,23 @@ export default function DraftMasterPlanSheet() {
       setSelectedRows([]);
     } else {
       setSelectedRows(filteredRows.map(r => r.id));
+    }
+  };
+
+  // Toggle approved item selection for compilation
+  const toggleSelectApprovedItem = (id) => {
+    if (selectedApprovedIds.includes(id)) {
+      setSelectedApprovedIds(selectedApprovedIds.filter(i => i !== id));
+    } else {
+      setSelectedApprovedIds([...selectedApprovedIds, id]);
+    }
+  };
+
+  const toggleSelectAllApprovedItems = () => {
+    if (selectedApprovedIds.length === approvedItems.length) {
+      setSelectedApprovedIds([]);
+    } else {
+      setSelectedApprovedIds(approvedItems.map(item => item._id));
     }
   };
 
@@ -499,13 +634,93 @@ export default function DraftMasterPlanSheet() {
     setSelectedStatusFilter('ALL');
   };
 
+  // Render a verification queue for any stage
+  const renderVerificationQueue = (items, roleLabel, stageKey, noteText) => {
+    if (items.length === 0) {
+      return (
+        <div className="text-center py-16 text-slate-400">
+          <FaCheckCircle className="text-5xl text-emerald-400 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-700">No Pending Items for {roleLabel} Verification</h3>
+          <p className="text-xs text-slate-500 mt-1">{noteText}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {items.map((item) => (
+          <div key={item._id} className="border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition-all bg-slate-50/50">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-mono font-bold text-xs rounded-md">
+                    {item.itemCode || 'DRAFT-ITEM'}
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-slate-200 text-slate-800 font-semibold text-xs rounded-md">
+                    {item.category}
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 font-semibold text-xs rounded-md uppercase">
+                    {item.priority} Priority
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mt-1">{item.description}</h3>
+                <p className="text-xs text-slate-500">
+                  Department: <strong className="text-slate-700">{item.department}</strong> | Faculty: <strong className="text-slate-700">{item.faculty}</strong>
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Estimated Total Cost</p>
+                <p className="text-lg font-black text-emerald-700 font-mono">
+                  LKR {(item.estimatedTotalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Qty: {item.estimatedQuantity} {item.unit} @ LKR {(item.estimatedUnitCost || 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {item.justification && (
+              <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600">
+                <strong>Justification / Notes:</strong> {item.justification}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200/60 text-xs">
+              <span className="text-slate-400">
+                Submitted by: <strong className="text-slate-700">{item.createdBy?.name || item.createdBy?.email || 'University Staff'}</strong> ({new Date(item.submittedAt || item.createdAt).toLocaleDateString()})
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleStageApproveReject(item._id, 'reject', stageKey, roleLabel)}
+                  disabled={verifyingId === item._id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 border border-slate-300 text-rose-600 font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <FaThumbsDown /> <span>Reject</span>
+                </button>
+                <button
+                  onClick={() => handleStageApproveReject(item._id, 'approve', stageKey, roleLabel)}
+                  disabled={verifyingId === item._id}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <FaThumbsUp /> <span>Approve</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 font-sans">
         <FaSpinner className="text-4xl text-emerald-600 animate-spin" />
         <div className="text-center">
           <h3 className="text-lg font-bold text-slate-800">Loading Draft Procurement Items...</h3>
-          <p className="text-xs text-slate-500 mt-1">Connecting to backend database & aggregating user draft items...</p>
+          <p className="text-xs text-slate-500 mt-1">Connecting to backend database & aggregating multi-stage approvals...</p>
         </div>
       </div>
     );
@@ -521,12 +736,15 @@ export default function DraftMasterPlanSheet() {
               <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-extrabold text-[11px] uppercase tracking-wider rounded-full">
                 University Procurement Draft Portal
               </span>
+              <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 font-bold text-[11px] uppercase rounded-full">
+                Role: {userRole.replace('_', ' ')}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white mt-1">
               Draft Master Procurement Plan Sheet
             </h1>
-            <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              All university users can enter draft procurement requirements. Submitted items undergo Dean & Office verification before department compilation into the final 3-Year Master Plan.
+            <p className="text-xs text-slate-300 mt-1 max-w-3xl">
+              Any university staff member can create and save Draft Master Plan items (DAPP items). Multi-stage approvals are strictly restricted to role-authorized approvers (HOD → Dean → Bursar → FC → VC → Council).
             </p>
           </div>
 
@@ -554,132 +772,350 @@ export default function DraftMasterPlanSheet() {
               className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/40 active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <FaPaperPlane className="text-sm" />
-              <span>{saving ? 'Submitting...' : 'Submit to Deans'}</span>
+              <span>{saving ? 'Submitting...' : 'Submit to HOD'}</span>
             </button>
           </div>
         </div>
 
-        {/* View Mode Navigation Tabs */}
-        <div className="relative z-10 flex items-center gap-3 mt-6 pt-4 border-t border-slate-800 text-xs">
+        {/* Role-Restricted Multi-stage Approval & Navigation Tabs */}
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5 mt-6 pt-4 border-t border-slate-800 text-xs">
           <button
             onClick={() => setActiveTab('sheet')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer ${
               activeTab === 'sheet'
                 ? 'bg-emerald-500 text-white shadow-md'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
-            <FaTable /> <span>Draft Spreadsheet Grid ({rows.length})</span>
+            <FaTable /> <span>Draft Grid ({rows.length})</span>
           </button>
 
-          {['dean', 'super_admin', 'admin', 'bursar'].includes(user?.role) && (
+          {canAccessHod && (
             <button
-              onClick={() => setActiveTab('verification')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
-                activeTab === 'verification'
-                  ? 'bg-emerald-500 text-white shadow-md'
+              onClick={() => setActiveTab('hod_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'hod_verification'
+                  ? 'bg-amber-500 text-white shadow-md'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaUserCheck /> <span>Dean & Office Verification Queue</span>
-              {pendingItems.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-bounce">
-                  {pendingItems.length}
-                </span>
-              )}
+              <FaUserTie /> <span>1. HOD ({hodPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessDean && (
+            <button
+              onClick={() => setActiveTab('dean_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'dean_verification'
+                  ? 'bg-purple-500 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <FaUserCheck /> <span>2. Dean ({deanPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessBursar && (
+            <button
+              onClick={() => setActiveTab('bursar_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'bursar_verification'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+              title="Displays ALL pending approval items across the entire university"
+            >
+              <FaLandmark /> <span>3. Bursar (ALL) ({bursarPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessFc && (
+            <button
+              onClick={() => setActiveTab('fc_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'fc_verification'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <FaLayerGroup /> <span>4. FC ({fcPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessVc && (
+            <button
+              onClick={() => setActiveTab('vc_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'vc_verification'
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <FaUniversity /> <span>5. VC ({vcPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessCouncil && (
+            <button
+              onClick={() => setActiveTab('council_verification')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'council_verification'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <FaGavel /> <span>6. Council ({councilPendingItems.length})</span>
+            </button>
+          )}
+
+          {canAccessCompilation && (
+            <button
+              onClick={() => setActiveTab('compilation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all cursor-pointer relative ${
+                activeTab === 'compilation'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'bg-emerald-950/80 text-emerald-300 border border-emerald-700 hover:bg-emerald-900'
+              }`}
+            >
+              <FaCheckDouble /> <span>Compile Final Plan ({approvedItems.length})</span>
             </button>
           )}
         </div>
       </div>
 
-      {activeTab === 'verification' ? (
-        /* Dean & Office Verification Queue View */
+      {/* Dynamic Role-Protected Tab Views */}
+      {activeTab === 'hod_verification' && canAccessHod ? (
+        /* HOD Verification Queue View */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <FaUserCheck className="text-emerald-600" />
-                <span>Faculty Dean & Office Procurement Verification Queue</span>
+                <FaUserTie className="text-amber-600" />
+                <span>Stage 1: Department HOD Verification Queue</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Review submitted draft procurement items for your faculty/office before they are verified for Master Plan inclusion.
+                Displays faculty and department related items only. Approved items are forwarded to the Faculty Dean.
               </p>
             </div>
             <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg">
-              {pendingItems.length} Pending Approval(s)
+              {hodPendingItems.length} Pending
             </span>
           </div>
+          {renderVerificationQueue(hodPendingItems, 'HOD', 'hod', 'All submitted items for your department have been verified.')}
+        </div>
+      ) : activeTab === 'dean_verification' && canAccessDean ? (
+        /* Dean Verification Queue View */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaUserCheck className="text-purple-600" />
+                <span>Stage 2: Faculty Dean Verification Queue</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Displays faculty related items only. Approved items are forwarded to the University Bursar.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-lg">
+              {deanPendingItems.length} Pending
+            </span>
+          </div>
+          {renderVerificationQueue(deanPendingItems, 'Dean', 'dean', 'All HOD-approved items for your faculty have been verified.')}
+        </div>
+      ) : activeTab === 'bursar_verification' && canAccessBursar ? (
+        /* Bursar Verification Queue View (ALL items) */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaLandmark className="text-blue-600" />
+                <span>Stage 3: Bursar Verification Queue (ALL University Items)</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Displays <strong>ALL approval items across all faculties and departments</strong>. Approved items advance to the Finance Committee.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-lg">
+              {bursarPendingItems.length} Pending University-Wide
+            </span>
+          </div>
+          {renderVerificationQueue(bursarPendingItems, 'Bursar', 'bursar', 'All Dean-approved items university-wide have been verified.')}
+        </div>
+      ) : activeTab === 'fc_verification' && canAccessFc ? (
+        /* Finance Committee Verification Queue View */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaLayerGroup className="text-indigo-600" />
+                <span>Stage 4: Finance Committee (FC) Verification Queue</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review Bursar-approved procurement items. Approved items are forwarded to the Vice Chancellor (VC).
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-lg">
+              {fcPendingItems.length} Pending
+            </span>
+          </div>
+          {renderVerificationQueue(fcPendingItems, 'Finance Committee', 'fc', 'All Bursar-approved items have been verified by the Finance Committee.')}
+        </div>
+      ) : activeTab === 'vc_verification' && canAccessVc ? (
+        /* VC Verification Queue View */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaUniversity className="text-teal-600" />
+                <span>Stage 5: Vice Chancellor (VC) Approval Queue</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review Finance Committee-approved items. Approved items advance to University Council for final approval.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-teal-100 text-teal-800 text-xs font-bold rounded-lg">
+              {vcPendingItems.length} Pending
+            </span>
+          </div>
+          {renderVerificationQueue(vcPendingItems, 'Vice Chancellor', 'vc', 'All FC-approved items have been verified by the Vice Chancellor.')}
+        </div>
+      ) : activeTab === 'council_verification' && canAccessCouncil ? (
+        /* Council Verification Queue View */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaGavel className="text-rose-600" />
+                <span>Stage 6: University Council Final Approval Queue</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review VC-approved items. Council approval confers final fully-approved status for Master Procurement Plan compilation.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-rose-100 text-rose-800 text-xs font-bold rounded-lg">
+              {councilPendingItems.length} Pending Final Approval
+            </span>
+          </div>
+          {renderVerificationQueue(councilPendingItems, 'Council', 'council', 'All VC-approved items have received Council approval.')}
+        </div>
+      ) : activeTab === 'compilation' && canAccessCompilation ? (
+        /* Final Master Plan Compilation View */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FaCheckDouble className="text-emerald-600" />
+                <span>Final Master Plan Compilation</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Select fully approved draft procurement items (DAPP items) and compile them into an official Final Master Plan document.
+              </p>
+            </div>
 
-          {pendingItems.length === 0 ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-slate-600">
+                Selected: <strong className="text-emerald-700 font-mono text-sm">{selectedApprovedIds.length}</strong> / {approvedItems.length} items
+              </span>
+              <button
+                onClick={handleCompileFinalPlan}
+                disabled={compiling || selectedApprovedIds.length === 0}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                {compiling ? <FaSpinner className="animate-spin" /> : <FaCheckDouble />}
+                <span>{compiling ? 'Compiling...' : 'Compile Selected Items into Final Plan'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Plan Settings Bar */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex-1 min-w-60">
+              <label className="block text-slate-700 font-bold mb-1">Final Master Plan Title</label>
+              <input
+                type="text"
+                value={compilationTitle}
+                onChange={(e) => setCompilationTitle(e.target.value)}
+                placeholder="e.g. UWU Master Procurement Plan 2026"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
+              />
+            </div>
+
+            <div className="w-40">
+              <label className="block text-slate-700 font-bold mb-1">Planning Year</label>
+              <input
+                type="number"
+                value={compilationYear}
+                onChange={(e) => setCompilationYear(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold"
+              />
+            </div>
+          </div>
+
+          {/* Approved Items Table */}
+          {approvedItems.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
-              <FaCheckCircle className="text-5xl text-emerald-400 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-slate-700">No Pending Items for Verification</h3>
-              <p className="text-xs text-slate-500 mt-1">All submitted user draft items for your faculty/office have been verified.</p>
+              <FaCheckCircle className="text-5xl text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-700">No Approved Draft Items Available for Compilation</h3>
+              <p className="text-xs text-slate-500 mt-1">Submit draft items and complete Council approval to populate this compilation queue.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {pendingItems.map((item) => (
-                <div key={item._id} className="border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition-all bg-slate-50/50">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-mono font-bold text-xs rounded-md">
-                          {item.itemCode || 'DRAFT-ITEM'}
-                        </span>
-                        <span className="px-2.5 py-0.5 bg-slate-200 text-slate-800 font-semibold text-xs rounded-md">
-                          {item.category}
-                        </span>
-                        <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 font-semibold text-xs rounded-md uppercase">
-                          {item.priority} Priority
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900 mt-1">{item.description}</h3>
-                      <p className="text-xs text-slate-500">
-                        Department: <strong className="text-slate-700">{item.department}</strong> | Faculty: <strong className="text-slate-700">{item.faculty}</strong>
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">Estimated Total Cost</p>
-                      <p className="text-lg font-black text-emerald-700 font-mono">
-                        LKR {(item.estimatedTotalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Qty: {item.estimatedQuantity} {item.unit} @ LKR {(item.estimatedUnitCost || 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  {item.justification && (
-                    <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600">
-                      <strong>Justification / Notes:</strong> {item.justification}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200/60 text-xs">
-                    <span className="text-slate-400">
-                      Submitted by: <strong className="text-slate-700">{item.createdBy?.name || 'University Staff'}</strong> ({new Date(item.submittedAt || item.createdAt).toLocaleDateString()})
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleApproveRejectItem(item._id, 'reject')}
-                        disabled={verifyingId === item._id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 border border-slate-300 text-rose-600 font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        <FaThumbsDown /> <span>Reject</span>
-                      </button>
-                      <button
-                        onClick={() => handleApproveRejectItem(item._id, 'approve')}
-                        disabled={verifyingId === item._id}
-                        className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        <FaThumbsUp /> <span>Approve Item</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="w-10 px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedApprovedIds.length > 0 && selectedApprovedIds.length === approvedItems.length}
+                        onChange={toggleSelectAllApprovedItems}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="px-3 py-3">DAPP Item Code</th>
+                    <th className="px-3 py-3">Description</th>
+                    <th className="px-3 py-3">Department</th>
+                    <th className="px-3 py-3">Faculty</th>
+                    <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3 text-right">Qty</th>
+                    <th className="px-3 py-3 text-right">Unit Cost (LKR)</th>
+                    <th className="px-3 py-3 text-right font-black text-emerald-900">Total Cost (LKR)</th>
+                    <th className="px-3 py-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white font-mono text-[12px]">
+                  {approvedItems.map((item) => {
+                    const isSelected = selectedApprovedIds.includes(item._id);
+                    return (
+                      <tr key={item._id} className={`hover:bg-emerald-50/40 ${isSelected ? 'bg-emerald-50/70' : ''}`}>
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectApprovedItem(item._id)}
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-3 py-2 font-bold text-slate-900">{item.itemCode}</td>
+                        <td className="px-3 py-2 font-sans font-semibold text-slate-800">{item.description}</td>
+                        <td className="px-3 py-2 font-sans text-slate-600">{item.department}</td>
+                        <td className="px-3 py-2 font-sans text-slate-600">{item.faculty}</td>
+                        <td className="px-3 py-2 font-sans font-bold text-slate-700">{item.category}</td>
+                        <td className="px-3 py-2 text-right">{item.estimatedQuantity}</td>
+                        <td className="px-3 py-2 text-right">{(item.estimatedUnitCost || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right font-black text-emerald-800">
+                          {(item.estimatedTotalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-3 py-2 text-center font-sans">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase">
+                            Approved
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -946,7 +1382,7 @@ export default function DraftMasterPlanSheet() {
                 </div>
               </div>
 
-              {/* Reset Filters button if active */}
+              {/* Reset Filters button */}
               {activeFiltersCount > 0 && (
                 <button
                   onClick={resetAllFilters}
@@ -961,7 +1397,6 @@ export default function DraftMasterPlanSheet() {
             {/* Main Excel Grid Table Container */}
             <div className="overflow-x-auto max-h-160 overflow-y-auto border-b border-slate-200 relative">
               <table className="w-full text-left border-collapse text-xs select-none">
-                {/* Header with Excel Column Identifiers */}
                 <thead className="bg-slate-200 sticky top-0 z-20 text-slate-700 shadow-xs border-b border-slate-300">
                   <tr className="bg-slate-300/90 text-[10px] text-slate-700 font-mono font-bold">
                     <th className="w-10 px-2 py-1 text-center border-r border-b border-slate-300"></th>
@@ -1013,7 +1448,6 @@ export default function DraftMasterPlanSheet() {
                   </tr>
                 </thead>
 
-                {/* Table Rows Body */}
                 <tbody className="divide-y divide-slate-200 bg-white font-mono text-[12px]">
                   {filteredRows.length === 0 ? (
                     <tr>
@@ -1216,7 +1650,12 @@ export default function DraftMasterPlanSheet() {
                           <td className="px-2 py-1.5 border-r border-slate-200 font-sans">
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
                               row.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                              row.status === 'Submitted to Dean' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                              row.status === 'Submitted to HOD' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                              row.status === 'Submitted to Dean' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                              row.status === 'Submitted to Bursar' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                              row.status === 'Submitted to FC' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
+                              row.status === 'Submitted to VC' ? 'bg-teal-100 text-teal-800 border-teal-300' :
+                              row.status === 'Submitted to Council' ? 'bg-rose-100 text-rose-800 border-rose-300' :
                               row.status === 'Rejected' ? 'bg-rose-100 text-rose-800 border-rose-300' :
                               'bg-slate-100 text-slate-700 border-slate-300'
                             }`}>

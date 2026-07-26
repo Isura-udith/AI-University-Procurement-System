@@ -9,8 +9,8 @@ const mongoose = require('mongoose');
 const approvalStageSchema = new mongoose.Schema({
   stage: {
     type: String,
-    enum: ['dean', 'bursar', 'office'],
-    default: 'dean',
+    enum: ['hod', 'dean', 'bursar', 'finance_committee', 'vice_chancellor', 'council', 'office'],
+    default: 'hod',
   },
   approver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
@@ -59,7 +59,16 @@ const draftProcurementItemSchema = new mongoose.Schema({
   
   status: {
     type: String,
-    enum: ['draft', 'submitted_to_dean', 'dean_approved', 'approved', 'rejected'],
+    enum: [
+      'draft',
+      'submitted_to_hod', 'hod_approved',
+      'submitted_to_dean', 'dean_approved',
+      'submitted_to_bursar', 'bursar_approved',
+      'submitted_to_fc', 'fc_approved',
+      'submitted_to_vc', 'vc_approved',
+      'submitted_to_council', 'council_approved',
+      'approved', 'rejected'
+    ],
     default: 'draft',
     index: true,
   },
@@ -80,12 +89,11 @@ draftProcurementItemSchema.index({ tenantId: 1, department: 1, status: 1 });
 draftProcurementItemSchema.index({ tenantId: 1, faculty: 1, status: 1 });
 draftProcurementItemSchema.index({ createdBy: 1 });
 
-draftProcurementItemSchema.pre('save', function (next) {
+draftProcurementItemSchema.pre('save', function () {
   if (!this.itemCode) {
     this.itemCode = `DRAFT-${Math.floor(1000 + Math.random() * 9000)}`;
   }
   this.estimatedTotalCost = (Number(this.estimatedQuantity) || 0) * (Number(this.estimatedUnitCost) || 0);
-  next();
 });
 
 module.exports = mongoose.model('DraftProcurementItem', draftProcurementItemSchema);

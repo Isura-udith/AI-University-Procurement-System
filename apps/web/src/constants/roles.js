@@ -23,6 +23,7 @@ export const ROLES = {
   STORE_MANAGER:       'store_manager',
   SUPPLIER:            'supplier',
   AUDITOR:             'auditor',
+  COUNCIL:             'council',
   GUEST:               'guest',
 };
 
@@ -75,6 +76,15 @@ export const ROLE_CONFIG = {
     hierarchy: 70,
     isCrossTenant: false,
     primaryArea: 'Faculty Approvals & Budget Utilization',
+  },
+  [ROLES.COUNCIL]: {
+    label: 'University Council',
+    description: 'Highest university governing body for final Master Procurement Plan approvals.',
+    category: ROLE_CATEGORIES.EXECUTIVE,
+    color: 'rose',
+    hierarchy: 95,
+    isCrossTenant: true,
+    primaryArea: 'Council Master Plan Approvals',
   },
   [ROLES.BURSAR]: {
     label: 'Chief Bursar',

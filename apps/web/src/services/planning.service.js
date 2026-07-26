@@ -10,14 +10,28 @@ export const planningService = {
   approveMasterPlan: (id, data) => api.post(`/master-plans/${id}/approve`, data),
   getPendingMasterPlans: () => api.get('/master-plans/pending'),
 
-  // ── Draft Procurement Items (University User Inputs & Dean Approvals) ──
+  // ── Draft Procurement Items (University User Inputs & Multi-Stage Approvals) ──
   getDraftItems: (params) => api.get('/draft-procurements', { params }),
   saveDraftItems: (items) => api.post('/draft-procurements/save', { items }),
   submitDraftItems: (itemIds) => api.post('/draft-procurements/submit', { itemIds }),
-  getPendingDraftItems: () => api.get('/draft-procurements/pending'),
+  getPendingHodItems: () => api.get('/draft-procurements/pending-hod'),
+  hodApproveDraftItem: (id, data) => api.post(`/draft-procurements/${id}/hod-approve`, data),
+  getPendingDraftItems: (stage) => api.get('/draft-procurements/pending', { params: { stage } }),
   approveDraftItem: (id, data) => api.post(`/draft-procurements/${id}/approve`, data),
   getApprovedDraftItems: (params) => api.get('/draft-procurements/approved', { params }),
+  compileFinalMasterPlan: (data) => api.post('/draft-procurements/compile-final', data),
   deleteDraftItem: (id) => api.delete(`/draft-procurements/${id}`),
+
+  // ── Final Master Plans ──────────────────────────────────
+  getFinalMasterPlans: (params) => api.get('/final-master-plans', { params }),
+  getFinalMasterPlan: (id) => api.get(`/final-master-plans/${id}`),
+  createFinalMasterPlan: (data) => api.post('/final-master-plans', data),
+  updateFinalMasterPlan: (id, data) => api.put(`/final-master-plans/${id}`, data),
+  addItemsToFinalPlan: (id, draftItemIds) => api.post(`/final-master-plans/${id}/add-items`, { draftItemIds }),
+  submitFinalMasterPlan: (id) => api.post(`/final-master-plans/${id}/submit`),
+  approveFinalMasterPlan: (id, data) => api.post(`/final-master-plans/${id}/approve`, data),
+  getPendingFinalMasterPlans: () => api.get('/final-master-plans/pending'),
+  getApprovedFinalPlanItems: (params) => api.get('/final-master-plans/approved-items', { params }),
 
   // ── Annual Procurement Plans (Phases 2 & 3) ─────────────
   getAnnualPlans: (params) => api.get('/annual-plans', { params }),

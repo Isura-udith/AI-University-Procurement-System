@@ -198,6 +198,8 @@ export default function CreateRequest() {
   const [errors, setErrors] = useState({});
 
   // ── Annual Plan / Budget State (Phase 5 workflow) ─────────────
+  // ── Final Master Plan / Annual Plan / Budget State ─────────────
+  const [approvedFinalPlanItems, setApprovedFinalPlanItems] = useState([]);
   const [annualPlans, setAnnualPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -238,13 +240,18 @@ export default function CreateRequest() {
     }
   }
 
-  // Load approved annual plans and department budget on mount
+  // Load approved Final Master Plan items, annual plans, and department budget on mount
   useEffect(() => {
     if (!isEditMode) {
       Promise.allSettled([
+        planningService.getApprovedFinalPlanItems(),
         planningService.getAnnualPlans({ status: 'distribution_complete' }),
         planningService.getMyBudget(),
-      ]).then(([planRes, budgetRes]) => {
+      ]).then(([fmpRes, planRes, budgetRes]) => {
+        if (fmpRes.status === 'fulfilled') {
+          const items = fmpRes.value.data?.data || fmpRes.value.data || [];
+          setApprovedFinalPlanItems(Array.isArray(items) ? items : []);
+        }
         if (planRes.status === 'fulfilled') {
           const plans = planRes.value.data?.data || planRes.value.data || [];
           const planList = Array.isArray(plans) ? plans : [];
@@ -260,7 +267,40 @@ export default function CreateRequest() {
     }
   }, [isEditMode]);
 
-  // Auto-populate form when an annual plan item is selected
+  // Auto-populate form when an approved Final Master Plan item is selected
+  const handleFinalPlanItemSelect = (itemId) => {
+    setSelectedItemId(itemId);
+    setBudgetCheck(null);
+    if (!itemId) {
+      setForm(f => ({ ...f, dappItem: '' }));
+      return;
+    }
+    const item = approvedFinalPlanItems.find(i => (i._id || i.id) === itemId);
+    if (!item) return;
+
+    // Auto-populate key fields from approved Final Master Plan item
+    setForm(f => ({
+      ...f,
+      contractTitle: item.description || f.contractTitle,
+      dappItem: item._id || itemId,
+      fmpItemId: item._id || itemId,
+      mppRef: item.planRef || f.mppRef,
+      category: item.category === 'Works' ? 'works' : item.category === 'Services' ? 'non-consulting' : 'goods',
+      faculty: Object.keys(FACULTY_MAP).find(k => FACULTY_MAP[k] === item.faculty) || f.faculty,
+      baseAmount: item.estimatedTotalCost ? String(item.estimatedTotalCost) : f.baseAmount,
+    }));
+
+    if (item.description && item.estimatedTotalCost) {
+      setBoqItems([{
+        description: item.description,
+        unit: item.unit || 'Units',
+        qty: String(item.estimatedQuantity || 1),
+        unitPrice: String(item.estimatedUnitCost || item.estimatedTotalCost || ''),
+      }]);
+    }
+  };
+
+  // Fallback for Annual Plan item selection
   const handleAnnualItemSelect = (planId, itemId) => {
     setSelectedPlanId(planId);
     setSelectedItemId(itemId);
@@ -845,16 +885,18 @@ export default function CreateRequest() {
           </div>
         </FormSection>
 
-        {/* ── DAPP Linkage & Budget Compliance Panel (Phase 5 — Step 27) ──── */}
+        {/* ── Final Master Plan Linkage & Budget Compliance Panel ──── */}
         {!isEditMode && (
-          <div className="bg-linear-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-5 space-y-4">
+          <div className="bg-linear-to-br from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-200 p-5 space-y-4 shadow-xs">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
-                  <FaShieldAlt className="text-emerald-600" size={14} />
-                  Step 27: Link to Approved Annual Plan (DAPP) — Budget Compliance Required
+                <h2 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+                  <FaShieldAlt className="text-emerald-600" size={15} />
+                  Link to Approved Final Master Plan (Mandatory Requirement)
                 </h2>
-                <p className="text-xs text-emerald-600 mt-0.5">Procurement requests must be linked to an approved DAPP item and remain within allocated budget.</p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Only items from an <strong>Approved (Active) Final Master Plan</strong> can be used to create Procurement Requests.
+                </p>
               </div>
               {myBudget && (
                 <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0">
@@ -869,60 +911,104 @@ export default function CreateRequest() {
               )}
             </div>
 
-            {/* Plan + Item Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
-                <select
-                  value={selectedPlanId}
-                  onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); setDappSearch(''); }}
-                  disabled={!form.faculty}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-                >
-                  <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Annual Plan —'}</option>
-                  {annualPlans.map(p => (
-                    <option key={p._id} value={p._id}>{p.referenceNumber} · {p.planYear}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP Item <span className="text-slate-400 font-normal">(filtered by {FACULTY_MAP[form.faculty] || 'selected department'})</span></label>
+            {/* Approved Final Master Plan Items Selector */}
+            {approvedFinalPlanItems.length > 0 ? (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Approved Final Master Plan Item *
+                </label>
                 <div className="relative mb-2">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <input
                     type="text"
-                    placeholder="Search DAPP Item..."
+                    placeholder="Search Approved Final Master Plan Items..."
                     value={dappSearch}
                     onChange={e => setDappSearch(e.target.value)}
-                    disabled={!selectedPlanId || !form.faculty}
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <select
                   value={selectedItemId}
-                  onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
-                  disabled={!selectedPlanId || !form.faculty}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                  onChange={e => handleFinalPlanItemSelect(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm border border-emerald-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800"
                 >
-                  <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Item —'}</option>
+                  <option value="">— Select Approved Final Master Plan Item —</option>
                   {(() => {
-                    const plan = annualPlans.find(p => p._id === selectedPlanId);
-                    let filtered = plan ? getFilteredDappItems(plan) : [];
-                    if (dappSearch) {
-                      filtered = filtered.filter(item =>
-                        item.description?.toLowerCase().includes(dappSearch.toLowerCase())
+                    let items = approvedFinalPlanItems;
+                    if (form.faculty && !isTopOfficer) {
+                      const facultyLabel = FACULTY_MAP[form.faculty] || '';
+                      items = items.filter(i => 
+                        !i.faculty || 
+                        i.faculty.toLowerCase().includes(facultyLabel.toLowerCase()) || 
+                        facultyLabel.toLowerCase().includes(i.faculty.toLowerCase())
                       );
                     }
-                    if (filtered.length === 0) {
-                      return <option value="" disabled>No DAPP items found for your department</option>;
+                    if (dappSearch) {
+                      items = items.filter(i => i.description?.toLowerCase().includes(dappSearch.toLowerCase()));
                     }
-                    return filtered.map(item => (
+                    if (items.length === 0) {
+                      return <option value="" disabled>No matching approved items found</option>;
+                    }
+                    return items.map(item => (
                       <option key={item._id || item.id} value={item._id || item.id}>
-                        [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                        [{item.planRef || 'FMP'}] [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
                       </option>
                     ));
                   })()}
                 </select>
+                {selectedItemId && (
+                  <div className="p-3 bg-emerald-100/70 border border-emerald-300 rounded-xl flex items-center justify-between text-xs text-emerald-900 font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <FaCheckCircle className="text-emerald-600" /> Linked to Active Final Master Plan Item
+                    </span>
+                    <span className="text-emerald-700 font-bold">{form.mppRef}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Fallback to Annual Plan selector if no active Final Master Plan items currently fetched */
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan (DAPP)</label>
+                    <select
+                      value={selectedPlanId}
+                      onChange={e => { setSelectedPlanId(e.target.value); setSelectedItemId(''); setBudgetCheck(null); setDappSearch(''); }}
+                      disabled={!form.faculty}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                    >
+                      <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Annual Plan —'}</option>
+                      {annualPlans.map(p => (
+                        <option key={p._id} value={p._id}>{p.referenceNumber} · {p.planYear}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">DAPP / Plan Item</label>
+                    <select
+                      value={selectedItemId}
+                      onChange={e => handleAnnualItemSelect(selectedPlanId, e.target.value)}
+                      disabled={!selectedPlanId || !form.faculty}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                    >
+                      <option value="">{!form.faculty ? '— Select Faculty First —' : '— Select Item —'}</option>
+                      {(() => {
+                        const plan = annualPlans.find(p => p._id === selectedPlanId);
+                        let filtered = plan ? getFilteredDappItems(plan) : [];
+                        if (dappSearch) {
+                          filtered = filtered.filter(item =>
+                            item.description?.toLowerCase().includes(dappSearch.toLowerCase())
+                          );
+                        }
+                        return filtered.map(item => (
+                          <option key={item._id || item.id} value={item._id || item.id}>
+                            [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                </div>
                 {form.faculty && selectedPlanId && !isTopOfficer && (
                   <p className="text-[10px] text-slate-400 mt-1">Showing items belonging strictly to your department ({FACULTY_MAP[form.faculty] || form.faculty}).</p>
                 )}
@@ -930,7 +1016,7 @@ export default function CreateRequest() {
                   <p className="text-[10px] text-emerald-600 mt-1">As a senior officer, you can also see common university department items.</p>
                 )}
               </div>
-            </div>
+            )}
 
             {/* Auto-populated confirmation */}
             {selectedItemId && !budgetCheck && (

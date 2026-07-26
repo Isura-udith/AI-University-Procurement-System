@@ -67,6 +67,9 @@ import CreateAnnualPlan from "../features/planning/pages/CreateAnnualPlan";
 import AnnualPlanDetail from "../features/planning/pages/AnnualPlanDetail";
 import BudgetDistribution from "../features/planning/pages/BudgetDistribution";
 import WorkflowDashboard from "../features/planning/pages/WorkflowDashboard";
+import FinalMasterPlanList from "../features/planning/pages/FinalMasterPlanList";
+import CreateFinalMasterPlan from "../features/planning/pages/CreateFinalMasterPlan";
+import FinalMasterPlanDetail from "../features/planning/pages/FinalMasterPlanDetail";
 
 // Phase 7-8: Store & Inventory
 import StoreHub from "../features/store/pages/StoreHub";
@@ -217,6 +220,9 @@ export default function RoutesConfig() {
         <Route path="/planning/annual-plans/new" element={<ProtectedRoute><CreateAnnualPlan /></ProtectedRoute>} />
         <Route path="/planning/annual-plans/:id" element={<ProtectedRoute><AnnualPlanDetail /></ProtectedRoute>} />
         <Route path="/planning/budget-distribution" element={<ProtectedRoute><BudgetDistribution /></ProtectedRoute>} />
+        <Route path="/planning/final-master-plans" element={<ProtectedRoute><FinalMasterPlanList /></ProtectedRoute>} />
+        <Route path="/planning/final-master-plans/new" element={<ProtectedRoute><CreateFinalMasterPlan /></ProtectedRoute>} />
+        <Route path="/planning/final-master-plans/:id" element={<ProtectedRoute><FinalMasterPlanDetail /></ProtectedRoute>} />
         <Route path="/workflow" element={<ProtectedRoute><WorkflowDashboard /></ProtectedRoute>} />
 
         {/* Phase 7-8: Store & Inventory */}
