@@ -10,7 +10,7 @@ import {
   FaGavel, FaCheckDouble, FaLayerGroup, FaUniversity
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
-import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
+import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS, getFacultyForDepartment } from '../../../constants/departments';
 
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
@@ -96,6 +96,7 @@ export default function DraftMasterPlanSheet() {
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
+  const [selectedFacultyFilter, setSelectedFacultyFilter] = useState('ALL');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
   const [selectedYearFilter, setSelectedYearFilter] = useState('ALL');
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('ALL');
@@ -148,13 +149,15 @@ export default function DraftMasterPlanSheet() {
 
     const mappedRows = listToParse.map((item, idx) => {
       const parsedYr = Number(item.year) || (Number(item.plannedYear) >= 2000 ? Number(item.plannedYear) : (masterPlanStartYear + (Number(item.plannedYear || 1) - 1)));
+      const dept = item.department || user?.department || defaultDept;
+      const fac = item.faculty || getFacultyForDepartment(dept);
       return {
         id: item.id || item._id || `ROW-DB-${idx + 1}`,
         dbId: item._id || item.dbId,
         itemCode: item.itemCode || `ITEM-${Math.floor(100 + Math.random() * 900)}`,
         description: item.description || '',
-        department: item.department || user?.department || defaultDept,
-        faculty: item.faculty || user?.faculty || defaultFaculty,
+        department: dept,
+        faculty: fac,
         category: item.category || 'Goods',
         year: parsedYr || masterPlanStartYear,
         plannedYear: item.plannedYear || 1,
@@ -279,17 +282,19 @@ export default function DraftMasterPlanSheet() {
       const matchesSearch = !query ||
         (r.description?.toLowerCase() || '').includes(query) ||
         (r.itemCode?.toLowerCase() || '').includes(query) ||
-        (r.department?.toLowerCase() || '').includes(query);
+        (r.department?.toLowerCase() || '').includes(query) ||
+        (r.faculty?.toLowerCase() || '').includes(query);
 
       const matchesDept = selectedDeptFilter === 'ALL' || r.department === selectedDeptFilter;
+      const matchesFaculty = selectedFacultyFilter === 'ALL' || r.faculty === selectedFacultyFilter;
       const matchesCategory = selectedCategoryFilter === 'ALL' || r.category === selectedCategoryFilter;
       const matchesYear = selectedYearFilter === 'ALL' || String(r.year || '') === String(selectedYearFilter);
       const matchesPriority = selectedPriorityFilter === 'ALL' || r.priority === selectedPriorityFilter;
       const matchesStatus = selectedStatusFilter === 'ALL' || r.status === selectedStatusFilter;
 
-      return matchesSearch && matchesDept && matchesCategory && matchesYear && matchesPriority && matchesStatus;
+      return matchesSearch && matchesDept && matchesFaculty && matchesCategory && matchesYear && matchesPriority && matchesStatus;
     });
-  }, [rows, searchQuery, selectedDeptFilter, selectedCategoryFilter, selectedYearFilter, selectedPriorityFilter, selectedStatusFilter]);
+  }, [rows, searchQuery, selectedDeptFilter, selectedFacultyFilter, selectedCategoryFilter, selectedYearFilter, selectedPriorityFilter, selectedStatusFilter]);
 
   // Key KPI calculations
   const stats = useMemo(() => {
@@ -410,6 +415,15 @@ export default function DraftMasterPlanSheet() {
         } else {
           item = { ...r, [fieldOrObject]: value };
         }
+
+        // Automatically sync Faculty whenever Department is updated
+        if (
+          (typeof fieldOrObject === 'string' && fieldOrObject === 'department') ||
+          (typeof fieldOrObject === 'object' && fieldOrObject?.department)
+        ) {
+          item.faculty = getFacultyForDepartment(item.department);
+        }
+
         const qty = Number(item.quantity) || 0;
         const cost = Number(item.unitCost) || 0;
         item.calculatedTotal = qty * cost;
@@ -423,12 +437,14 @@ export default function DraftMasterPlanSheet() {
   // Row Manipulation
   const handleAddRow = () => {
     const newId = `ROW-${Date.now().toString().slice(-4)}`;
+    const targetDept = user?.department || defaultDept;
+    const targetFaculty = getFacultyForDepartment(targetDept);
     const newRow = {
       id: newId,
       itemCode: `ITEM-${Math.floor(100 + Math.random() * 900)}`,
       description: 'New Procurement Item Requirement',
-      department: user?.department || defaultDept,
-      faculty: user?.faculty || defaultFaculty,
+      department: targetDept,
+      faculty: targetFaculty,
       category: 'Goods',
       year: masterPlanYears[0],
       plannedYear: 1,
@@ -556,11 +572,14 @@ export default function DraftMasterPlanSheet() {
           const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
           const yr = Number(cols[5]) || masterPlanYears[0];
           const yrIdx = masterPlanYears.indexOf(yr);
+          const impDept = cols[3] || defaultDept;
+          const impFac = getFacultyForDepartment(impDept);
           return {
             id: `ROW-IMP-${idx + 1}`,
             itemCode: cols[1] || `IMP-${idx + 1}`,
             description: cols[2] || 'Imported item',
-            department: cols[3] || defaultDept,
+            department: impDept,
+            faculty: impFac,
             category: CATEGORIES.includes(cols[4]) ? cols[4] : 'Goods',
             year: yr,
             plannedYear: yrIdx !== -1 ? yrIdx + 1 : 1,
@@ -700,6 +719,7 @@ export default function DraftMasterPlanSheet() {
 
   // Active filter count
   const activeFiltersCount = (selectedDeptFilter !== 'ALL' ? 1 : 0) +
+    (selectedFacultyFilter !== 'ALL' ? 1 : 0) +
     (selectedCategoryFilter !== 'ALL' ? 1 : 0) +
     (selectedYearFilter !== 'ALL' ? 1 : 0) +
     (selectedPriorityFilter !== 'ALL' ? 1 : 0) +
@@ -709,6 +729,7 @@ export default function DraftMasterPlanSheet() {
   const resetAllFilters = () => {
     setSearchQuery('');
     setSelectedDeptFilter('ALL');
+    setSelectedFacultyFilter('ALL');
     setSelectedCategoryFilter('ALL');
     setSelectedYearFilter('ALL');
     setSelectedPriorityFilter('ALL');
@@ -1009,7 +1030,7 @@ export default function DraftMasterPlanSheet() {
                 <span>Stage 1: Department HOD Verification Queue</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Displays faculty and department related items only. Approved items are forwarded to the Faculty Dean.
+                Displays department related items only. Approved items are forwarded to the Faculty Dean.
               </p>
             </div>
             <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg">
@@ -1438,7 +1459,7 @@ export default function DraftMasterPlanSheet() {
 
             {/* Filter Bar */}
             <div className="p-3 bg-white border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 flex-1">
                 {/* Search box */}
                 <div className="relative">
                   <FaSearch className="absolute left-3 top-2.5 text-slate-400" />
@@ -1461,6 +1482,20 @@ export default function DraftMasterPlanSheet() {
                     <option value="ALL">All Departments ({ALL_DEPARTMENTS.length})</option>
                     {ALL_DEPARTMENTS.map(d => (
                       <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Faculty filter */}
+                <div>
+                  <select
+                    value={selectedFacultyFilter}
+                    onChange={(e) => setSelectedFacultyFilter(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50 text-slate-700 font-medium"
+                  >
+                    <option value="ALL">All Faculties ({DEPARTMENTS_AND_FACULTIES.length})</option>
+                    {DEPARTMENTS_AND_FACULTIES.map(f => (
+                      <option key={f} value={f}>{f}</option>
                     ))}
                   </select>
                 </div>
@@ -1545,18 +1580,19 @@ export default function DraftMasterPlanSheet() {
                     <th className="px-2 py-1 border-r border-b border-slate-300">B</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">C</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">D</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 bg-indigo-200/80 text-indigo-950 font-black">E (Year)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300">F</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300">E</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 bg-indigo-200/80 text-indigo-950 font-black">F (Year)</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">G</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">H</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-right">I (Total)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">J (Q1)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">K (Q2)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">L (Q3)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">M (Q4)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300">N</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300">I</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-right">J (Total)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">K (Q1)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">L (Q2)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">M (Q3)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">N (Q4)</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">O</th>
-                    <th className="px-2 py-1 border-b border-slate-300 text-center">P</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300">P</th>
+                    <th className="px-2 py-1 border-b border-slate-300 text-center">Q</th>
                   </tr>
 
                   <tr className="font-extrabold text-slate-800 bg-slate-200">
@@ -1572,6 +1608,7 @@ export default function DraftMasterPlanSheet() {
                     <th className="min-w-28 px-3 py-2.5 border-r border-slate-300">Item Code</th>
                     <th className="min-w-64 px-3 py-2.5 border-r border-slate-300">Item Description</th>
                     <th className="min-w-48 px-3 py-2.5 border-r border-slate-300">Department / Division</th>
+                    <th className="min-w-48 px-3 py-2.5 border-r border-slate-300">Faculty / Unit</th>
                     <th className="min-w-28 px-3 py-2.5 border-r border-slate-300">Category</th>
                     <th className="min-w-32 px-3 py-2.5 border-r border-slate-300 text-center bg-indigo-100/90 text-indigo-950 font-black">
                       Year Category
@@ -1595,7 +1632,7 @@ export default function DraftMasterPlanSheet() {
                 <tbody className="divide-y divide-slate-200 bg-white font-mono text-[12px]">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan="18" className="text-center py-16 text-slate-400 font-sans">
+                      <td colSpan="19" className="text-center py-16 text-slate-400 font-sans">
                         <div className="flex flex-col items-center justify-center gap-3">
                           <FaTable className="text-4xl text-slate-300" />
                           <div>
@@ -1671,6 +1708,21 @@ export default function DraftMasterPlanSheet() {
                             >
                               {ALL_DEPARTMENTS.map(d => (
                                 <option key={d} value={d}>{d}</option>
+                              ))}
+                            </select>
+                          </td>
+
+                          <td
+                            onClick={() => setSelectedCell({ rowIndex: idx, colKey: 'faculty' })}
+                            className={`px-1 py-1 border-r border-slate-200 ${selectedCell.rowIndex === idx && selectedCell.colKey === 'faculty' ? 'ring-2 ring-emerald-500 bg-emerald-50/40' : ''}`}
+                          >
+                            <select
+                              value={row.faculty || getFacultyForDepartment(row.department)}
+                              onChange={(e) => handleCellChange(row.id, 'faculty', e.target.value)}
+                              className="w-full bg-transparent px-1 py-1 focus:outline-none font-sans text-slate-600 font-semibold text-[11px]"
+                            >
+                              {DEPARTMENTS_AND_FACULTIES.map(f => (
+                                <option key={f} value={f}>{f}</option>
                               ))}
                             </select>
                           </td>

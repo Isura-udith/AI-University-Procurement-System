@@ -34,6 +34,8 @@ const ROLE_DEFAULT_STAGE = {
   council: 'council',
 };
 
+const escapeRegex = (str) => (str ? String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '');
+
 const handleControllerError = (err, res, next) => {
   if (typeof next === 'function') {
     return next(err);
@@ -59,11 +61,12 @@ const getDraftItems = async (req, res, next) => {
     if (status && status !== 'ALL') filter.status = status;
 
     // Regular users and HODs see their department's or their own created draft items
-    if (['department_user', 'department_head', 'academic_staff'].includes(req.user?.role)) {
+    if (['department_user', 'department_head', 'academic_staff', 'hod'].includes(req.user?.role)) {
       if (!department && req.user?.department) {
         const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
+        const safeDept = escapeRegex(cleanDept);
         filter.$or = [
-          { department: { $regex: new RegExp(cleanDept, 'i') } },
+          { department: { $regex: new RegExp(safeDept, 'i') } },
           { createdBy: req.user._id }
         ];
       }
@@ -109,6 +112,16 @@ const saveDraftItems = async (req, res, next) => {
     }
 
     const savedItems = [];
+    const activeStatuses = [
+      'submitted_to_hod', 'hod_approved',
+      'submitted_to_dean', 'dean_approved',
+      'submitted_to_bursar', 'bursar_approved',
+      'submitted_to_fc', 'fc_approved',
+      'submitted_to_vc', 'vc_approved',
+      'submitted_to_council', 'council_approved',
+      'approved'
+    ];
+
     for (const item of items) {
       const payload = {
         tenantId: req.tenantId || 'uwu-main',
@@ -139,14 +152,21 @@ const saveDraftItems = async (req, res, next) => {
       // Check if item has a valid MongoDB ID
       const targetId = item._id || item.dbId || (item.id && mongoose.Types.ObjectId.isValid(item.id) ? item.id : null);
       if (targetId) {
-        const updated = await DraftProcurementItem.findOneAndUpdate(
-          { _id: targetId, tenantId: req.tenantId || 'uwu-main' },
-          { $set: payload },
-          { new: true, runValidators: true }
-        );
-        if (updated) {
-          savedItems.push(updated);
-          continue;
+        const existingItem = await DraftProcurementItem.findOne({ _id: targetId, tenantId: req.tenantId || 'uwu-main' });
+        if (existingItem) {
+          // Protect active approval workflow items from accidental status reset back to draft
+          if (activeStatuses.includes(existingItem.status) && (payload.status === 'draft' || !item.status)) {
+            payload.status = existingItem.status;
+          }
+          const updated = await DraftProcurementItem.findOneAndUpdate(
+            { _id: targetId, tenantId: req.tenantId || 'uwu-main' },
+            { $set: payload },
+            { new: true, runValidators: true }
+          );
+          if (updated) {
+            savedItems.push(updated);
+            continue;
+          }
         }
       }
 
@@ -179,10 +199,12 @@ const submitDraftItems = async (req, res, next) => {
     } else {
       if (req.user && req.user.department) {
         const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
-        filter.department = { $regex: new RegExp(cleanDept, 'i') };
+        filter.department = { $regex: new RegExp(escapeRegex(cleanDept), 'i') };
       }
-      filter.status = 'draft';
     }
+
+    // Protect active workflow items: only submit items that are currently in draft or rejected status
+    filter.status = { $in: ['draft', 'rejected'] };
 
     const isHod = ['department_head', 'academic_staff', 'hod'].includes(req.user?.role);
     const nextStatus = (isHod || targetStage === 'dean') ? 'submitted_to_dean' : 'submitted_to_hod';
@@ -225,10 +247,17 @@ const getPendingHodItems = async (req, res, next) => {
       status: 'submitted_to_hod',
     };
 
-    if (req.user?.faculty && userRole !== 'super_admin' && userRole !== 'admin') {
-      const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
-      if (cleanFaculty) {
-        filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+    if (userRole !== 'super_admin' && userRole !== 'admin') {
+      if (req.user?.department) {
+        const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
+        if (cleanDept) {
+          filter.department = { $regex: new RegExp(escapeRegex(cleanDept), 'i') };
+        }
+      } else if (req.user?.faculty) {
+        const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
+        if (cleanFaculty) {
+          filter.faculty = { $regex: new RegExp(escapeRegex(cleanFaculty), 'i') };
+        }
       }
     }
 
@@ -309,15 +338,20 @@ const getPendingDraftItems = async (req, res, next) => {
 
     if (targetStage === 'hod') {
       filter.status = 'submitted_to_hod';
-      if (req.user?.faculty && !['super_admin', 'admin'].includes(userRole)) {
-        const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
-        if (cleanFaculty) filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+      if (!['super_admin', 'admin'].includes(userRole)) {
+        if (req.user?.department) {
+          const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
+          if (cleanDept) filter.department = { $regex: new RegExp(escapeRegex(cleanDept), 'i') };
+        } else if (req.user?.faculty) {
+          const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
+          if (cleanFaculty) filter.faculty = { $regex: new RegExp(escapeRegex(cleanFaculty), 'i') };
+        }
       }
     } else if (targetStage === 'dean') {
       filter.status = 'submitted_to_dean';
       if (userRole === 'dean' && req.user?.faculty) {
         const cleanFaculty = req.user.faculty.replace(/^Faculty of\s+/i, '').trim();
-        if (cleanFaculty) filter.faculty = { $regex: new RegExp(cleanFaculty, 'i') };
+        if (cleanFaculty) filter.faculty = { $regex: new RegExp(escapeRegex(cleanFaculty), 'i') };
       }
     } else if (targetStage === 'bursar') {
       filter.status = 'submitted_to_bursar';
@@ -420,7 +454,8 @@ const getApprovedDraftItems = async (req, res, next) => {
     const { department, faculty } = req.query;
     const filter = {
       tenantId: req.tenantId || 'uwu-main',
-      status: { $in: ['approved', 'council_approved', 'dean_approved', 'bursar_approved', 'fc_approved', 'vc_approved'] },
+      status: { $in: ['approved', 'council_approved'] },
+      $or: [{ masterPlanId: { $exists: false } }, { masterPlanId: null }]
     };
 
     if (department && department !== 'ALL') filter.department = department;
