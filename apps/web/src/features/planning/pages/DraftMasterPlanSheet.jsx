@@ -14,7 +14,12 @@ import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } fr
 
 const CATEGORIES = ['Goods', 'Services', 'Works', 'Consulting'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
-const FUNDING_SOURCES = ['Recurrent Budget', 'Capital Budget', 'Research Grant', 'Trust Fund', 'Self-Generated Fund'];
+const FUNDING_SOURCES = [
+  'GOSL Treasury Funds',
+  'Foreign Funded - AHEAD Project',
+  'Foreign Funded - Other',
+  'University Internal Revenue'
+];
 const STATUSES = ['Draft', 'Submitted to HOD', 'Submitted to Dean', 'Submitted to Bursar', 'Submitted to FC', 'Submitted to VC', 'Submitted to Council', 'Approved', 'Rejected'];
 
 export default function DraftMasterPlanSheet() {
@@ -39,7 +44,7 @@ export default function DraftMasterPlanSheet() {
 
   // Default active tab based on user's role
   const defaultTab = useMemo(() => {
-    if (['department_head', 'academic_staff', 'hod'].includes(userRole)) return 'hod_verification';
+    if (['department_head', 'academic_staff', 'hod', 'department_user'].includes(userRole)) return 'sheet';
     if (userRole === 'dean') return 'dean_verification';
     if (userRole === 'bursar') return 'bursar_verification';
     if (['finance_committee', 'finance_officer'].includes(userRole)) return 'fc_verification';
@@ -68,11 +73,19 @@ export default function DraftMasterPlanSheet() {
   const [councilPendingItems, setCouncilPendingItems] = useState([]);
   const [approvedItems, setApprovedItems] = useState([]);
 
+  // 3-Year Master Plan Cycle State (default 2028-2030)
+  const [masterPlanStartYear, setMasterPlanStartYear] = useState(2028);
+  const masterPlanYears = useMemo(() => [
+    masterPlanStartYear,
+    masterPlanStartYear + 1,
+    masterPlanStartYear + 2
+  ], [masterPlanStartYear]);
+
   // Verification & Compilation selection states
   const [verifyingId, setVerifyingId] = useState(null);
   const [selectedApprovedIds, setSelectedApprovedIds] = useState([]);
-  const [compilationTitle, setCompilationTitle] = useState(`Master Procurement Plan ${new Date().getFullYear()}`);
-  const [compilationYear, setCompilationYear] = useState(new Date().getFullYear());
+  const [compilationTitle, setCompilationTitle] = useState(`Master Procurement Plan 2028-2030`);
+  const [compilationYear, setCompilationYear] = useState(2028);
 
   // Cell Selection & Focus State
   const [selectedCell, setSelectedCell] = useState({ rowIndex: 0, colKey: 'description' });
@@ -84,6 +97,7 @@ export default function DraftMasterPlanSheet() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [selectedYearFilter, setSelectedYearFilter] = useState('ALL');
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
 
@@ -93,38 +107,81 @@ export default function DraftMasterPlanSheet() {
 
   // Parse items fetched from DraftProcurementItem database table
   const parseDraftItems = useCallback((itemsList) => {
-    if (!Array.isArray(itemsList)) return;
-    const mappedRows = itemsList.map((item, idx) => ({
-      id: item._id || `ROW-DB-${idx + 1}`,
-      dbId: item._id,
-      itemCode: item.itemCode || `ITEM-${Math.floor(100 + Math.random() * 900)}`,
-      description: item.description || '',
-      department: item.department || user?.department || defaultDept,
-      faculty: item.faculty || user?.faculty || defaultFaculty,
-      category: item.category || 'Goods',
-      priority: item.priority ? (item.priority.charAt(0).toUpperCase() + item.priority.slice(1)) : 'Medium',
-      quantity: item.estimatedQuantity || 1,
-      unit: item.unit || 'Units',
-      unitCost: item.estimatedUnitCost || 0,
-      q1Amount: item.q1Amount ?? 100,
-      q2Amount: item.q2Amount ?? 0,
-      q3Amount: item.q3Amount ?? 0,
-      q4Amount: item.q4Amount ?? 0,
-      fundingSource: item.fundingSource || 'Recurrent Budget',
-      status: item.status === 'submitted_to_hod' ? 'Submitted to HOD' :
-              item.status === 'submitted_to_dean' ? 'Submitted to Dean' :
-              item.status === 'submitted_to_bursar' ? 'Submitted to Bursar' :
-              item.status === 'submitted_to_fc' ? 'Submitted to FC' :
-              item.status === 'submitted_to_vc' ? 'Submitted to VC' :
-              item.status === 'submitted_to_council' ? 'Submitted to Council' :
-              item.status === 'approved' || item.status === 'council_approved' ? 'Approved' :
-              item.status === 'rejected' ? 'Rejected' : 'Draft',
-      notes: item.justification || item.notes || ''
-    }));
+    let listToParse = itemsList;
+    if (!Array.isArray(listToParse) || listToParse.length === 0) {
+      try {
+        const stored = localStorage.getItem('uwu_draft_master_plan_sheet_v1');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            listToParse = parsed;
+          }
+        }
+      } catch (e) {
+        console.error('LocalStorage parse error:', e);
+      }
+    }
+
+    if (!Array.isArray(listToParse) || listToParse.length === 0) {
+      listToParse = [{
+        id: `ROW-${Date.now().toString().slice(-4)}`,
+        itemCode: `ITEM-${Math.floor(100 + Math.random() * 900)}`,
+        description: 'New Procurement Item Requirement',
+        department: user?.department || defaultDept,
+        faculty: user?.faculty || defaultFaculty,
+        category: 'Goods',
+        year: masterPlanStartYear,
+        plannedYear: 1,
+        priority: 'Medium',
+        quantity: 1,
+        unit: 'Units',
+        unitCost: 100000,
+        q1Amount: 100,
+        q2Amount: 0,
+        q3Amount: 0,
+        q4Amount: 0,
+        fundingSource: 'GOSL Treasury Funds',
+        status: 'Draft',
+        notes: ''
+      }];
+    }
+
+    const mappedRows = listToParse.map((item, idx) => {
+      const parsedYr = Number(item.year) || (Number(item.plannedYear) >= 2000 ? Number(item.plannedYear) : (masterPlanStartYear + (Number(item.plannedYear || 1) - 1)));
+      return {
+        id: item.id || item._id || `ROW-DB-${idx + 1}`,
+        dbId: item._id || item.dbId,
+        itemCode: item.itemCode || `ITEM-${Math.floor(100 + Math.random() * 900)}`,
+        description: item.description || '',
+        department: item.department || user?.department || defaultDept,
+        faculty: item.faculty || user?.faculty || defaultFaculty,
+        category: item.category || 'Goods',
+        year: parsedYr || masterPlanStartYear,
+        plannedYear: item.plannedYear || 1,
+        priority: item.priority ? (item.priority.charAt(0).toUpperCase() + item.priority.slice(1)) : 'Medium',
+        quantity: item.estimatedQuantity || item.quantity || 1,
+        unit: item.unit || 'Units',
+        unitCost: item.estimatedUnitCost || item.unitCost || 0,
+        q1Amount: item.q1Amount ?? 100,
+        q2Amount: item.q2Amount ?? 0,
+        q3Amount: item.q3Amount ?? 0,
+        q4Amount: item.q4Amount ?? 0,
+        fundingSource: item.fundingSource || 'GOSL Treasury Funds',
+        status: item.status === 'submitted_to_hod' ? 'Submitted to HOD' :
+                item.status === 'submitted_to_dean' ? 'Submitted to Dean' :
+                item.status === 'submitted_to_bursar' ? 'Submitted to Bursar' :
+                item.status === 'submitted_to_fc' ? 'Submitted to FC' :
+                item.status === 'submitted_to_vc' ? 'Submitted to VC' :
+                item.status === 'submitted_to_council' ? 'Submitted to Council' :
+                item.status === 'approved' || item.status === 'council_approved' ? 'Approved' :
+                item.status === 'rejected' ? 'Rejected' : 'Draft',
+        notes: item.justification || item.notes || ''
+      };
+    });
     setRows(mappedRows);
     setHistory([mappedRows]);
     setHistoryIndex(0);
-  }, [defaultDept, defaultFaculty, user]);
+  }, [defaultDept, defaultFaculty, user, masterPlanStartYear]);
 
   // Load draft items & authorized pending approvals from backend
   const loadBackendData = useCallback(async () => {
@@ -226,12 +283,13 @@ export default function DraftMasterPlanSheet() {
 
       const matchesDept = selectedDeptFilter === 'ALL' || r.department === selectedDeptFilter;
       const matchesCategory = selectedCategoryFilter === 'ALL' || r.category === selectedCategoryFilter;
+      const matchesYear = selectedYearFilter === 'ALL' || String(r.year || '') === String(selectedYearFilter);
       const matchesPriority = selectedPriorityFilter === 'ALL' || r.priority === selectedPriorityFilter;
       const matchesStatus = selectedStatusFilter === 'ALL' || r.status === selectedStatusFilter;
 
-      return matchesSearch && matchesDept && matchesCategory && matchesPriority && matchesStatus;
+      return matchesSearch && matchesDept && matchesCategory && matchesYear && matchesPriority && matchesStatus;
     });
-  }, [rows, searchQuery, selectedDeptFilter, selectedCategoryFilter, selectedPriorityFilter, selectedStatusFilter]);
+  }, [rows, searchQuery, selectedDeptFilter, selectedCategoryFilter, selectedYearFilter, selectedPriorityFilter, selectedStatusFilter]);
 
   // Key KPI calculations
   const stats = useMemo(() => {
@@ -240,6 +298,8 @@ export default function DraftMasterPlanSheet() {
     let worksTotal = 0;
     let servicesTotal = 0;
     let consultingTotal = 0;
+    let year1Total = 0, year2Total = 0, year3Total = 0;
+    let year1Count = 0, year2Count = 0, year3Count = 0;
     let invalidQuarterAllocations = 0;
     const deptsSet = new Set();
 
@@ -252,6 +312,11 @@ export default function DraftMasterPlanSheet() {
       else if (r.category === 'Works') worksTotal += cost;
       else if (r.category === 'Services') servicesTotal += cost;
       else if (r.category === 'Consulting') consultingTotal += cost;
+
+      const itemYr = Number(r.year || masterPlanYears[0]);
+      if (itemYr === masterPlanYears[0]) { year1Total += cost; year1Count++; }
+      else if (itemYr === masterPlanYears[1]) { year2Total += cost; year2Count++; }
+      else if (itemYr === masterPlanYears[2]) { year3Total += cost; year3Count++; }
 
       const qSum = (Number(r.q1Amount) || 0) + (Number(r.q2Amount) || 0) + (Number(r.q3Amount) || 0) + (Number(r.q4Amount) || 0);
       if (qSum !== 100) invalidQuarterAllocations += 1;
@@ -268,13 +333,15 @@ export default function DraftMasterPlanSheet() {
       worksTotal,
       servicesTotal,
       consultingTotal,
+      year1Total, year2Total, year3Total,
+      year1Count, year2Count, year3Count,
       deptsCount: deptsSet.size,
       count,
       avgCost,
       utilPercentage,
       invalidQuarterAllocations
     };
-  }, [filteredRows]);
+  }, [filteredRows, masterPlanYears]);
 
   // Focused active cell info
   const activeCellObj = useMemo(() => {
@@ -334,15 +401,18 @@ export default function DraftMasterPlanSheet() {
   };
 
   // Cell Value Modification
-  const handleCellChange = (id, field, value) => {
+  const handleCellChange = (id, fieldOrObject, value) => {
     const updated = rows.map(r => {
       if (r.id === id) {
-        const item = { ...r, [field]: value };
-        if (field === 'quantity' || field === 'unitCost') {
-          const qty = Number(field === 'quantity' ? value : item.quantity) || 0;
-          const cost = Number(field === 'unitCost' ? value : item.unitCost) || 0;
-          item.calculatedTotal = qty * cost;
+        let item;
+        if (typeof fieldOrObject === 'object' && fieldOrObject !== null) {
+          item = { ...r, ...fieldOrObject };
+        } else {
+          item = { ...r, [fieldOrObject]: value };
         }
+        const qty = Number(item.quantity) || 0;
+        const cost = Number(item.unitCost) || 0;
+        item.calculatedTotal = qty * cost;
         return item;
       }
       return r;
@@ -360,6 +430,8 @@ export default function DraftMasterPlanSheet() {
       department: user?.department || defaultDept,
       faculty: user?.faculty || defaultFaculty,
       category: 'Goods',
+      year: masterPlanYears[0],
+      plannedYear: 1,
       priority: 'Medium',
       quantity: 1,
       unit: 'Units',
@@ -368,12 +440,12 @@ export default function DraftMasterPlanSheet() {
       q2Amount: 0,
       q3Amount: 0,
       q4Amount: 0,
-      fundingSource: 'Recurrent Budget',
+      fundingSource: 'GOSL Treasury Funds',
       status: 'Draft',
       notes: ''
     };
     updateRowsState([...rows, newRow]);
-    toast.success('New spreadsheet row added!');
+    toast.success(`New procurement item added for Year ${masterPlanYears[0]}!`);
   };
 
   const handleDuplicateSelected = () => {
@@ -425,7 +497,7 @@ export default function DraftMasterPlanSheet() {
   // CSV Import / Export
   const handleExportCSV = () => {
     const headers = [
-      'ID', 'Item Code', 'Description', 'Department', 'Category', 'Priority',
+      'ID', 'Item Code', 'Description', 'Department', 'Category', 'Year Category', 'Priority',
       'Quantity', 'Unit', 'Unit Cost (LKR)', 'Total Cost (LKR)',
       'Q1 %', 'Q2 %', 'Q3 %', 'Q4 %', 'Funding Source', 'Status', 'Notes'
     ];
@@ -439,6 +511,7 @@ export default function DraftMasterPlanSheet() {
         `"${(r.description || '').replace(/"/g, '""')}"`,
         `"${r.department || ''}"`,
         `"${r.category || ''}"`,
+        r.year || masterPlanYears[0],
         `"${r.priority || ''}"`,
         r.quantity || 0,
         `"${r.unit || ''}"`,
@@ -481,23 +554,27 @@ export default function DraftMasterPlanSheet() {
         }
         const imported = lines.slice(1).map((line, idx) => {
           const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          const yr = Number(cols[5]) || masterPlanYears[0];
+          const yrIdx = masterPlanYears.indexOf(yr);
           return {
             id: `ROW-IMP-${idx + 1}`,
             itemCode: cols[1] || `IMP-${idx + 1}`,
             description: cols[2] || 'Imported item',
             department: cols[3] || defaultDept,
             category: CATEGORIES.includes(cols[4]) ? cols[4] : 'Goods',
-            priority: PRIORITIES.includes(cols[5]) ? cols[5] : 'Medium',
-            quantity: Number(cols[6]) || 1,
-            unit: cols[7] || 'Units',
-            unitCost: Number(cols[8]) || 100000,
-            q1Amount: Number(cols[10]) || 100,
-            q2Amount: Number(cols[11]) || 0,
-            q3Amount: Number(cols[12]) || 0,
-            q4Amount: Number(cols[13]) || 0,
-            fundingSource: cols[14] || 'Recurrent Budget',
+            year: yr,
+            plannedYear: yrIdx !== -1 ? yrIdx + 1 : 1,
+            priority: PRIORITIES.includes(cols[6]) ? cols[6] : 'Medium',
+            quantity: Number(cols[7]) || 1,
+            unit: cols[8] || 'Units',
+            unitCost: Number(cols[9]) || 100000,
+            q1Amount: Number(cols[11]) || 100,
+            q2Amount: Number(cols[12]) || 0,
+            q3Amount: Number(cols[13]) || 0,
+            q4Amount: Number(cols[14]) || 0,
+            fundingSource: cols[15] || 'GOSL Treasury Funds',
             status: 'Draft',
-            notes: cols[16] || 'Imported via CSV'
+            notes: cols[17] || 'Imported via CSV'
           };
         });
 
@@ -527,8 +604,10 @@ export default function DraftMasterPlanSheet() {
 
       if (isSubmit) {
         const itemIds = savedItems.map(i => i._id || i.id).filter(id => id && String(id).length === 24);
-        await planningService.submitDraftItems(itemIds.length > 0 ? itemIds : undefined);
-        toast.success('Draft procurement items submitted to Faculty HOD for verification!');
+        const isHodRole = ['department_head', 'academic_staff', 'hod'].includes(userRole);
+        const submitTarget = isHodRole ? 'dean' : 'hod';
+        await planningService.submitDraftItems(itemIds.length > 0 ? itemIds : undefined, submitTarget);
+        toast.success(isHodRole ? 'Draft procurement items submitted to Dean for review!' : 'Draft procurement items submitted to Faculty HOD for verification!');
       }
 
       await loadBackendData();
@@ -622,6 +701,7 @@ export default function DraftMasterPlanSheet() {
   // Active filter count
   const activeFiltersCount = (selectedDeptFilter !== 'ALL' ? 1 : 0) +
     (selectedCategoryFilter !== 'ALL' ? 1 : 0) +
+    (selectedYearFilter !== 'ALL' ? 1 : 0) +
     (selectedPriorityFilter !== 'ALL' ? 1 : 0) +
     (selectedStatusFilter !== 'ALL' ? 1 : 0) +
     (searchQuery.trim() !== '' ? 1 : 0);
@@ -630,6 +710,7 @@ export default function DraftMasterPlanSheet() {
     setSearchQuery('');
     setSelectedDeptFilter('ALL');
     setSelectedCategoryFilter('ALL');
+    setSelectedYearFilter('ALL');
     setSelectedPriorityFilter('ALL');
     setSelectedStatusFilter('ALL');
   };
@@ -658,6 +739,9 @@ export default function DraftMasterPlanSheet() {
                   </span>
                   <span className="px-2.5 py-0.5 bg-slate-200 text-slate-800 font-semibold text-xs rounded-md">
                     {item.category}
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-indigo-900 text-indigo-100 font-bold text-xs rounded-md border border-indigo-700 shadow-2xs">
+                    Year {item.year || (masterPlanStartYear + ((item.plannedYear || 1) - 1))}
                   </span>
                   <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 font-semibold text-xs rounded-md uppercase">
                     {item.priority} Priority
@@ -744,8 +828,38 @@ export default function DraftMasterPlanSheet() {
               Draft Master Procurement Plan Sheet
             </h1>
             <p className="text-xs text-slate-300 mt-1 max-w-3xl">
-              Any university staff member can create and save Draft Master Plan items (DAPP items). Multi-stage approvals are strictly restricted to role-authorized approvers (HOD → Dean → Bursar → FC → VC → Council).
+              Any university staff member can create and save Draft Master Plan items (DAPP items). Items can be assigned to any year within the 3-year Master Procurement Plan.
             </p>
+
+            {/* 3-Year Master Procurement Plan Cycle Config */}
+            <div className="mt-3 flex flex-wrap items-center gap-3 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-2.5">
+              <div className="flex items-center gap-2">
+                <FaLayerGroup className="text-amber-400 text-sm" />
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Master Plan 3-Year Cycle:</span>
+              </div>
+              <select
+                value={masterPlanStartYear}
+                onChange={(e) => {
+                  const startYr = Number(e.target.value);
+                  setMasterPlanStartYear(startYr);
+                  setCompilationYear(startYr);
+                }}
+                className="bg-slate-900 border border-amber-500/60 rounded-xl px-3 py-1 text-white font-extrabold text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+              >
+                <option value={2026}>2026 – 2028 Cycle (3 Years)</option>
+                <option value={2027}>2027 – 2029 Cycle (3 Years)</option>
+                <option value={2028}>2028 – 2030 Cycle (3 Years)</option>
+                <option value={2029}>2029 – 2031 Cycle (3 Years)</option>
+                <option value={2030}>2030 – 2032 Cycle (3 Years)</option>
+              </select>
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                {masterPlanYears.map((yr, idx) => (
+                  <span key={yr} className={`px-2.5 py-0.5 rounded-lg font-bold border ${idx === 0 ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : idx === 1 ? 'bg-sky-950 text-sky-300 border-sky-700' : 'bg-purple-950 text-purple-300 border-purple-700'}`}>
+                    Year {idx + 1}: {yr}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Action buttons */}
@@ -772,7 +886,7 @@ export default function DraftMasterPlanSheet() {
               className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/40 active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <FaPaperPlane className="text-sm" />
-              <span>{saving ? 'Submitting...' : 'Submit to HOD'}</span>
+              <span>{saving ? 'Submitting...' : (['department_head', 'academic_staff', 'hod'].includes(userRole) ? 'Submit to Dean' : 'Submit to HOD')}</span>
             </button>
           </div>
         </div>
@@ -1077,6 +1191,7 @@ export default function DraftMasterPlanSheet() {
                     <th className="px-3 py-3">Department</th>
                     <th className="px-3 py-3">Faculty</th>
                     <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3 font-bold text-indigo-900 bg-indigo-50">Year Category</th>
                     <th className="px-3 py-3 text-right">Qty</th>
                     <th className="px-3 py-3 text-right">Unit Cost (LKR)</th>
                     <th className="px-3 py-3 text-right font-black text-emerald-900">Total Cost (LKR)</th>
@@ -1101,6 +1216,11 @@ export default function DraftMasterPlanSheet() {
                         <td className="px-3 py-2 font-sans text-slate-600">{item.department}</td>
                         <td className="px-3 py-2 font-sans text-slate-600">{item.faculty}</td>
                         <td className="px-3 py-2 font-sans font-bold text-slate-700">{item.category}</td>
+                        <td className="px-3 py-2 font-sans font-bold text-indigo-700">
+                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-bold">
+                            {item.year || (masterPlanStartYear + ((item.plannedYear || 1) - 1))}
+                          </span>
+                        </td>
                         <td className="px-3 py-2 text-right">{item.estimatedQuantity}</td>
                         <td className="px-3 py-2 text-right">{(item.estimatedUnitCost || 0).toLocaleString()}</td>
                         <td className="px-3 py-2 text-right font-black text-emerald-800">
@@ -1150,10 +1270,16 @@ export default function DraftMasterPlanSheet() {
                 </div>
               </div>
               <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">{stats.count} Rows</h3>
-              <div className="flex items-center gap-2 mt-2 text-[11px] font-semibold text-slate-600">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Goods</span>
-                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">Services</span>
-                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Works</span>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px] font-bold">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  {masterPlanYears[0]}: {stats.year1Count}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-900 border border-sky-300">
+                  {masterPlanYears[1]}: {stats.year2Count}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-300">
+                  {masterPlanYears[2]}: {stats.year3Count}
+                </span>
               </div>
             </div>
 
@@ -1312,7 +1438,7 @@ export default function DraftMasterPlanSheet() {
 
             {/* Filter Bar */}
             <div className="p-3 bg-white border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 flex-1">
                 {/* Search box */}
                 <div className="relative">
                   <FaSearch className="absolute left-3 top-2.5 text-slate-400" />
@@ -1349,6 +1475,20 @@ export default function DraftMasterPlanSheet() {
                     <option value="ALL">All Categories</option>
                     {CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Year filter */}
+                <div>
+                  <select
+                    value={selectedYearFilter}
+                    onChange={(e) => setSelectedYearFilter(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-indigo-300/90 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50/60 text-indigo-950 font-bold"
+                  >
+                    <option value="ALL">All Years ({masterPlanYears.join(', ')})</option>
+                    {masterPlanYears.map((y, idx) => (
+                      <option key={y} value={y}>{y} (Year {idx + 1})</option>
                     ))}
                   </select>
                 </div>
@@ -1405,17 +1545,18 @@ export default function DraftMasterPlanSheet() {
                     <th className="px-2 py-1 border-r border-b border-slate-300">B</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">C</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">D</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300">E</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 bg-indigo-200/80 text-indigo-950 font-black">E (Year)</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">F</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">G</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-right">H (Total)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">I (Q1)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">J (Q2)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">K (Q3)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">L (Q4)</th>
-                    <th className="px-2 py-1 border-r border-b border-slate-300">M</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300">H</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-right">I (Total)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">J (Q1)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">K (Q2)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">L (Q3)</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300 text-center">M (Q4)</th>
                     <th className="px-2 py-1 border-r border-b border-slate-300">N</th>
-                    <th className="px-2 py-1 border-b border-slate-300 text-center">O</th>
+                    <th className="px-2 py-1 border-r border-b border-slate-300">O</th>
+                    <th className="px-2 py-1 border-b border-slate-300 text-center">P</th>
                   </tr>
 
                   <tr className="font-extrabold text-slate-800 bg-slate-200">
@@ -1432,6 +1573,9 @@ export default function DraftMasterPlanSheet() {
                     <th className="min-w-64 px-3 py-2.5 border-r border-slate-300">Item Description</th>
                     <th className="min-w-48 px-3 py-2.5 border-r border-slate-300">Department / Division</th>
                     <th className="min-w-28 px-3 py-2.5 border-r border-slate-300">Category</th>
+                    <th className="min-w-32 px-3 py-2.5 border-r border-slate-300 text-center bg-indigo-100/90 text-indigo-950 font-black">
+                      Year Category
+                    </th>
                     <th className="min-w-28 px-3 py-2.5 border-r border-slate-300">Priority</th>
                     <th className="min-w-20 px-3 py-2.5 border-r border-slate-300 text-right">Qty</th>
                     <th className="min-w-32 px-3 py-2.5 border-r border-slate-300 text-right">Unit Cost (LKR)</th>
@@ -1451,7 +1595,7 @@ export default function DraftMasterPlanSheet() {
                 <tbody className="divide-y divide-slate-200 bg-white font-mono text-[12px]">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan="17" className="text-center py-16 text-slate-400 font-sans">
+                      <td colSpan="18" className="text-center py-16 text-slate-400 font-sans">
                         <div className="flex flex-col items-center justify-center gap-3">
                           <FaTable className="text-4xl text-slate-300" />
                           <div>
@@ -1547,6 +1691,28 @@ export default function DraftMasterPlanSheet() {
                             >
                               {CATEGORIES.map(c => (
                                 <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </td>
+
+                          <td
+                            onClick={() => setSelectedCell({ rowIndex: idx, colKey: 'year' })}
+                            className={`px-1 py-1 border-r border-slate-200 ${selectedCell.rowIndex === idx && selectedCell.colKey === 'year' ? 'ring-2 ring-emerald-500 bg-emerald-50/40' : ''}`}
+                          >
+                            <select
+                              value={row.year || masterPlanYears[0]}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const yrIdx = masterPlanYears.indexOf(val);
+                                handleCellChange(row.id, {
+                                  year: val,
+                                  plannedYear: yrIdx !== -1 ? yrIdx + 1 : 1
+                                });
+                              }}
+                              className="w-full bg-indigo-50/90 px-1.5 py-1 focus:outline-none font-sans font-bold text-xs text-indigo-900 border border-indigo-200 rounded cursor-pointer"
+                            >
+                              {masterPlanYears.map((y, yIdx) => (
+                                <option key={y} value={y}>Year {yIdx + 1} ({y})</option>
                               ))}
                             </select>
                           </td>

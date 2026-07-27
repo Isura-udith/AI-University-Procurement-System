@@ -58,10 +58,14 @@ const getDraftItems = async (req, res, next) => {
     if (faculty && faculty !== 'ALL') filter.faculty = faculty;
     if (status && status !== 'ALL') filter.status = status;
 
-    // Regular users see their department's or their own created draft items
+    // Regular users and HODs see their department's or their own created draft items
     if (['department_user', 'department_head', 'academic_staff'].includes(req.user?.role)) {
       if (!department && req.user?.department) {
-        filter.department = req.user.department;
+        const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
+        filter.$or = [
+          { department: { $regex: new RegExp(cleanDept, 'i') } },
+          { createdBy: req.user._id }
+        ];
       }
     }
 
@@ -119,8 +123,9 @@ const saveDraftItems = async (req, res, next) => {
         estimatedUnitCost: Number(item.unitCost || item.estimatedUnitCost) || 0,
         estimatedTotalCost: (Number(item.quantity || item.estimatedQuantity) || 1) * (Number(item.unitCost || item.estimatedUnitCost) || 0),
         plannedYear: Number(item.plannedYear) || 1,
+        year: Number(item.year || item.plannedYear) || 2028,
         priority: (item.priority || 'medium').toLowerCase(),
-        fundingSource: item.fundingSource || 'Recurrent Budget',
+        fundingSource: item.fundingSource || 'GOSL Treasury Funds',
         q1Amount: Number(item.q1Amount) || 100,
         q2Amount: Number(item.q2Amount) || 0,
         q3Amount: Number(item.q3Amount) || 0,
@@ -159,11 +164,11 @@ const saveDraftItems = async (req, res, next) => {
 
 /**
  * POST /api/draft-procurements/submit
- * Submit draft procurement items for HOD verification workflow (Step 1)
+ * Submit draft procurement items for verification workflow
  */
 const submitDraftItems = async (req, res, next) => {
   try {
-    const { itemIds } = req.body;
+    const { itemIds, targetStage } = req.body;
     const filter = { tenantId: req.tenantId || 'uwu-main' };
     
     if (Array.isArray(itemIds) && itemIds.length > 0) {
@@ -172,26 +177,33 @@ const submitDraftItems = async (req, res, next) => {
         filter._id = { $in: validIds };
       }
     } else {
-      if (req.user && req.user.department) filter.department = req.user.department;
+      if (req.user && req.user.department) {
+        const cleanDept = req.user.department.replace(/^Department of\s+/i, '').trim();
+        filter.department = { $regex: new RegExp(cleanDept, 'i') };
+      }
       filter.status = 'draft';
     }
 
+    const isHod = ['department_head', 'academic_staff', 'hod'].includes(req.user?.role);
+    const nextStatus = (isHod || targetStage === 'dean') ? 'submitted_to_dean' : 'submitted_to_hod';
+    const nextStageName = (isHod || targetStage === 'dean') ? 'dean' : 'hod';
+
     const updated = await DraftProcurementItem.updateMany(filter, {
       $set: {
-        status: 'submitted_to_hod',
+        status: nextStatus,
         submittedAt: new Date(),
       },
       $push: {
         approvalChain: {
-          stage: 'hod',
+          stage: nextStageName,
           status: 'pending',
-          comments: 'Submitted for HOD verification',
+          comments: (isHod || targetStage === 'dean') ? 'Submitted by Department HOD directly to Dean for review' : 'Submitted for HOD verification',
           actionDate: new Date(),
         }
       }
     });
 
-    return success(res, { modifiedCount: updated.modifiedCount }, `Submitted ${updated.modifiedCount} draft item(s) for HOD Review`);
+    return success(res, { modifiedCount: updated.modifiedCount, targetStage: nextStageName }, `Submitted ${updated.modifiedCount} draft item(s) for ${nextStageName.toUpperCase()} Review`);
   } catch (err) {
     return handleControllerError(err, res, next);
   }
@@ -467,6 +479,7 @@ const compileToFinalMasterPlan = async (req, res, next) => {
       estimatedUnitCost: d.estimatedUnitCost,
       estimatedTotalCost: d.estimatedTotalCost,
       plannedYear: d.plannedYear,
+      year: d.year || (d.plannedYear >= 2000 ? d.plannedYear : 2028),
       priority: (d.priority || 'medium').toLowerCase(),
       fundingSource: d.fundingSource,
       justification: d.justification || d.notes,

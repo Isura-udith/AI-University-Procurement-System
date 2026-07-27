@@ -15,7 +15,8 @@ const departmentRequirementSchema = new mongoose.Schema({
   unit: String,
   estimatedUnitCost: Number,
   estimatedTotalCost: { type: Number, required: true },
-  plannedYear: { type: Number, enum: [1, 2, 3], required: true }, // Which year of the 3-year cycle
+  plannedYear: { type: Number, default: 1 }, // Which year of the 3-year cycle (1, 2, 3 or calendar year)
+  year: { type: Number },
   justification: String,
   priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
 });

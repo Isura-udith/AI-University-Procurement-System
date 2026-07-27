@@ -284,7 +284,9 @@ export default function CreateMasterPlan() {
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Planned Year</label>
                     <select {...register(`requirements.${index}.plannedYear`, { valueAsNumber: true })}
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400">
-                      {YEARS.map(y => <option key={y} value={y}>Year {y}</option>)}
+                      {YEARS.map(y => (
+                        <option key={y} value={y}>Year {y} ({Number(cycleStart || 2028) + y - 1})</option>
+                      ))}
                     </select>
                   </div>
                   <div>

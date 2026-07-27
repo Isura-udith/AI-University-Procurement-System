@@ -39,14 +39,15 @@ const draftProcurementItemSchema = new mongoose.Schema({
   estimatedUnitCost: { type: Number, default: 0 },
   estimatedTotalCost: { type: Number, default: 0 },
   
-  plannedYear: { type: Number, enum: [1, 2, 3], default: 1 },
+  plannedYear: { type: Number, default: 1 },
+  year: { type: Number, default: 2028 },
   priority: { 
     type: String, 
     enum: ['low', 'medium', 'high', 'critical', 'Low', 'Medium', 'High', 'Critical'], 
     default: 'medium' 
   },
   
-  fundingSource: { type: String, default: 'Recurrent Budget' },
+  fundingSource: { type: String, default: 'GOSL Treasury Funds' },
   
   // Quarterly breakdown (%)
   q1Amount: { type: Number, default: 100 },

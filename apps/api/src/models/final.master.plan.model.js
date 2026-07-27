@@ -17,9 +17,10 @@ const fmpItemSchema = new mongoose.Schema({
   unit: String,
   estimatedUnitCost: Number,
   estimatedTotalCost: { type: Number, required: true },
-  plannedYear: { type: Number, enum: [1, 2, 3], default: 1 },
+  plannedYear: { type: Number, default: 1 },
+  year: { type: Number },
   priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
-  fundingSource: { type: String, default: 'Recurrent Budget' },
+  fundingSource: { type: String, default: 'GOSL Treasury Funds' },
   justification: String,
   // Track if a procurement request has been created from this item
   procurementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Procurement' },

@@ -13,7 +13,7 @@ export const planningService = {
   // ── Draft Procurement Items (University User Inputs & Multi-Stage Approvals) ──
   getDraftItems: (params) => api.get('/draft-procurements', { params }),
   saveDraftItems: (items) => api.post('/draft-procurements/save', { items }),
-  submitDraftItems: (itemIds) => api.post('/draft-procurements/submit', { itemIds }),
+  submitDraftItems: (itemIds, targetStage) => api.post('/draft-procurements/submit', { itemIds, targetStage }),
   getPendingHodItems: () => api.get('/draft-procurements/pending-hod'),
   hodApproveDraftItem: (id, data) => api.post(`/draft-procurements/${id}/hod-approve`, data),
   getPendingDraftItems: (stage) => api.get('/draft-procurements/pending', { params: { stage } }),
