@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 const approvalStageSchema = new mongoose.Schema({
   stage: {
     type: String,
-    enum: ['hod', 'dean', 'bursar', 'finance_committee', 'vice_chancellor', 'council', 'office'],
+    enum: ['hod', 'dean', 'bursar', 'fc', 'finance_committee', 'vc', 'vice_chancellor', 'council', 'office'],
     default: 'hod',
   },
   approver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
