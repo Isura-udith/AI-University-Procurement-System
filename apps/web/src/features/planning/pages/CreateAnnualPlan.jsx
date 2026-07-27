@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaTrash, FaSave, FaPaperPlane, FaCalendarAlt, FaPlus } from 'react-icons/fa';
+import { FaTrash, FaSave, FaPaperPlane, FaCalendarAlt, FaPlus, FaSpinner } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
 
@@ -11,12 +11,14 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const QUARTERS = [1, 2, 3, 4];
 
 export default function CreateAnnualPlan() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const prefillMPPId = location.state?.masterPlanId || '';
 
   const [masterPlans, setMasterPlans] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [fetching, setFetching] = useState(!!id);
 
   useEffect(() => {
     planningService.getMasterPlans({ limit: 50 })
@@ -25,7 +27,7 @@ export default function CreateAnnualPlan() {
   }, []);
 
   const currentYear = new Date().getFullYear();
-  const { register, control, handleSubmit, setValue, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, setValue, reset, formState: { errors } } = useForm({
     defaultValues: {
       masterPlanId: prefillMPPId,
       planYear: currentYear + 1,
@@ -37,12 +39,38 @@ export default function CreateAnnualPlan() {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
-  const watchItems = useWatch({ control, name: 'items' });
+  const watchItems = useWatch({ control, name: 'items' }) || [];
   const watchMasterPlanId = useWatch({ control, name: 'masterPlanId' });
   const watchCycleYearNumber = useWatch({ control, name: 'cycleYearNumber' });
 
+  // If editing an existing plan, fetch and populate
   useEffect(() => {
-    if (watchMasterPlanId && watchMasterPlanId !== 'demo-mpp-id') {
+    if (id) {
+      planningService.getAnnualPlan(id)
+        .then(res => {
+          const plan = res.data?.data || res.data;
+          if (plan) {
+            reset({
+              masterPlanId: plan.masterPlanId?._id || plan.masterPlanId || '',
+              planYear: plan.planYear || currentYear + 1,
+              cycleYearNumber: plan.cycleYearNumber || 1,
+              title: plan.title || '',
+              description: plan.description || '',
+              items: plan.items || [],
+            });
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          toast.error('Failed to load Annual Plan for editing');
+        })
+        .finally(() => setFetching(false));
+    }
+  }, [id, reset, currentYear]);
+
+  // Derive items from selected Master Plan if adding new
+  useEffect(() => {
+    if (!id && watchMasterPlanId && watchMasterPlanId !== 'demo-mpp-id') {
       planningService.getMasterPlan(watchMasterPlanId)
         .then(res => {
           const mpp = res.data?.data || res.data;
@@ -64,34 +92,40 @@ export default function CreateAnnualPlan() {
           }
         })
         .catch(err => console.error('Failed to fetch MPP details', err));
-    } else {
-      setValue('items', []);
     }
-  }, [watchMasterPlanId, watchCycleYearNumber, setValue]);
+  }, [id, watchMasterPlanId, watchCycleYearNumber, setValue]);
 
   const totalBudget = watchItems.reduce((sum, item) => {
-    return sum + (Number(item.estimatedQuantity || 0) * Number(item.estimatedUnitCost || 0));
+    return sum + (Number(item?.estimatedQuantity || 0) * Number(item?.estimatedUnitCost || 0));
   }, 0);
 
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
     try {
-      const items = data.items.map(i => ({
+      const items = (data.items || []).map(i => ({
         ...i,
         estimatedTotalCost: Number(i.estimatedQuantity || 1) * Number(i.estimatedUnitCost || 0),
-        estimatedQuantity: Number(i.estimatedQuantity),
-        estimatedUnitCost: Number(i.estimatedUnitCost),
-        quarter: Number(i.quarter),
+        estimatedQuantity: Number(i.estimatedQuantity || 1),
+        estimatedUnitCost: Number(i.estimatedUnitCost || 0),
+        quarter: Number(i.quarter || 1),
       }));
-      const payload = { ...data, planYear: Number(data.planYear), cycleYearNumber: Number(data.cycleYearNumber), items };
-      const res = await planningService.createAnnualPlan(payload);
-      const newId = res.data?.data?._id || res.data?._id;
-      toast.success('Annual Plan saved!');
-      if (submitAfter && newId) {
-        await planningService.submitAnnualPlan(newId);
+      const payload = { ...data, planYear: Number(data.planYear), cycleYearNumber: Number(data.cycleYearNumber), items, status: 'draft' };
+      
+      let targetId = id;
+      if (id) {
+        await planningService.updateAnnualPlan(id, payload);
+        toast.success('Annual Plan draft updated!');
+      } else {
+        const res = await planningService.createAnnualPlan(payload);
+        targetId = res.data?.data?._id || res.data?._id;
+        toast.success('Annual Plan saved as draft!');
+      }
+
+      if (submitAfter && targetId) {
+        await planningService.submitAnnualPlan(targetId);
         toast.success('Submitted for Dean review!');
       }
-      navigate(newId ? `/planning/annual-plans/${newId}` : '/planning/annual-plans');
+      navigate(targetId ? `/planning/annual-plans/${targetId}` : '/planning/annual-plans');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to save');
     } finally {
@@ -100,6 +134,15 @@ export default function CreateAnnualPlan() {
   };
 
   const fmtCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
+
+  if (fetching) {
+    return (
+      <div className="max-w-5xl mx-auto flex items-center justify-center py-20 text-slate-500 gap-3">
+        <FaSpinner className="animate-spin text-2xl text-blue-600" />
+        <span className="text-sm font-medium">Loading Annual Plan...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaPlus, FaSearch, FaEye, FaLayerGroup } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEye, FaLayerGroup, FaEdit } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
 const STATUS_FILTERS = [
@@ -125,9 +125,16 @@ export default function MasterPlanList() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <Link to={`/planning/master-plans/${plan._id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
-                        <FaEye size={11} /> View
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        {plan.status === 'draft' && (
+                          <Link to={`/planning/master-plans/${plan._id}/edit`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg hover:bg-amber-100 transition-colors">
+                            <FaEdit size={11} /> Edit
+                          </Link>
+                        )}
+                        <Link to={`/planning/master-plans/${plan._id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
+                          <FaEye size={11} /> View
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

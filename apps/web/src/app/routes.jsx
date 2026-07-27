@@ -215,9 +215,11 @@ export default function RoutesConfig() {
         <Route path="/planning/draft-sheet" element={<ProtectedRoute><DraftMasterPlanSheet /></ProtectedRoute>} />
         <Route path="/planning/master-plans" element={<ProtectedRoute><MasterPlanList /></ProtectedRoute>} />
         <Route path="/planning/master-plans/new" element={<ProtectedRoute><CreateMasterPlan /></ProtectedRoute>} />
+        <Route path="/planning/master-plans/:id/edit" element={<ProtectedRoute><CreateMasterPlan /></ProtectedRoute>} />
         <Route path="/planning/master-plans/:id" element={<ProtectedRoute><MasterPlanDetail /></ProtectedRoute>} />
         <Route path="/planning/annual-plans" element={<ProtectedRoute><AnnualPlanList /></ProtectedRoute>} />
         <Route path="/planning/annual-plans/new" element={<ProtectedRoute><CreateAnnualPlan /></ProtectedRoute>} />
+        <Route path="/planning/annual-plans/:id/edit" element={<ProtectedRoute><CreateAnnualPlan /></ProtectedRoute>} />
         <Route path="/planning/annual-plans/:id" element={<ProtectedRoute><AnnualPlanDetail /></ProtectedRoute>} />
         <Route path="/planning/budget-distribution" element={<ProtectedRoute><BudgetDistribution /></ProtectedRoute>} />
         <Route path="/planning/final-master-plans" element={<ProtectedRoute><FinalMasterPlanList /></ProtectedRoute>} />

@@ -27,12 +27,22 @@ const INTERNAL_TRANSITIONS = {
 /** POST /api/annual-plans — Create annual plan from MPP */
 const createAnnualPlan = async (req, res, next) => {
   try {
-    const { masterPlanId, planYear, cycleYearNumber, title, description, items } = req.body;
+    const { masterPlanId, planYear, cycleYearNumber, title, description, items, status = 'draft' } = req.body;
     const masterPlan = await MasterPlan.findOne({ _id: masterPlanId, tenantId: req.tenantId });
     if (!masterPlan) return res.status(404).json({ message: 'Master Plan not found' });
-    if (!['active', 'council_approved'].includes(masterPlan.status)) {
-      return res.status(400).json({ message: 'Master Plan must be approved/active to create an Annual Plan' });
+    if (status !== 'draft' && !['active', 'council_approved'].includes(masterPlan.status)) {
+      return res.status(400).json({ message: 'Master Plan must be approved/active to submit an Annual Plan' });
     }
+
+    const formattedItems = (items || []).map(i => ({
+      ...i,
+      estimatedTotalCost: Number(i.estimatedQuantity || 1) * Number(i.estimatedUnitCost || 0),
+      estimatedQuantity: Number(i.estimatedQuantity) || 1,
+      estimatedUnitCost: Number(i.estimatedUnitCost) || 0,
+      quarter: Number(i.quarter) || 1,
+    }));
+
+    const totalBudgetRequest = formattedItems.reduce((acc, i) => acc + i.estimatedTotalCost, 0);
 
     const plan = new AnnualPlan({
       tenantId: req.tenantId,
@@ -42,7 +52,9 @@ const createAnnualPlan = async (req, res, next) => {
       cycleYearNumber,
       title,
       description,
-      items: items || [],
+      items: formattedItems,
+      totalBudgetRequest,
+      status,
       createdBy: req.user._id,
     });
     await plan.save();

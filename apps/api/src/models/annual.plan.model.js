@@ -121,12 +121,17 @@ annualPlanSchema.index({ tenantId: 1, planYear: 1 });
 annualPlanSchema.index({ tenantId: 1, masterPlanId: 1 });
 
 annualPlanSchema.pre('save', async function () {
+  if (this.items && this.items.length > 0) {
+    this.totalBudgetRequest = this.items.reduce((sum, i) => {
+      const qty = Number(i.estimatedQuantity) || 1;
+      const unitCost = Number(i.estimatedUnitCost) || 0;
+      const total = Number(i.estimatedTotalCost) || (qty * unitCost);
+      return sum + total;
+    }, 0);
+  }
   if (!this.referenceNumber) {
     const count = await mongoose.model('AnnualPlan').countDocuments({ tenantId: this.tenantId, planYear: this.planYear });
     this.referenceNumber = `UWU/DAPP/${this.planYear}/${String(count + 1).padStart(3, '0')}`;
-  }
-  if (this.items && this.items.length > 0) {
-    this.totalBudgetRequest = this.items.reduce((sum, i) => sum + (i.estimatedTotalCost || 0), 0);
   }
 });
 

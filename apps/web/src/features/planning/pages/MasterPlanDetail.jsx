@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaCheck, FaTimes, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaLayerGroup } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaLayerGroup, FaEdit } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
 const APPROVAL_CHAIN = [
@@ -170,6 +170,12 @@ export default function MasterPlanDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {plan.status === 'draft' && (
+            <Link to={`/planning/master-plans/${plan._id}/edit`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-400 transition-all shadow-sm">
+              <FaEdit size={12} /> Edit Draft
+            </Link>
+          )}
           {canSubmitDraft && (
             <button onClick={handleSubmit} disabled={submitting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 transition-all shadow-sm disabled:opacity-60">

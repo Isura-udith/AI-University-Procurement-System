@@ -96,13 +96,17 @@ masterPlanSchema.index({ tenantId: 1, status: 1 });
 masterPlanSchema.index({ tenantId: 1, cycleStart: 1 });
 
 masterPlanSchema.pre('save', async function () {
+  if (this.requirements && this.requirements.length > 0) {
+    this.totalEstimatedBudget = this.requirements.reduce((sum, r) => {
+      const qty = Number(r.estimatedQuantity) || 1;
+      const unitCost = Number(r.estimatedUnitCost) || 0;
+      const total = Number(r.estimatedTotalCost) || (qty * unitCost);
+      return sum + total;
+    }, 0);
+  }
   if (!this.referenceNumber) {
     const count = await mongoose.model('MasterPlan').countDocuments({ tenantId: this.tenantId });
     this.referenceNumber = `UWU/MPP/${this.cycleStart}-${this.cycleEnd}/${String(count + 1).padStart(3, '0')}`;
-  }
-  // Auto-compute total estimated budget from requirements
-  if (this.requirements && this.requirements.length > 0) {
-    this.totalEstimatedBudget = this.requirements.reduce((sum, r) => sum + (r.estimatedTotalCost || 0), 0);
   }
 });
 

@@ -263,6 +263,12 @@ export default function AnnualPlanDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {plan.status === 'draft' && (
+            <Link to={`/planning/annual-plans/${plan._id}/edit`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-400 transition-all shadow-sm">
+              <FaEdit size={12} /> Edit Draft
+            </Link>
+          )}
           {canSubmit && (
             <button onClick={handleSubmit} disabled={submitting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all disabled:opacity-60">

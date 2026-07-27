@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaLayerGroup, FaCloudDownloadAlt } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaLayerGroup, FaCloudDownloadAlt, FaSpinner } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
 
@@ -12,16 +12,18 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const YEARS = [1, 2, 3];
 
 export default function CreateMasterPlan() {
+  const { id } = useParams();
   const { user } = useSelector(s => s.auth);
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [loadingImport, setLoadingImport] = useState(false);
+  const [fetching, setFetching] = useState(!!id);
 
   const currentYear = new Date().getFullYear();
   const defaultFaculty = user?.faculty || DEPARTMENTS_AND_FACULTIES[0];
   const defaultDept = user?.department || DEPARTMENTS_BY_FACULTY[defaultFaculty]?.[0] || DEPARTMENTS_AND_FACULTIES[0];
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: {
       title: '',
       description: '',
@@ -35,6 +37,39 @@ export default function CreateMasterPlan() {
 
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'requirements' });
 
+  useEffect(() => {
+    if (id) {
+      planningService.getMasterPlan(id)
+        .then(res => {
+          const plan = res.data?.data || res.data;
+          if (plan) {
+            reset({
+              title: plan.title || '',
+              description: plan.description || '',
+              cycleStart: plan.cycleStart || currentYear + 1,
+              cycleEnd: plan.cycleEnd || currentYear + 4,
+              requirements: plan.requirements && plan.requirements.length > 0 ? plan.requirements.map(r => ({
+                ...r,
+                department: r.department || defaultDept,
+                faculty: r.faculty || defaultFaculty,
+                category: r.category || 'Goods',
+                estimatedQuantity: r.estimatedQuantity || 1,
+                unit: r.unit || 'Units',
+                estimatedUnitCost: r.estimatedUnitCost || 0,
+                plannedYear: r.plannedYear || 1,
+                priority: r.priority || 'medium',
+              })) : [{ department: defaultDept, faculty: defaultFaculty, description: '', category: 'Goods', estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '', plannedYear: 1, priority: 'medium', justification: '' }]
+            });
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          toast.error('Failed to load Master Plan for editing');
+        })
+        .finally(() => setFetching(false));
+    }
+  }, [id, reset, defaultDept, defaultFaculty, currentYear]);
+
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
     try {
@@ -45,15 +80,23 @@ export default function CreateMasterPlan() {
         estimatedQuantity: Number(r.estimatedQuantity),
         estimatedUnitCost: Number(r.estimatedUnitCost),
       }));
-      const payload = { ...data, cycleStart: Number(data.cycleStart), cycleEnd: Number(data.cycleStart) + 3, requirements };
-      const res = await planningService.createMasterPlan(payload);
-      const newId = res.data?.data?._id || res.data?._id;
-      toast.success('Master Plan saved!');
-      if (submitAfter && newId) {
-        await planningService.submitMasterPlan(newId);
+      const payload = { ...data, cycleStart: Number(data.cycleStart), cycleEnd: Number(data.cycleStart) + 3, requirements, status: 'draft' };
+      
+      let targetId = id;
+      if (id) {
+        await planningService.updateMasterPlan(id, payload);
+        toast.success('Master Plan updated!');
+      } else {
+        const res = await planningService.createMasterPlan(payload);
+        targetId = res.data?.data?._id || res.data?._id;
+        toast.success('Master Plan saved as draft!');
+      }
+
+      if (submitAfter && targetId) {
+        await planningService.submitMasterPlan(targetId);
         toast.success('Submitted for Dean review!');
       }
-      navigate(newId ? `/planning/master-plans/${newId}` : '/planning/master-plans');
+      navigate(targetId ? `/planning/master-plans/${targetId}` : '/planning/master-plans');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to save');
     } finally {
@@ -106,6 +149,15 @@ export default function CreateMasterPlan() {
     estimatedQuantity: 1, unit: 'Units', estimatedUnitCost: '', estimatedTotalCost: '',
     plannedYear: 1, priority: 'medium', justification: '', dappNumber: '',
   });
+
+  if (fetching) {
+    return (
+      <div className="max-w-5xl mx-auto flex items-center justify-center py-20 text-slate-500 gap-3">
+        <FaSpinner className="animate-spin text-2xl text-violet-600" />
+        <span className="text-sm font-medium">Loading Master Plan...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">

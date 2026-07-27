@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaPlus, FaSearch, FaEye, FaCalendarAlt } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEye, FaCalendarAlt, FaEdit } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
@@ -155,7 +155,12 @@ export default function AnnualPlanList() {
                 )}
               </div>
               <p className="text-xs text-slate-400">MPP: {plan.masterPlanRef}</p>
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                {plan.status === 'draft' ? (
+                  <Link to={`/planning/annual-plans/${plan._id}/edit`} onClick={e => e.stopPropagation()} className="text-xs text-amber-600 font-semibold flex items-center gap-1 hover:underline">
+                    <FaEdit size={10} /> Edit Draft
+                  </Link>
+                ) : <span />}
                 <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                   View Details <FaEye size={10} />
                 </span>
