@@ -417,14 +417,25 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
       setModalMessage({ type: 'error', text: 'First Name, Last Name, Email, and Role are required.' });
       return;
     }
+    if (userFormData.password && userFormData.password.length < 8) {
+      setModalMessage({ type: 'error', text: 'Initial password must be at least 8 characters long.' });
+      return;
+    }
     setModalLoading(true);
     setModalMessage({ type: '', text: '' });
     try {
-      await userService.createUser(userFormData);
+      const payload = { ...userFormData };
+      if (!payload.password) delete payload.password;
+      await userService.createUser(payload);
       setModalMessage({ type: 'success', text: 'User created successfully!' });
+
+      setUserSearch('');
+      setUserRoleFilter('');
+      setUserStatusFilter('');
+
       setTimeout(() => {
         setShowAddUserModal(false);
-        fetchUsersList(1);
+        fetchUsersList(1, { search: '', role: '', status: '' });
         fetchUserStatsData();
         fetchLogs(1);
       }, 1000);

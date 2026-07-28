@@ -11,6 +11,13 @@ class AuthService {
   async register(userData, reqContext = {}) {
     const existingUser = await User.findOne({ email: userData.email });
     if (existingUser) throw Object.assign(new Error('Email already registered'), { statusCode: 400 });
+
+    // Auto-assign default permissions from role if not specified
+    const { ROLE_PERMISSIONS } = require('../../../../packages/types/rbac.config');
+    if (!userData.permissions || userData.permissions.length === 0) {
+      userData.permissions = ROLE_PERMISSIONS[userData.role || 'department_user'] || [];
+    }
+
     const user = await User.create(userData);
     const tokens = generateTokenPair(user);
     logger.audit('USER_REGISTER', user._id, { email: user.email, role: user.role });
