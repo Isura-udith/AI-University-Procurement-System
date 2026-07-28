@@ -17,7 +17,6 @@ import {
   FaEnvelopeOpenText,
   FaPenFancy,
   FaBoxOpen,
-  FaGavel,
   FaClipboardList,
   FaThumbsUp,
   FaThumbsDown,
@@ -221,9 +220,9 @@ export default function BidOpeningPage() {
       // Map committee
       if (t.bocMembers && t.bocMembers.length > 0) {
         setCommittee(
-          t.bocMembers.map((m) => ({
-            name: m.name || (m.userId ? `${m.userId.firstName} ${m.userId.lastName}` : "Committee Member"),
-            role: m.role || "BOC Representative",
+          t.bocMembers.map((m, idx) => ({
+            name: m.name || (m.userId ? `${m.userId.firstName} ${m.userId.lastName}` : (DEFAULT_COMMITTEE[idx]?.name || `Committee Member ${idx + 1}`)),
+            role: m.role || (DEFAULT_COMMITTEE[idx]?.role || "BOC Representative"),
             present: m.present !== false,
           }))
         );
@@ -456,24 +455,18 @@ export default function BidOpeningPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-16">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-700 via-slate-750 to-slate-800 p-6 rounded-2xl text-white shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
-            <FaGavel size={22} className="animate-pulse" />
-          </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-              Bid Opening Ceremony
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Bid Opening
             </h1>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Stage 8: Public digital bid unsealing, committee verification & live ceremony minutes
-            </p>
           </div>
         </div>
 
         {allTenders.length > 0 && (
           <div className="flex items-center space-x-3 bg-slate-800/90 border border-slate-700/80 shadow-inner px-4 py-2.5 rounded-xl">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">
               Tender Ref:
             </span>
             <select
@@ -633,8 +626,7 @@ export default function BidOpeningPage() {
                 {ceremonyStarted && (
                   <div className="flex items-center space-x-2 text-xs bg-red-50 border border-red-200 px-4 py-2 rounded-xl shadow-sm">
                     <span className="flex items-center space-x-1.5 text-red-600 font-bold">
-                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping shrink-0" />
-                      <span className="tracking-wide text-[11px]">CEREMONY IN PROGRESS</span>
+                      <span className="tracking-wide text-[11px]">IN PROGRESS</span>
                     </span>
                   </div>
                 )}
@@ -644,8 +636,7 @@ export default function BidOpeningPage() {
                     onClick={() => setMinutesModal(true)}
                     className="flex items-center space-x-1.5 px-4 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
                   >
-                    <FaFileAlt size={12} />
-                    <span>View Opening Minutes</span>
+                    <span>View Opening Minutes</span> 
                   </button>
                 )}
               </div>
@@ -658,7 +649,7 @@ export default function BidOpeningPage() {
               <div>
                 <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
                   <FaUsers className="text-emerald-600" size={16} />
-                  <span>Bid Opening Committee (BOC)</span>
+                  <span>Bid Opening Committee</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Check present members to verify attendance. Minimum 3 members required for a valid quorum.
@@ -1045,7 +1036,7 @@ export default function BidOpeningPage() {
 
               {!hasQuorum && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-[11px] text-red-700 font-medium">
-                  ⚠ Attendance deficit: Minimum 3 committee members must be present.
+                  Attendance deficit: Minimum 3 committee members must be present.
                 </div>
               )}
             </div>
@@ -1087,7 +1078,7 @@ export default function BidOpeningPage() {
 
           {/* Completed State Banner */}
           {["evaluation", "awarded", "loa_issued"].includes(tender.status) && (
-            <div className="bg-linear-to-r from-indigo-900 via-slate-900 to-indigo-800 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
               <div className="space-y-1">
                 <h4 className="text-lg font-bold flex items-center space-x-2">
                   <FaCheckCircle className="text-emerald-400" />
@@ -1102,7 +1093,6 @@ export default function BidOpeningPage() {
                   onClick={() => setMinutesModal(true)}
                   className="px-4 py-2.5 bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-xl hover:bg-slate-700 transition-all shadow-md cursor-pointer flex items-center space-x-1.5"
                 >
-                  <FaFileAlt size={12} />
                   <span>View Minutes Document</span>
                 </button>
 
@@ -1111,7 +1101,6 @@ export default function BidOpeningPage() {
                   className="px-5 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-500 transition-all shadow-md cursor-pointer flex items-center space-x-1.5"
                 >
                   <span>Go to Evaluation Workspace</span>
-                  <FaChevronRight size={12} />
                 </Link>
               </div>
             </div>

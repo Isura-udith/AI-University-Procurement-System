@@ -38,7 +38,7 @@ const tenderSchema = new mongoose.Schema({
   technicalPassMark: { type: Number, default: 70 },
   // Committees
   becMembers: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, role: { type: String, enum: ['chairperson', 'member', 'secretary'] }, coiDeclared: { type: Boolean, default: false } }],
-  bocMembers: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, role: String }],
+  bocMembers: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, name: String, role: String, present: { type: Boolean, default: true } }],
   // Bid Box
   bidBoxLocked: { type: Boolean, default: true },
   bidBoxClosedAt: Date,

@@ -829,7 +829,9 @@ class TenderService {
     if (data.bocMembers) {
       tender.bocMembers = data.bocMembers.map(m => ({
         userId: m.userId,
+        name: m.name,
         role: m.role || 'member',
+        present: m.present !== false,
       }));
     }
     await tender.save();
