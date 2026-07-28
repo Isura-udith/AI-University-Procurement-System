@@ -855,10 +855,48 @@ class ProcurementService {
     const filters = { tenantId, status: { $nin: ['draft', 'rejected', 'cancelled'] } };
     if (query.faculty) filters.faculty = query.faculty;
     const data = await Procurement.find(filters)
-      .select('referenceNumber title faculty department totalEstimatedCost budgetValidated budgetLockedAt status budgetRemaining budgetAllocated dappReference budgetComplianceCheck')
+      .select('referenceNumber title faculty department totalEstimatedCost budgetValidated budgetLockedAt status budgetRemaining budgetAllocated dappReference budgetComplianceCheck createdAt annualPlanId annualPlanItemId budgetYear')
       .populate('requestedBy', 'firstName lastName')
-      .sort('-createdAt');
-    return data;
+      .sort('-createdAt')
+      .lean();
+
+    const BudgetAllocation = require('../models/budget.allocation.model');
+    const year = query.budgetYear || new Date().getFullYear();
+    let allocations = await BudgetAllocation.find({ tenantId, budgetYear: year }).lean();
+    if (!allocations.length) {
+      allocations = await BudgetAllocation.find({ tenantId }).sort({ budgetYear: -1 }).lean();
+    }
+
+    return data.map(item => {
+      let deptAlloc = null;
+      const cleanDept = (item.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+      const cleanFac = (item.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+
+      for (const alloc of allocations) {
+        const match = alloc.departmentAllocations?.find(d => {
+          const dDept = (d.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+          const dFac = (d.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+          return (cleanDept && (dDept === cleanDept || dDept.includes(cleanDept) || cleanDept.includes(dDept) || dFac === cleanDept)) ||
+                 (cleanFac && (dFac === cleanFac || dFac.includes(cleanFac) || cleanFac.includes(dFac) || dDept === cleanFac));
+        });
+        if (match) {
+          deptAlloc = match;
+          break;
+        }
+      }
+
+      const allocatedAmount = deptAlloc ? deptAlloc.allocatedAmount : (item.budgetAllocated || 50000000);
+      const consumedAmount = deptAlloc ? (deptAlloc.consumedAmount || 0) : 0;
+      const remaining = deptAlloc ? (allocatedAmount - consumedAmount) : (item.budgetRemaining !== undefined && item.budgetRemaining !== null ? item.budgetRemaining : 50000000);
+
+      return {
+        ...item,
+        budgetAllocated: allocatedAmount,
+        budgetConsumed: consumedAmount,
+        budgetRemaining: remaining,
+        dappBalance: remaining,
+      };
+    });
   }
 
   async deleteProcurement(id, userId, userRole, tenantId) {

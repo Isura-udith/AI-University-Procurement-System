@@ -6,6 +6,9 @@ import { FaCheck, FaTimes, FaUser, FaClock, FaCommentDots, FaCheckDouble, FaSpin
 import WorkflowTracker from '../../../components/WorkflowTracker';
 import ConfirmModal from '../../../components/ConfirmModal';
 import procurementService from '../../../services/procurement.service';
+import TechnicalDescriptionViewer from '../components/TechnicalDescriptionViewer';
+import ItemDetailsModal from '../components/ItemDetailsModal';
+
 
 // Approval thresholds from Step 29 — final authority per value tier
 const APPROVAL_THRESHOLDS = [
@@ -59,6 +62,10 @@ export default function ApprovalsPage() {
   const [comment, setComment] = useState('');
   const [approveModal, setApproveModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(0);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+
 
   // The approval stage this user's role is responsible for
   const myStage = ROLE_TO_STAGE[userRole];
@@ -439,8 +446,24 @@ export default function ApprovalsPage() {
                     );
                   })()}
 
+                  {/* Structured Technical Specifications Section */}
+                  <div className="px-6 py-4 border-b border-slate-100">
+
+                    <TechnicalDescriptionViewer
+                      description={selected.description || selected.techDescription}
+                      technicalSpecifications={selected.technicalSpecifications}
+                      items={selected.items || selected.boq || []}
+                      onViewItem={(item, index) => {
+                        setSelectedItem(item);
+                        setSelectedItemIndex(index);
+                        setItemModalOpen(true);
+                      }}
+                    />
+                  </div>
+
                   {/* Approval Chain */}
                   <div className="p-6 space-y-4">
+
                     <p className="text-sm font-bold text-slate-700">Approval Chain</p>
                     {getMappedApprovals(selected).map((a, i) => (
                       <div key={i} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${a.status === 'approved' ? 'border-emerald-200 bg-emerald-50' :
@@ -653,6 +676,15 @@ export default function ApprovalsPage() {
           </div>
         </ConfirmModal>
       )}
+
+      <ItemDetailsModal
+        isOpen={itemModalOpen}
+        onClose={() => setItemModalOpen(false)}
+        item={selectedItem}
+        itemIndex={selectedItemIndex}
+      />
     </div>
   );
 }
+
+

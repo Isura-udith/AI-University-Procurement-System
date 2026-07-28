@@ -60,7 +60,8 @@ export default function BudgetLockPage() {
   };
 
   const totalLocked = items.filter(i => ['locked', 'budget_locked'].includes(i.status)).reduce((s, i) => s + (i.totalEstimatedCost || i.tce || 0), 0);
-  const totalPending = items.filter(i => ['pending', 'pmd_review', 'submitted'].includes(i.status)).reduce((s, i) => s + (i.totalEstimatedCost || i.tce || 0), 0);
+  const pendingItems = items.filter(i => !['locked', 'budget_locked'].includes(i.status) && i.status !== 'rejected');
+  const totalPending = pendingItems.reduce((s, i) => s + (i.totalEstimatedCost || i.tce || 0), 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -94,7 +95,7 @@ export default function BudgetLockPage() {
             <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
             <div>
               <p className="text-xl font-bold text-slate-900">LKR {totalPending.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Pending Lock ({items.filter(i => ['pending', 'pmd_review', 'submitted'].includes(i.status)).length} items)</p>
+              <p className="text-xs text-slate-500">Pending Lock ({pendingItems.length} items)</p>
             </div>
           </div>
         </div>

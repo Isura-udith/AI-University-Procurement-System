@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn, FaTimesCircle, FaExclamationTriangle, FaUserEdit } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaPrint, FaClock, FaCheckCircle, FaRobot, FaShieldAlt, FaTrash, FaPaperPlane, FaSpinner, FaBullhorn, FaTimesCircle, FaExclamationTriangle, FaUserEdit, FaExternalLinkAlt, FaClipboardList, FaChevronDown, FaChevronUp, FaSearch, FaCompressAlt, FaExpandAlt } from 'react-icons/fa';
 import WorkflowTracker from '../../../components/WorkflowTracker';
 import StatusBadge from '../../../components/StatusBadge';
 import ConfirmModal from '../../../components/ConfirmModal';
 import procurementService from '../../../services/procurement.service';
+import TechnicalDescriptionViewer from '../components/TechnicalDescriptionViewer';
+import ItemDetailsModal from '../components/ItemDetailsModal';
 
 
 
@@ -23,6 +25,12 @@ export default function RequestDetails() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [submitModal, setSubmitModal] = useState(false);
   const [publishModal, setPublishModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItemIndex, setSelectedItemIndex] = useState(0);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [boqSearchTerm, setBoqSearchTerm] = useState('');
+  const [expandedRows, setExpandedRows] = useState({});
+  const [allExpanded, setAllExpanded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -268,48 +276,189 @@ export default function RequestDetails() {
             </div>
           </div>
 
-          {/* Tech Specs & BOQ */}
+          {/* Structured Tech Specs Viewer */}
+          <TechnicalDescriptionViewer
+            description={data.description || data.techDescription}
+            technicalSpecifications={data.technicalSpecifications}
+            items={boqList}
+            onViewItem={(item, index) => {
+              setSelectedItem(item);
+              setSelectedItemIndex(index);
+              setItemModalOpen(true);
+            }}
+          />
+
+          {/* Bill of Quantities (BOQ) & Line Item Specs Management */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-800">Technical Description</h3>
+            <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <FaClipboardList className="text-emerald-600" size={15} />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Bill of Quantities (BOQ) & Line Item Specs</h3>
+                  <p className="text-[11px] text-slate-500">Itemized cost schedule and technical compliance parameters</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    if (allExpanded) {
+                      setExpandedRows({});
+                      setAllExpanded(false);
+                    } else {
+                      const all = {};
+                      boqList.forEach((_, idx) => (all[idx] = true));
+                      setExpandedRows(all);
+                      setAllExpanded(true);
+                    }
+                  }}
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors flex items-center space-x-1 shadow-2xs"
+                >
+                  {allExpanded ? <FaCompressAlt size={10} /> : <FaExpandAlt size={10} />}
+                  <span>{allExpanded ? 'Collapse All' : 'Expand All Specs'}</span>
+                </button>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  {boqList.length} Items
+                </span>
+              </div>
             </div>
-            <div className="p-6">
-              <p className="text-sm text-slate-700 leading-relaxed mb-6">{data.description || data.techDescription}</p>
-              <h4 className="text-sm font-bold text-slate-700 mb-3">Bill of Quantities</h4>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
+
+            <div className="p-6 space-y-4">
+              {/* Search filter for BOQ items */}
+              {boqList.length > 3 && (
+                <div className="relative">
+                  <FaSearch className="absolute left-3 top-2.5 text-slate-400" size={12} />
+                  <input
+                    type="text"
+                    value={boqSearchTerm}
+                    onChange={(e) => setBoqSearchTerm(e.target.value)}
+                    placeholder="Search line items or specification keywords..."
+                    className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                  />
+                  {boqSearchTerm && (
+                    <button
+                      onClick={() => setBoqSearchTerm('')}
+                      className="absolute right-3 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 text-left">
-                      <th className="px-4 py-2.5 font-semibold text-slate-600">#</th>
-                      <th className="px-4 py-2.5 font-semibold text-slate-600">Description</th>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-left">
+                      <th className="w-10 px-3 py-2.5 font-semibold text-slate-600 text-center">#</th>
+                      <th className="px-4 py-2.5 font-semibold text-slate-600">Item & Technical Description</th>
                       <th className="px-4 py-2.5 font-semibold text-slate-600">Unit</th>
                       <th className="px-4 py-2.5 font-semibold text-slate-600 text-right">Qty</th>
-                      <th className="px-4 py-2.5 font-semibold text-slate-600 text-right">Unit Price</th>
-                      <th className="px-4 py-2.5 font-semibold text-slate-600 text-right">Amount</th>
+                      <th className="px-4 py-2.5 font-semibold text-slate-600 text-right">Unit Price (LKR)</th>
+                      <th className="px-4 py-2.5 font-semibold text-slate-600 text-right">Amount (LKR)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {boqList.map((r, i) => {
-                      const qty = r.quantity !== undefined ? r.quantity : r.qty;
-                      const unitPrice = r.estimatedUnitPrice !== undefined ? r.estimatedUnitPrice : r.unitPrice;
-                      const totalVal = r.estimatedTotalPrice !== undefined ? r.estimatedTotalPrice : r.amount;
-                      return (
-                        <tr key={i} className="border-t border-slate-100">
-                          <td className="px-4 py-2.5 text-slate-400">{i + 1}</td>
-                          <td className="px-4 py-2.5 text-slate-700">{r.description || r.desc}</td>
-                          <td className="px-4 py-2.5 text-slate-500">{r.unit}</td>
-                          <td className="px-4 py-2.5 text-right text-slate-700">{qty}</td>
-                          <td className="px-4 py-2.5 text-right text-slate-700">{(unitPrice || 0).toLocaleString()}</td>
-                          <td className="px-4 py-2.5 text-right font-medium text-slate-800">{(totalVal || (qty * unitPrice) || 0).toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    {boqList
+                      .filter((r) => {
+                        if (!boqSearchTerm.trim()) return true;
+                        const term = boqSearchTerm.toLowerCase();
+                        const desc = (r.description || r.desc || '').toLowerCase();
+                        const spec = (r.specifications || r.specs || '').toLowerCase();
+                        return desc.includes(term) || spec.includes(term);
+                      })
+                      .map((r, i) => {
+                        const qty = r.quantity !== undefined ? r.quantity : r.qty;
+                        const unitPrice = r.estimatedUnitPrice !== undefined ? r.estimatedUnitPrice : r.unitPrice;
+                        const totalVal = r.estimatedTotalPrice !== undefined ? r.estimatedTotalPrice : r.amount;
+                        const specSnippet = r.specifications || r.specs || '';
+                        const isExpanded = !!expandedRows[i];
+
+                        return (
+                          <React.Fragment key={i}>
+                            <tr className={`border-t border-slate-100 hover:bg-slate-50/70 transition-colors ${isExpanded ? 'bg-emerald-50/20' : ''}`}>
+                              <td className="px-3 py-3 text-center">
+                                <button
+                                  onClick={() => setExpandedRows(prev => ({ ...prev, [i]: !prev[i] }))}
+                                  className="p-1 text-slate-400 hover:text-emerald-600 rounded transition-colors"
+                                  title={isExpanded ? "Hide item specifications" : "Expand item specifications"}
+                                >
+                                  {isExpanded ? <FaChevronUp size={11} className="text-emerald-600" /> : <FaChevronDown size={11} />}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 max-w-sm">
+                                <button
+                                  onClick={() => {
+                                    setSelectedItem(r);
+                                    setSelectedItemIndex(i);
+                                    setItemModalOpen(true);
+                                  }}
+                                  className="text-left font-bold text-slate-800 hover:text-emerald-600 transition-colors block"
+                                >
+                                  {r.description || r.desc}
+                                </button>
+                                {specSnippet ? (
+                                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-mono">
+                                    {specSnippet}
+                                  </p>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No extra item specs</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">{r.unit || 'nos'}</td>
+                              <td className="px-4 py-3 text-right text-slate-700 font-medium">{qty}</td>
+                              <td className="px-4 py-3 text-right text-slate-700">{(unitPrice || 0).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-bold text-slate-800">{(totalVal || (qty * unitPrice) || 0).toLocaleString()}</td>
+                            </tr>
+
+                            {/* Inline Specifications Accordion Row */}
+                            {isExpanded && (
+                              <tr className="bg-slate-50/90 border-t border-emerald-100 animate-fade-in">
+                                <td colSpan={6} className="px-6 py-3.5">
+                                  <div className="bg-white border border-emerald-200/80 rounded-xl p-4 space-y-2.5 shadow-2xs">
+                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase tracking-wider">
+                                          Item #{i + 1} Specifications
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-800">{r.description || r.desc}</span>
+                                      </div>
+                                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                                        <FaCheckCircle size={9} /> Brand Neutral Verified
+                                      </span>
+                                    </div>
+
+                                    <div className="text-xs text-slate-700 font-mono bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap leading-relaxed">
+                                      {specSnippet || 'No detailed technical parameters string provided for this item.'}
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-1">
+                                      <span className="text-[11px] text-slate-500">Qty: <strong>{qty} {r.unit || 'nos'}</strong> | Unit Est: <strong>LKR {(unitPrice || 0).toLocaleString()}</strong></span>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedItem(r);
+                                          setSelectedItemIndex(i);
+                                          setItemModalOpen(true);
+                                        }}
+                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1"
+                                      >
+                                        <span>Open Full Card Modal</span>
+                                        <FaExternalLinkAlt size={9} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td colSpan={5} className="px-4 py-2.5 text-right font-bold text-slate-700">BOQ Total</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-emerald-700">
-                        {boqList.reduce((s, r) => s + (r.estimatedTotalPrice || r.amount || ((r.quantity || r.qty) * (r.estimatedUnitPrice || r.unitPrice)) || 0), 0).toLocaleString()}
+                      <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-700">BOQ Total</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-700 text-base">
+                        LKR {boqList.reduce((s, r) => s + (r.estimatedTotalPrice || r.amount || ((r.quantity || r.qty) * (r.estimatedUnitPrice || r.unitPrice)) || 0), 0).toLocaleString()}
                       </td>
                     </tr>
                   </tfoot>
@@ -317,6 +466,7 @@ export default function RequestDetails() {
               </div>
             </div>
           </div>
+
 
           {/* Timeline */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -616,6 +766,15 @@ export default function RequestDetails() {
           <p className="text-xs text-slate-400">This will make the procurement visible to all registered suppliers and on the public portal.</p>
         </div>
       </ConfirmModal>
+
+      <ItemDetailsModal
+        isOpen={itemModalOpen}
+        onClose={() => setItemModalOpen(false)}
+        item={selectedItem}
+        itemIndex={selectedItemIndex}
+      />
     </div>
   );
 }
+
+
