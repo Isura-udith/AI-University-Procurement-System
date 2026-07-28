@@ -80,6 +80,7 @@ const annualPlanSchema = new mongoose.Schema({
     type: String,
     enum: [
       'draft',
+      'active',                         // Approved / Active plan derived from Master Plan
       'submitted',                      // Submitted by HOD/Procurement Officer
       'dean_review', 'dean_approved',
       'bursar_review', 'bursar_approved',

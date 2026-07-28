@@ -6,7 +6,7 @@ import planningService from '../../../services/planning.service';
 import ProcurementWorkflowTracker from '../../../components/ProcurementWorkflowTracker';
 
 const PHASE_STEPS = [
-  { phase: 1, label: '3-Year Master Plan', icon: FaLayerGroup, color: 'violet', path: '/planning/master-plans', desc: 'HOD → Dean → Bursar → Finance Committee → VC → Council' },
+  { phase: 1, label: '3-Year Master Plan', icon: FaLayerGroup, color: 'violet', path: '/planning/master-plans', desc: 'Chief Bursar → Finance Committee → VC → Council' },
   { phase: 2, label: 'Annual Plan', icon: FaCalendarAlt, color: 'blue', path: '/planning/annual-plans', desc: 'Split MPP into yearly procurement plans with budget estimates' },
   { phase: 3, label: 'Budget Approval', icon: FaGlobeAsia, color: 'amber', path: '/planning/annual-plans', desc: 'Finance Committee → VC → Council → UGC → Treasury → Parliament' },
   { phase: 4, label: 'Budget Distribution', icon: FaMoneyBillWave, color: 'emerald', path: '/planning/budget-distribution', desc: 'VC → Finance Committee → Bursar → Dean → HOD' },
@@ -79,7 +79,7 @@ export default function StrategicPlanningHub() {
   const fmtStatus = (s) => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
   const fmtCurrency = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
 
-  const canCreate = ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
+  const canCreate = ['department_head', 'bursar', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   return (
     <div className="space-y-8 animate-fade-in">

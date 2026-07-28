@@ -7,25 +7,25 @@ const { success, created, paginated } = require('../utils/response');
 
 // Role → approval stage mapping
 const ROLE_TO_STAGE = {
-  dean: 'dean',
   bursar: 'bursar',
   finance_committee: 'finance_committee',
   finance_officer: 'finance_committee',
   vc: 'vice_chancellor',
+  council: 'council',
+  council_member: 'council',
   admin: 'council',
   super_admin: 'council',
 };
 
 // Status transitions on approval
 const APPROVAL_TRANSITIONS = {
-  dean: 'bursar_estimation',
   bursar: 'finance_committee_review',
   finance_committee: 'vc_review',
   vice_chancellor: 'council_review',
   council: 'active',
 };
 
-const STATUS_ON_SUBMIT = 'dean_review';
+const STATUS_ON_SUBMIT = 'bursar_estimation';
 
 /** POST /api/master-plans — Create a new MPP */
 const createMasterPlan = async (req, res, next) => {
@@ -85,7 +85,7 @@ const updateMasterPlan = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/master-plans/:id/submit — Submit MPP for Dean review */
+/** POST /api/master-plans/:id/submit — Submit MPP for Bursar review */
 const submitMasterPlan = async (req, res, next) => {
   try {
     const plan = await MasterPlan.findOne({ _id: req.params.id, tenantId: req.tenantId });
@@ -93,9 +93,9 @@ const submitMasterPlan = async (req, res, next) => {
     if (plan.status !== 'draft') return res.status(400).json({ message: 'Plan already submitted' });
     plan.status = STATUS_ON_SUBMIT;
     plan.submittedAt = new Date();
-    plan.approvalChain.push({ stage: 'hod', approver: req.user._id, status: 'approved', actionDate: new Date(), comments: 'Submitted for review' });
+    plan.approvalChain.push({ stage: 'bursar', approver: req.user._id, status: 'pending', actionDate: new Date(), comments: 'Submitted for Bursar review' });
     await plan.save();
-    return success(res, plan, 'Submitted for Dean review');
+    return success(res, plan, 'Submitted for Bursar review');
   } catch (err) { next(err); }
 };
 
@@ -110,7 +110,7 @@ const approveMasterPlan = async (req, res, next) => {
 
     // Super admin: auto-detect current pending stage from plan status
     const STATUS_TO_STAGE = {
-      dean_review: 'dean', bursar_estimation: 'bursar',
+      bursar_estimation: 'bursar',
       finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
       council_review: 'council',
     };
@@ -184,10 +184,17 @@ const approveMasterPlan = async (req, res, next) => {
               title: `${plan.title} — Year ${yearNum} (${planYear})`,
               description: `Annual procurement plan derived from MPP: ${plan.referenceNumber}`,
               items: yearItems,
+              status: 'active',
               createdBy: req.user._id,
             });
             await annualPlan.save();
             plan.annualPlanIds.push(annualPlan._id);
+          } else {
+            // Master Plan is active, so set annual plan status to 'active' without requiring re-approval
+            if (['draft', 'submitted', 'dean_review', 'bursar_review', 'finance_committee_review', 'vc_review', 'council_review'].includes(exists.status)) {
+              exists.status = 'active';
+              await exists.save();
+            }
           }
         }
       }
@@ -209,7 +216,7 @@ const getPendingMasterPlans = async (req, res, next) => {
     if (userRole === 'super_admin') {
       const plans = await MasterPlan.find({
         tenantId: req.tenantId,
-        status: { $in: ['dean_review', 'bursar_estimation', 'finance_committee_review', 'vc_review', 'council_review'] },
+        status: { $in: ['bursar_estimation', 'finance_committee_review', 'vc_review', 'council_review'] },
       })
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 });
@@ -217,11 +224,12 @@ const getPendingMasterPlans = async (req, res, next) => {
     }
 
     const stageFilter = {
-      dean: 'dean_review',
       bursar: 'bursar_estimation',
       finance_committee: 'finance_committee_review',
       finance_officer: 'finance_committee_review',
       vc: 'vc_review',
+      council: 'council_review',
+      council_member: 'council_review',
       admin: 'council_review',
     };
     const statusToFilter = stageFilter[userRole];

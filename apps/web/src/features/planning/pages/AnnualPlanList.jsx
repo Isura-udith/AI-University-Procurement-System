@@ -8,6 +8,7 @@ import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Status' },
+  { value: 'active', label: 'Active (Approved via MPP)' },
   { value: 'draft', label: 'Draft' },
   { value: 'dean_review', label: 'Dean Review' },
   { value: 'finance_committee_review', label: 'Finance Committee' },
@@ -24,7 +25,7 @@ const STATUS_FILTERS = [
 
 
 function statusStyle(s) {
-  if (['distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (['active', 'distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
   if (s === 'rejected') return 'bg-red-100 text-red-700 border-red-200';
   if (s === 'draft') return 'bg-slate-100 text-slate-600 border-slate-200';
   if (['ugc_submitted', 'ugc_approved', 'treasury_submitted', 'treasury_approved', 'parliament_submitted'].includes(s)) return 'bg-blue-100 text-blue-700 border-blue-200';
@@ -138,17 +139,21 @@ export default function AnnualPlanList() {
                   {fmtStatus(plan.status)}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-slate-50 rounded-lg px-3 py-2">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-slate-50 rounded-lg px-2.5 py-2">
                   <p className="text-slate-400">Year</p>
                   <p className="font-bold text-slate-700">{plan.planYear} <span className="font-normal text-slate-400">(Yr {plan.cycleYearNumber})</span></p>
                 </div>
-                <div className="bg-slate-50 rounded-lg px-3 py-2">
+                <div className="bg-slate-50 rounded-lg px-2.5 py-2">
+                  <p className="text-slate-400">Items</p>
+                  <p className="font-bold text-blue-700">{plan.items?.length || 0} items</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg px-2.5 py-2">
                   <p className="text-slate-400">Requested</p>
                   <p className="font-bold text-slate-700">{fmtCurrency(plan.totalBudgetRequest)}</p>
                 </div>
                 {plan.totalAllocatedBudget && (
-                  <div className="col-span-2 bg-emerald-50 rounded-lg px-3 py-2">
+                  <div className="col-span-3 bg-emerald-50 rounded-lg px-3 py-2">
                     <p className="text-emerald-600 text-xs">Allocated</p>
                     <p className="font-bold text-emerald-700">{fmtCurrency(plan.totalAllocatedBudget)}</p>
                   </div>

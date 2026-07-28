@@ -1,7 +1,7 @@
 /**
  * Master Procurement Plan (MPP) Model
  * Phase 1: Strategic 3-Year Procurement Planning
- * HOD → Dean → Bursar → Finance Committee → VC → Council → Active
+ * Bursar → Finance Committee → VC → Council → Active
  */
 const mongoose = require('mongoose');
 

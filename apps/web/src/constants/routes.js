@@ -186,7 +186,7 @@ export const ROUTE_ACCESS = {
   '/planning/draft-sheet': INTERNAL_ROLES,
   '/planning/master-plans': APPROVAL_ROLES,
   '/planning/master-plans/new': [
-    ROLES.DEPARTMENT_HEAD, ROLES.PROCUREMENT_OFFICER,
+    ROLES.DEPARTMENT_HEAD, ROLES.BURSAR, ROLES.PROCUREMENT_OFFICER,
     ROLES.ADMIN, ROLES.SUPER_ADMIN,
   ],
   '/planning/annual-plans': APPROVAL_ROLES,

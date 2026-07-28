@@ -9,14 +9,13 @@
 // ─── 45-Step Workflow Definition ───────────────────────────────
 const WORKFLOW_STEPS = [
   // Phase 1: Strategic Procurement Planning (3-Year Master Procurement Plan)
-  { step: 1,  phase: 1, title: 'Department Division (HOD)',          actor: 'HOD',              entity: 'MasterPlan', status: 'draft' },
-  { step: 2,  phase: 1, title: 'Identify Requirements for 3 Years', actor: 'HOD',              entity: 'MasterPlan', status: 'submitted' },
-  { step: 3,  phase: 1, title: 'Faculty Dean Review',               actor: 'Dean',             entity: 'MasterPlan', status: 'dean_review' },
-  { step: 4,  phase: 1, title: 'Bursar Cost Estimation',            actor: 'Bursar',           entity: 'MasterPlan', status: 'bursar_estimation' },
-  { step: 5,  phase: 1, title: 'Finance Committee Review',          actor: 'Finance Committee',entity: 'MasterPlan', status: 'finance_committee_review' },
-  { step: 6,  phase: 1, title: 'Vice Chancellor Approval',          actor: 'Vice Chancellor',  entity: 'MasterPlan', status: 'vc_review' },
-  { step: 7,  phase: 1, title: 'Council Approval',                  actor: 'Council',          entity: 'MasterPlan', status: 'council_review' },
-  { step: 8,  phase: 1, title: '3-Year Master Procurement Plan',    actor: 'System',           entity: 'MasterPlan', status: 'active' },
+  { step: 1,  phase: 1, title: 'Bursar Preparation / Identification', actor: 'Bursar',          entity: 'MasterPlan', status: 'draft' },
+  { step: 2,  phase: 1, title: 'Identify Requirements for 3 Years', actor: 'Bursar',          entity: 'MasterPlan', status: 'submitted' },
+  { step: 3,  phase: 1, title: 'Bursar Cost Estimation & Review',    actor: 'Bursar',           entity: 'MasterPlan', status: 'bursar_estimation' },
+  { step: 4,  phase: 1, title: 'Finance Committee Review',          actor: 'Finance Committee',entity: 'MasterPlan', status: 'finance_committee_review' },
+  { step: 5,  phase: 1, title: 'Vice Chancellor Approval',          actor: 'Vice Chancellor',  entity: 'MasterPlan', status: 'vc_review' },
+  { step: 6,  phase: 1, title: 'Council Approval',                  actor: 'Council',          entity: 'MasterPlan', status: 'council_review' },
+  { step: 7,  phase: 1, title: '3-Year Master Procurement Plan',    actor: 'System',           entity: 'MasterPlan', status: 'active' },
 
   // Phase 2: Annual Procurement Planning
   { step: 9,  phase: 2, title: 'Divide into Annual Plans',          actor: 'Procurement Officer', entity: 'AnnualPlan', status: 'draft' },

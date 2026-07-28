@@ -148,7 +148,8 @@ const feedDatabase = async () => {
     for (const ap of annualPlansData) {
       const parentMasterPlan = masterPlanMap[ap.masterPlanRefCode];
       if (!parentMasterPlan) {
-        throw new Error(`Master Plan ${ap.masterPlanRefCode} not found for Annual Plan ${ap.refCode}`);
+        console.warn(`Master Plan ${ap.masterPlanRefCode} not found for Annual Plan ${ap.refCode}, skipping...`);
+        continue;
       }
 
       // Map requirement IDs in items

@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
   FaArrowLeft, FaCheck, FaTimes, FaGlobeAsia, FaCheckCircle, FaMoneyBillWave, FaEdit,
-  FaPaperPlane, FaCalendarAlt,
+  FaPaperPlane, FaCalendarAlt, FaSearch,
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
@@ -137,6 +137,8 @@ export default function AnnualPlanDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [selectedQuarter, setSelectedQuarter] = useState('all');
 
   useEffect(() => {
     planningService.getAnnualPlan(id)
@@ -211,7 +213,7 @@ export default function AnnualPlanDetail() {
   const fmtCurrency = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
   const fmtStatus = (s) => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
   const statusStyle = (s) => {
-    if (['distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700';
+    if (['active', 'distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700';
     if (s === 'rejected') return 'bg-red-100 text-red-700';
     if (s === 'draft') return 'bg-slate-100 text-slate-600';
     return 'bg-amber-100 text-amber-700';
@@ -291,10 +293,13 @@ export default function AnnualPlanDetail() {
           {/* Quarter breakdown */}
           <div className="grid grid-cols-4 gap-3">
             {[1, 2, 3, 4].map(q => {
-              const qItems = plan.items?.filter(i => i.quarter === q) || [];
+              const qItems = plan.items?.filter(i => Number(i.quarter) === q) || [];
               const qTotal = qItems.reduce((s, i) => s + (i.estimatedTotalCost || 0), 0);
+              const isSelected = selectedQuarter === String(q);
               return (
-                <div key={q} className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                <div key={q}
+                  onClick={() => setSelectedQuarter(isSelected ? 'all' : String(q))}
+                  className={`bg-white rounded-xl border p-3 text-center cursor-pointer transition-all ${isSelected ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/30' : 'border-slate-100 hover:border-slate-300'}`}>
                   <p className="text-xs font-semibold text-slate-500">Q{q}</p>
                   <p className="text-lg font-bold text-slate-800 mt-1">{qItems.length}</p>
                   <p className="text-xs text-slate-400">{qTotal > 0 ? `LKR ${(qTotal / 1000000).toFixed(1)}M` : '—'}</p>
@@ -304,54 +309,109 @@ export default function AnnualPlanDetail() {
           </div>
 
           {/* Items table */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-              <h2 className="font-semibold text-slate-800">Procurement Items ({plan.items?.length || 0})</h2>
-            </div>
-            {plan.items?.length === 0 ? (
-              <div className="py-10 text-center text-sm text-slate-400">No items in this plan.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500">Description</th>
-                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">DAPP No.</th>
-                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Category</th>
-                      <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500">Faculty</th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500">Q</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500">Est. Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {plan.items?.map((item, i) => (
-                      <tr key={item._id || i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-3">
-                          <p className="font-medium text-slate-800">{item.description}</p>
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          {item.dappNumber
-                            ? <span className="font-mono text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">{item.dappNumber}</span>
-                            : <span className="text-xs text-slate-300">—</span>}
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
-                        <td className="px-3 py-3 text-xs text-slate-500">{item.faculty}</td>
-                        <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter}</td>
-                        <td className="px-6 py-3 text-right font-semibold text-slate-700">{fmtCurrency(item.estimatedTotalCost)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td colSpan={5} className="px-6 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
-                      <td className="px-6 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+          {(() => {
+            const filteredItems = (plan.items || []).filter(item => {
+              const matchQ = selectedQuarter === 'all' || String(item.quarter || 1) === String(selectedQuarter);
+              const matchSearch = !itemSearch ||
+                item.description?.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                item.dappNumber?.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                item.faculty?.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                item.department?.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                item.category?.toLowerCase().includes(itemSearch.toLowerCase());
+              return matchQ && matchSearch;
+            });
+
+            return (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <h2 className="font-semibold text-slate-800">
+                    Procurement Items ({filteredItems.length} of {plan.items?.length || 0})
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                      <input type="text" value={itemSearch} onChange={e => setItemSearch(e.target.value)}
+                        placeholder="Search items…"
+                        className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <select value={selectedQuarter} onChange={e => setSelectedQuarter(e.target.value)}
+                      className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="all">All Quarters</option>
+                      <option value="1">Q1</option>
+                      <option value="2">Q2</option>
+                      <option value="3">Q3</option>
+                      <option value="4">Q4</option>
+                    </select>
+                  </div>
+                </div>
+                {filteredItems.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-400">No items found matching your filters.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-semibold">
+                          <th className="text-left px-4 py-3">Description</th>
+                          <th className="text-left px-3 py-3">DAPP No.</th>
+                          <th className="text-left px-3 py-3">Category</th>
+                          <th className="text-left px-3 py-3">Faculty / Dept</th>
+                          <th className="text-right px-3 py-3">Qty & Unit</th>
+                          <th className="text-right px-3 py-3">Unit Cost</th>
+                          <th className="text-center px-3 py-3">Q</th>
+                          <th className="text-right px-4 py-3">Est. Cost</th>
+                          {plan.totalAllocatedBudget ? <th className="text-right px-4 py-3">Allocated</th> : null}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {filteredItems.map((item, i) => (
+                          <tr key={item._id || i} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 min-w-45">
+                              <p className="font-medium text-slate-800">{item.description}</p>
+                              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${priorityColor[item.priority] || priorityColor.medium}`}>{item.priority}</span>
+                            </td>
+                            <td className="px-3 py-3">
+                              {item.dappNumber
+                                ? <span className="font-mono text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">{item.dappNumber}</span>
+                                : <span className="text-xs text-slate-300">—</span>}
+                            </td>
+                            <td className="px-3 py-3 text-xs text-slate-500">{item.category}</td>
+                            <td className="px-3 py-3 text-xs text-slate-500 min-w-32.5">
+                              <div>{item.faculty}</div>
+                              {item.department && item.department !== item.faculty && (
+                                <div className="text-slate-400 text-[11px]">{item.department}</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-right text-xs text-slate-700 font-medium">
+                              {item.estimatedQuantity || 1} {item.unit || 'Units'}
+                            </td>
+                            <td className="px-3 py-3 text-right text-xs text-slate-600">
+                              {fmtCurrency(item.estimatedUnitCost)}
+                            </td>
+                            <td className="px-3 py-3 text-center text-xs font-semibold text-slate-600">Q{item.quarter || 1}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-slate-700">{fmtCurrency(item.estimatedTotalCost)}</td>
+                            {plan.totalAllocatedBudget ? (
+                              <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                                {fmtCurrency(item.allocatedBudget || item.estimatedTotalCost)}
+                              </td>
+                            ) : null}
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-200 bg-slate-50">
+                          <td colSpan={7} className="px-4 py-3 text-sm font-bold text-slate-700">Total Budget Request</td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-blue-700">{fmtCurrency(plan.totalBudgetRequest)}</td>
+                          {plan.totalAllocatedBudget ? (
+                            <td className="px-4 py-3 text-right text-sm font-bold text-emerald-700">{fmtCurrency(plan.totalAllocatedBudget)}</td>
+                          ) : null}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Sidebar */}
@@ -385,8 +445,20 @@ export default function AnnualPlanDetail() {
             </div>
           </div>
 
+          {/* Active Status Banner */}
+          {plan.status === 'active' && (
+            <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-800 font-semibold text-xs">
+                <FaCheckCircle className="text-emerald-600" size={14} /> Active Plan (Pre-Approved)
+              </div>
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                This Annual Procurement Plan is derived from an Approved 3-Year Master Plan ({plan.masterPlanRef}). No separate internal approval process is required!
+              </p>
+            </div>
+          )}
+
           {/* Submit Action (draft) */}
-          {canSubmit && (
+          {canSubmit && plan.status === 'draft' && (
             <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 space-y-2">
               <p className="text-xs font-semibold text-blue-700">This plan is in Draft status.</p>
               <p className="text-xs text-blue-600">Click "Submit for Dean Review" above to begin the approval process.</p>

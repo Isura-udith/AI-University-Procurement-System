@@ -141,15 +141,11 @@ export default function CouncilDashboard() {
         }
         setTenders(fetchedTenders);
 
-        if (fetchedPlans.length === 0) {
-          setPlans(MOCK_COUNCIL_PLANS);
-        } else {
-          setPlans(fetchedPlans);
-        }
+        setPlans(fetchedPlans.length > 0 ? fetchedPlans : MOCK_COUNCIL_PLANS);
       } catch (err) {
         if (!ignore) {
           console.error("Error loading council dashboard data:", err);
-          setPlans(MOCK_COUNCIL_PLANS);
+          setPlans([]);
         }
       } finally {
         if (!ignore) {

@@ -6,8 +6,6 @@ import { FaCheck, FaTimes, FaArrowLeft, FaCalendarAlt, FaPaperPlane, FaLayerGrou
 import planningService from '../../../services/planning.service';
 
 const APPROVAL_CHAIN = [
-  { stage: 'hod', label: 'Head of Department', color: 'amber' },
-  { stage: 'dean', label: 'Faculty Dean', color: 'blue' },
   { stage: 'bursar', label: 'Chief Bursar', color: 'indigo' },
   { stage: 'finance_committee', label: 'Finance Committee', color: 'purple' },
   { stage: 'vice_chancellor', label: 'Vice Chancellor', color: 'violet' },
@@ -15,13 +13,13 @@ const APPROVAL_CHAIN = [
 ];
 
 const ROLE_TO_STAGE = {
-  department_head: 'hod', dean: 'dean', bursar: 'bursar',
+  bursar: 'bursar',
   finance_committee: 'finance_committee', finance_officer: 'finance_committee', vc: 'vice_chancellor',
-  admin: 'council', super_admin: 'council',
+  council: 'council', council_member: 'council', admin: 'council', super_admin: 'council',
 };
 
 const STATUS_PENDING = {
-  dean_review: 'dean', bursar_estimation: 'bursar',
+  bursar_estimation: 'bursar',
   finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
   council_review: 'council',
 };
@@ -90,7 +88,7 @@ export default function MasterPlanDetail() {
     try {
       const res = await planningService.submitMasterPlan(id);
       setPlan(res.data?.data || res.data);
-      toast.success('Submitted for Dean review!');
+      toast.success('Submitted for Chief Bursar review!');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to submit');
     } finally {
@@ -121,7 +119,7 @@ export default function MasterPlanDetail() {
   const fmtCurrency = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
   const fmtStatus = (s) => s?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
   const priorityColor = { low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700', high: 'bg-amber-100 text-amber-700', critical: 'bg-red-100 text-red-700' };
-  const canSubmitDraft = plan?.status === 'draft' && ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
+  const canSubmitDraft = plan?.status === 'draft' && ['department_head', 'bursar', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -140,9 +138,18 @@ export default function MasterPlanDetail() {
     </div>
   );
 
-  const year1Items = plan.requirements?.filter(r => r.plannedYear === 1) || [];
-  const year2Items = plan.requirements?.filter(r => r.plannedYear === 2) || [];
-  const year3Items = plan.requirements?.filter(r => r.plannedYear === 3) || [];
+  const getPlannedYr = (r) => {
+    const py = Number(r.plannedYear || r.year);
+    if (!py) return 1;
+    if (py === 1 || py === plan.cycleStart) return 1;
+    if (py === 2 || py === (plan.cycleStart + 1)) return 2;
+    if (py === 3 || py === (plan.cycleStart + 2)) return 3;
+    return 1;
+  };
+
+  const year1Items = plan.requirements?.filter(r => getPlannedYr(r) === 1) || [];
+  const year2Items = plan.requirements?.filter(r => getPlannedYr(r) === 2) || [];
+  const year3Items = plan.requirements?.filter(r => getPlannedYr(r) === 3) || [];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
@@ -180,7 +187,7 @@ export default function MasterPlanDetail() {
             <button onClick={handleSubmit} disabled={submitting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 transition-all shadow-sm disabled:opacity-60">
               <FaPaperPlane size={12} />
-              {submitting ? 'Submitting…' : 'Submit for Dean Review'}
+              {submitting ? 'Submitting…' : 'Submit for Chief Bursar Review'}
             </button>
           )}
           {plan.status === 'active' && (
@@ -291,7 +298,7 @@ export default function MasterPlanDetail() {
           {canSubmitDraft && (
             <div className="bg-violet-50 rounded-2xl border border-violet-200 p-4 space-y-2">
               <p className="text-xs font-semibold text-violet-700">This plan is in Draft status.</p>
-              <p className="text-xs text-violet-600">Click "Submit for Dean Review" to begin the 6-stage approval chain.</p>
+              <p className="text-xs text-violet-600">Click "Submit for Chief Bursar Review" to begin the 4-stage approval chain.</p>
             </div>
           )}
 

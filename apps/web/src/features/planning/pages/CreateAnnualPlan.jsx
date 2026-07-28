@@ -74,17 +74,32 @@ export default function CreateAnnualPlan() {
       planningService.getMasterPlan(watchMasterPlanId)
         .then(res => {
           const mpp = res.data?.data || res.data;
-          if (mpp && mpp.requirements) {
-            const cycleReqs = mpp.requirements.filter(r => Number(r.plannedYear) === Number(watchCycleYearNumber));
-            const newItems = cycleReqs.map(r => ({
+          if (mpp && mpp.requirements && mpp.requirements.length > 0) {
+            const cycleYr = Number(watchCycleYearNumber || 1);
+            const startYr = Number(mpp.cycleStart || 0);
+
+            const getPlannedYr = (r) => {
+              const py = Number(r.plannedYear || r.year);
+              if (!py) return 1;
+              if (py === 1 || py === startYr) return 1;
+              if (py === 2 || py === (startYr + 1)) return 2;
+              if (py === 3 || py === (startYr + 2)) return 3;
+              return 1;
+            };
+
+            const cycleReqs = mpp.requirements.filter(r => getPlannedYr(r) === cycleYr);
+            const targetReqs = cycleReqs.length > 0 ? cycleReqs : mpp.requirements;
+
+            const newItems = targetReqs.map(r => ({
               masterPlanRequirementId: r._id,
+              dappNumber: r.dappNumber || r.reqCode || '',
               department: r.department || '',
               faculty: r.faculty || '',
               description: r.description || '',
               category: r.category || 'Goods',
-              estimatedQuantity: r.estimatedQuantity || 1,
+              estimatedQuantity: Number(r.estimatedQuantity) || 1,
               unit: r.unit || 'Units',
-              estimatedUnitCost: r.estimatedUnitCost || 0,
+              estimatedUnitCost: Number(r.estimatedUnitCost) || 0,
               priority: r.priority || 'medium',
               quarter: 1
             }));
@@ -99,6 +114,9 @@ export default function CreateAnnualPlan() {
     return sum + (Number(item?.estimatedQuantity || 0) * Number(item?.estimatedUnitCost || 0));
   }, 0);
 
+  const selectedMPP = masterPlans.find(m => m._id === watchMasterPlanId);
+  const isMPPApproved = selectedMPP && ['active', 'council_approved'].includes(selectedMPP.status);
+
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
     try {
@@ -109,19 +127,25 @@ export default function CreateAnnualPlan() {
         estimatedUnitCost: Number(i.estimatedUnitCost || 0),
         quarter: Number(i.quarter || 1),
       }));
-      const payload = { ...data, planYear: Number(data.planYear), cycleYearNumber: Number(data.cycleYearNumber), items, status: 'draft' };
+      const payload = {
+        ...data,
+        planYear: Number(data.planYear),
+        cycleYearNumber: Number(data.cycleYearNumber),
+        items,
+        status: isMPPApproved ? 'active' : 'draft',
+      };
       
       let targetId = id;
       if (id) {
         await planningService.updateAnnualPlan(id, payload);
-        toast.success('Annual Plan draft updated!');
+        toast.success('Annual Plan updated!');
       } else {
         const res = await planningService.createAnnualPlan(payload);
         targetId = res.data?.data?._id || res.data?._id;
-        toast.success('Annual Plan saved as draft!');
+        toast.success(isMPPApproved ? 'Annual Plan created as Active (Approved via Master Plan)!' : 'Annual Plan saved as draft!');
       }
 
-      if (submitAfter && targetId) {
+      if (submitAfter && targetId && !isMPPApproved) {
         await planningService.submitAnnualPlan(targetId);
         toast.success('Submitted for Dean review!');
       }
@@ -168,13 +192,19 @@ export default function CreateAnnualPlan() {
                 className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">— Select Master Plan —</option>
                 {masterPlans.map(m => (
-                  <option key={m._id} value={m._id}>{m.referenceNumber} — {m.title}</option>
+                  <option key={m._id} value={m._id}>{m.referenceNumber} — {m.title} ({m.status === 'active' ? 'Active' : m.status})</option>
                 ))}
                 {masterPlans.length === 0 && (
                   <option value="" disabled>No Master Plans found. Please create a Master Plan first.</option>
                 )}
               </select>
               {errors.masterPlanId && <p className="text-red-500 text-xs mt-1">{errors.masterPlanId.message}</p>}
+              {isMPPApproved && (
+                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Selected 3-Year Master Plan is Approved ({selectedMPP.referenceNumber}). Derived Annual Plans are automatically Active and do not require re-approval.
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Title *</label>

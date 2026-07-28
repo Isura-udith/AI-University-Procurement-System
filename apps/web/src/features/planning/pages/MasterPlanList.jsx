@@ -33,7 +33,7 @@ export default function MasterPlanList() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const canCreate = ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
+  const canCreate = ['department_head', 'bursar', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   useEffect(() => {
     planningService.getMasterPlans({ limit: 50 })

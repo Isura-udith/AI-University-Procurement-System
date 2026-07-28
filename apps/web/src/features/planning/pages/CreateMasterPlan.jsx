@@ -94,7 +94,7 @@ export default function CreateMasterPlan() {
 
       if (submitAfter && targetId) {
         await planningService.submitMasterPlan(targetId);
-        toast.success('Submitted for Dean review!');
+        toast.success('Submitted for Chief Bursar review!');
       }
       navigate(targetId ? `/planning/master-plans/${targetId}` : '/planning/master-plans');
     } catch (err) {
@@ -169,7 +169,7 @@ export default function CreateMasterPlan() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Create 3-Year Master Procurement Plan</h1>
-            <p className="text-sm text-slate-500">Phase 1 · HOD → Dean → Bursar → Finance Committee → VC → Council</p>
+            <p className="text-sm text-slate-500">Phase 1 · Chief Bursar → Finance Committee → VC → Council</p>
           </div>
         </div>
 
@@ -334,7 +334,7 @@ export default function CreateMasterPlan() {
           <button type="button" disabled={saving}
             onClick={handleSubmit(d => onSave(d, true))}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 transition-all disabled:opacity-60">
-            <FaPaperPlane size={13} /> {saving ? 'Submitting…' : 'Save & Submit for Dean Review'}
+            <FaPaperPlane size={13} /> {saving ? 'Submitting…' : 'Save & Submit for Chief Bursar Review'}
           </button>
         </div>
       </form>

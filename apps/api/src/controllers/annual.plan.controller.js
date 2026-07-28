@@ -27,15 +27,17 @@ const INTERNAL_TRANSITIONS = {
 /** POST /api/annual-plans — Create annual plan from MPP */
 const createAnnualPlan = async (req, res, next) => {
   try {
-    const { masterPlanId, planYear, cycleYearNumber, title, description, items, status = 'draft' } = req.body;
+    const { masterPlanId, planYear, cycleYearNumber, title, description, items, status } = req.body;
     const masterPlan = await MasterPlan.findOne({ _id: masterPlanId, tenantId: req.tenantId });
     if (!masterPlan) return res.status(404).json({ message: 'Master Plan not found' });
-    if (status !== 'draft' && !['active', 'council_approved'].includes(masterPlan.status)) {
-      return res.status(400).json({ message: 'Master Plan must be approved/active to submit an Annual Plan' });
-    }
+
+    // If Master Plan is approved (active/council_approved), Annual Plan is automatically active (does not need re-approval)
+    const isMasterApproved = ['active', 'council_approved'].includes(masterPlan.status);
+    const finalStatus = isMasterApproved ? 'active' : (status || 'draft');
 
     const formattedItems = (items || []).map(i => ({
       ...i,
+      dappNumber: i.dappNumber || i.reqCode || undefined,
       estimatedTotalCost: Number(i.estimatedQuantity || 1) * Number(i.estimatedUnitCost || 0),
       estimatedQuantity: Number(i.estimatedQuantity) || 1,
       estimatedUnitCost: Number(i.estimatedUnitCost) || 0,
@@ -54,7 +56,7 @@ const createAnnualPlan = async (req, res, next) => {
       description,
       items: formattedItems,
       totalBudgetRequest,
-      status,
+      status: finalStatus,
       createdBy: req.user._id,
     });
     await plan.save();
@@ -63,7 +65,7 @@ const createAnnualPlan = async (req, res, next) => {
     masterPlan.annualPlanIds.push(plan._id);
     await masterPlan.save();
 
-    return created(res, plan, 'Annual Procurement Plan created');
+    return created(res, plan, isMasterApproved ? 'Annual Procurement Plan created (Active — approved via Master Plan)' : 'Annual Procurement Plan created');
   } catch (err) { next(err); }
 };
 
@@ -108,6 +110,19 @@ const updateAnnualPlan = async (req, res, next) => {
     const plan = await AnnualPlan.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!plan) return res.status(404).json({ message: 'Annual Plan not found' });
     if (plan.status !== 'draft') return res.status(400).json({ message: 'Only draft plans can be edited' });
+
+    if (req.body.items) {
+      req.body.items = req.body.items.map(i => ({
+        ...i,
+        dappNumber: i.dappNumber || i.reqCode || undefined,
+        estimatedTotalCost: Number(i.estimatedQuantity || 1) * Number(i.estimatedUnitCost || 0),
+        estimatedQuantity: Number(i.estimatedQuantity) || 1,
+        estimatedUnitCost: Number(i.estimatedUnitCost) || 0,
+        quarter: Number(i.quarter) || 1,
+      }));
+      req.body.totalBudgetRequest = req.body.items.reduce((acc, i) => acc + i.estimatedTotalCost, 0);
+    }
+
     Object.assign(plan, req.body);
     await plan.save();
     return success(res, plan, 'Updated');
