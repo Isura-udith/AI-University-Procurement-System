@@ -20,7 +20,13 @@ import {
   FaPhone,
   FaBoxes,
   FaUserPlus,
-  FaShieldAlt
+  FaShieldAlt,
+  FaFileAlt,
+  FaBoxOpen,
+  FaGavel,
+  FaBalanceScale,
+  FaPlusCircle,
+  FaChevronRight,
 } from 'react-icons/fa';
 
 const MOCK_VENDORS = [
@@ -448,6 +454,18 @@ export default function SuppliesDivisionDashboard() {
           <FaPaperPlane size={14} />
           <span>Supplies Issuances Hub</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('tendering')}
+          className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center space-x-2 ${
+            activeTab === 'tendering'
+              ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <FaGavel size={14} />
+          <span>Tendering Operations Section</span>
+        </button>
       </div>
 
       {/* Main Tab Content */}
@@ -700,6 +718,113 @@ export default function SuppliesDivisionDashboard() {
                 >
                   Publish Supplier Registration Notice
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: Full Tendering Operations Section */}
+        {activeTab === 'tendering' && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-4 gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                  <FaGavel className="text-teal-600" />
+                  <span>Full Tendering Operations Section</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage bid document preparation, digital vault submissions, public opening sessions, and evaluation matrices.
+                </p>
+              </div>
+              <Link
+                to="/tenders/new"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all flex items-center space-x-2 shrink-0"
+              >
+                <FaPlusCircle size={14} />
+                <span>Create New Tender Notice</span>
+              </Link>
+            </div>
+
+            {/* Quick Navigation Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Card 1: Bid Preparation */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                    <FaFileAlt />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base">Bid Preparation</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Prepare tender notices, technical specs, bidding documents, and publish to suppliers portal.
+                  </p>
+                </div>
+                <Link
+                  to="/tenders"
+                  className="mt-4 pt-3 border-t border-slate-200/60 text-blue-600 hover:text-blue-800 text-xs font-bold inline-flex items-center space-x-1.5"
+                >
+                  <span>Go to Bid Preparation</span>
+                  <FaChevronRight size={11} />
+                </Link>
+              </div>
+
+              {/* Card 2: Digital Bid Box */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                    <FaBoxOpen />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base">Digital Bid Box</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Encrypted submission vault for live bids, deadline monitoring, and cryptographic proof of receipt.
+                  </p>
+                </div>
+                <Link
+                  to="/bid-box"
+                  className="mt-4 pt-3 border-t border-slate-200/60 text-indigo-600 hover:text-indigo-800 text-xs font-bold inline-flex items-center space-x-1.5"
+                >
+                  <span>Access Digital Bid Box</span>
+                  <FaChevronRight size={11} />
+                </Link>
+              </div>
+
+              {/* Card 3: Bid Opening */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                    <FaGavel />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base">Bid Opening Session</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Conduct public bid openings, unseal cryptographic keys, and generate official opening attendance sheets.
+                  </p>
+                </div>
+                <Link
+                  to="/bid-opening"
+                  className="mt-4 pt-3 border-t border-slate-200/60 text-purple-600 hover:text-purple-800 text-xs font-bold inline-flex items-center space-x-1.5"
+                >
+                  <span>Launch Bid Opening</span>
+                  <FaChevronRight size={11} />
+                </Link>
+              </div>
+
+              {/* Card 4: Technical & Financial Evaluation */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                    <FaBalanceScale />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base">Evaluation Matrix</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    TEC scoring, compliance verification, financial comparison, and recommendation reporting.
+                  </p>
+                </div>
+                <Link
+                  to="/evaluation"
+                  className="mt-4 pt-3 border-t border-slate-200/60 text-emerald-600 hover:text-emerald-800 text-xs font-bold inline-flex items-center space-x-1.5"
+                >
+                  <span>Open Evaluation System</span>
+                  <FaChevronRight size={11} />
+                </Link>
               </div>
             </div>
           </div>

@@ -278,7 +278,11 @@ class TenderService {
     const vendor = await Vendor.findOne({ userId, tenantId });
     if (!vendor) return [];
     return Bid.find({ vendorId: vendor._id, tenantId })
-      .populate('tenderId', 'tenderNumber title category status bidSubmissionDeadline estimatedValue')
+      .populate({
+        path: 'tenderId',
+        select: 'tenderNumber title category status bidSubmissionDeadline estimatedValue awardedVendorId awardAmount awardDate loaIssuedAt loaDocument standstillEndDate procurementId tenderDocuments attachments description technicalSpecifications',
+        populate: { path: 'procurementId', select: 'items referenceNumber title category totalEstimatedCost description attachments' }
+      })
       .sort('-submittedAt');
   }
 
@@ -443,6 +447,24 @@ class TenderService {
 
     // Update the winning bid status to 'awarded'
     await Bid.updateOne({ _id: data.bidId, tenantId }, { status: 'awarded' });
+
+    // Send notification to vendor if user account exists
+    try {
+      const vendor = await Vendor.findById(data.vendorId);
+      if (vendor && vendor.userId) {
+        const Notification = require('../models/notification.model');
+        await Notification.create({
+          tenantId,
+          recipient: vendor.userId,
+          title: '🏆 Tender Award Notification',
+          message: `Congratulations! Your bid for "${tender.title}" (${tender.tenderNumber}) has been selected and awarded for LKR ${Number(data.amount).toLocaleString()}. Check your Supplier Dashboard to view selected items.`,
+          type: 'tender_awarded',
+          metadata: { tenderId: tender._id, bidId: data.bidId },
+        });
+      }
+    } catch (notifErr) {
+      logger.warn('Failed to send vendor award notification', { error: notifErr.message });
+    }
 
     logger.audit('TENDER_AWARDED', userId, { tenderId, vendorId: data.vendorId, amount: data.amount });
     return tender;
@@ -744,7 +766,23 @@ class TenderService {
       };
     });
 
-    return { results, criteria: techCriteria, techWeight, finWeight, tender: { _id: tender._id, tenderNumber: tender.tenderNumber, title: tender.title } };
+    return {
+      results,
+      criteria: techCriteria,
+      techWeight,
+      finWeight,
+      tender: {
+        _id: tender._id,
+        tenderNumber: tender.tenderNumber,
+        title: tender.title,
+        status: tender.status,
+        awardedVendorId: tender.awardedVendorId,
+        awardedBidId: tender.awardedBidId,
+        awardDate: tender.awardDate,
+        awardAmount: tender.awardAmount,
+        loaIssuedAt: tender.loaIssuedAt
+      }
+    };
   }
 
   async submitEvaluation(tenderId, data, userId, tenantId) {

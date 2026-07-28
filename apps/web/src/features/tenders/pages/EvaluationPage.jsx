@@ -213,7 +213,7 @@ export default function EvaluationPage() {
         bidId: bidder.id,
         amount: bidder.correctedPrice || bidder.quotedPrice
       });
-      toast.success(`🏆 "${bidder.name}" selected as the recommended awardee.`);
+      toast.success(`🏆 "${bidder.name}" selected as winning vendor! Selection notice sent to vendor.`);
       loadEvaluation();
     } catch (err) {
       toast.error(err.message || 'Failed to select winner.');
@@ -221,6 +221,11 @@ export default function EvaluationPage() {
   };
 
   const sorted = [...bidders].sort((a, b) => (b.combined || 0) - (a.combined || 0));
+
+  const awardedVendor = bidders.find(b => 
+    b.status === 'awarded' || 
+    (tender?.awardedVendorId && (b.vendorId?._id === tender.awardedVendorId || b.vendorId === tender.awardedVendorId))
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -256,6 +261,27 @@ export default function EvaluationPage() {
         </div>
       ) : (
         <>
+          {awardedVendor && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-xs animate-slide-up">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                  🏆
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+                    Winning Vendor Selected & Sent: <span className="underline">{awardedVendor.name}</span>
+                  </h4>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    Award notification sent to vendor. Vendor dashboard now displays selected items.
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white uppercase tracking-wider shadow-xs">
+                Selection Sent
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-800">{tender.title}</h2>

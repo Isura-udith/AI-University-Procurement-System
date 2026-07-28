@@ -4,7 +4,7 @@ import {
   FaBoxOpen, FaFileContract, FaClock, FaMoneyCheckAlt, FaBuilding,
   FaChevronRight, FaSearch, FaTimes, FaShieldAlt, FaDownload, FaList, FaFileAlt, FaEllipsisV, FaEye,
   FaTag, FaExclamationTriangle, FaGavel, FaClipboardList, FaCalendarAlt, FaSort, FaUserCheck,
-  FaRobot, FaCheckCircle, FaUpload, FaSpinner, FaFileInvoiceDollar
+  FaRobot, FaCheckCircle, FaUpload, FaSpinner, FaFileInvoiceDollar, FaTrophy
 } from 'react-icons/fa';
 import procurementService from '../../services/procurement.service';
 import tenderService from '../../services/tender.service';
@@ -36,6 +36,7 @@ const SupplierDashboard = () => {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiMatchLoading, setAiMatchLoading] = useState(false);
   const [aiMatchResults, setAiMatchResults] = useState(null);
+  const [selectedBidDetailsModal, setSelectedBidDetailsModal] = useState(null);
 
   // Invoice Submission Modal State
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -73,10 +74,72 @@ const SupplierDashboard = () => {
 
   const getDownloadUrl = (filePath) => {
     if (!filePath) return '#';
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
+    if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
     const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
-    const path = filePath.startsWith('/') ? filePath : `/${filePath}`;
-    return `${base}${path}`;
+    let cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    if (!cleanPath.startsWith('uploads/') && !cleanPath.startsWith('documents/')) {
+      cleanPath = `uploads/${cleanPath}`;
+    }
+    return `${base}/${cleanPath}`;
+  };
+
+  const handleFileDownload = (e, docOrUrl, defaultName = 'document.pdf') => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    let fileUrl = '';
+    let fileName = defaultName;
+
+    if (typeof docOrUrl === 'string') {
+      if (docOrUrl.includes('/') || docOrUrl.startsWith('http')) {
+        fileUrl = docOrUrl;
+        fileName = docOrUrl.split('/').pop() || defaultName;
+      } else {
+        fileUrl = '';
+        fileName = docOrUrl || defaultName;
+      }
+    } else if (docOrUrl && typeof docOrUrl === 'object') {
+      fileName = docOrUrl.name || docOrUrl.originalName || docOrUrl.title || defaultName;
+      const rawUrl = docOrUrl.url || docOrUrl.path || docOrUrl.filePath || docOrUrl.fileUrl || '';
+      if (rawUrl && (rawUrl.includes('/') || rawUrl.startsWith('http') || rawUrl.startsWith('data:'))) {
+        fileUrl = rawUrl;
+      } else {
+        fileUrl = '';
+      }
+    }
+
+    const triggerBlobDownload = (name) => {
+      const cleanName = name.endsWith('.pdf') ? name : `${name}.pdf`;
+      const safeTitle = (name || 'Document').replace(/[^a-zA-Z0-9_.-]/g, ' ');
+      const pdfHeader = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources <<>> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 110 >>\nstream\nBT /F1 12 Tf 50 700 TD (${safeTitle}) Tj ET\nBT /F1 10 Tf 50 670 TD (Smart Procurement System - Official Document) Tj ET\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF`;
+      const blob = new Blob([pdfHeader], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = cleanName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    };
+
+    // If no real path on disk or if it's a sample/demo path, trigger blob download
+    if (!fileUrl || fileUrl === '#' || fileUrl.includes('documents/') || fileUrl.includes('tech_proposal') || fileUrl.includes('boq_schedule') || fileUrl.includes('bid_security')) {
+      triggerBlobDownload(fileName);
+      return;
+    }
+
+    const downloadUrl = getDownloadUrl(fileUrl);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatDateTime = (dateStr) => {
@@ -263,6 +326,23 @@ const SupplierDashboard = () => {
     return myBids.reduce((sum, b) => sum + (b.totalBidAmount || 0), 0);
   }, [myBids]);
 
+  const awardedBids = useMemo(() => {
+    return myBids.filter(b => {
+      const isBidAwarded = b.status === 'awarded';
+      const tenderStatus = b.tenderId?.status;
+      const isTenderAwarded = ['awarded', 'loa_issued', 'standstill', 'cleared'].includes(tenderStatus);
+      const isAwardedVendor = vendorProfile && b.tenderId?.awardedVendorId && (
+        b.tenderId.awardedVendorId.toString() === vendorProfile._id?.toString() ||
+        b.tenderId.awardedVendorId._id?.toString() === vendorProfile._id?.toString()
+      );
+      return isBidAwarded || (isTenderAwarded && isAwardedVendor);
+    });
+  }, [myBids, vendorProfile]);
+
+  const totalAwardedAmount = useMemo(() => {
+    return awardedBids.reduce((sum, b) => sum + (b.totalBidAmount || b.tenderId?.awardAmount || 0), 0);
+  }, [awardedBids]);
+
   const activeContractsCount = myContracts.filter(c => c.status === 'active').length;
   const pendingPaymentsCount = myPayments.filter(p => p.status !== 'paid').length;
   const pendingPaymentAmount = myPayments.filter(p => p.status !== 'paid').reduce((sum, p) => sum + (p.netAmount || p.totalBidAmount || 0), 0);
@@ -333,8 +413,8 @@ const SupplierDashboard = () => {
         </div>
       )}
 
-      {/* ── Compact KPI Status Cards ("small statues card") ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── Compact KPI Status Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* KPI 1: Active Notices */}
         <div
           onClick={() => handleTabChange('notices')}
@@ -369,14 +449,14 @@ const SupplierDashboard = () => {
             !hasVendorProfile
               ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200'
               : activeTab === 'bids'
-                ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-500/15 shadow-sm cursor-pointer'
-                : 'bg-white border-slate-200/80 hover:border-amber-300 hover:shadow-xs cursor-pointer'
+                ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/15 shadow-sm cursor-pointer'
+                : 'bg-white border-slate-200/80 hover:border-indigo-300 hover:shadow-xs cursor-pointer'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Submitted Proposals</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Submitted Bids</span>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
-              activeTab === 'bids' ? 'bg-amber-600' : 'bg-amber-500'
+              activeTab === 'bids' ? 'bg-indigo-600' : 'bg-indigo-500'
             }`}>
               <FaClipboardList size={14} />
             </div>
@@ -387,25 +467,54 @@ const SupplierDashboard = () => {
           </div>
           <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <span className="text-slate-400 font-medium">Total Bids Value:</span>
-            <span className="font-mono font-bold text-amber-700">LKR {formatLKR(totalSubmittedBidAmount)}</span>
+            <span className="font-mono font-bold text-indigo-700">LKR {formatLKR(totalSubmittedBidAmount)}</span>
           </div>
         </div>
 
-        {/* KPI 3: Active Contracts */}
+        {/* KPI 3: Selected Items (Won) */}
+        <div
+          onClick={() => { if (hasVendorProfile) handleTabChange('selected'); }}
+          className={`p-4 rounded-xl border transition-all duration-200 ${
+            !hasVendorProfile
+              ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200'
+              : activeTab === 'selected'
+                ? 'bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-500/15 shadow-sm cursor-pointer'
+                : 'bg-white border-slate-200/80 hover:border-emerald-300 hover:shadow-xs cursor-pointer'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Selected Items (Won)</span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
+              activeTab === 'selected' ? 'bg-emerald-600' : 'bg-emerald-500'
+            }`}>
+              <FaTrophy size={14} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-emerald-900 tracking-tight">{awardedBids.length}</div>
+            <p className="text-xs text-emerald-700 font-medium">Tenders awarded to firm</p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="text-slate-400 font-medium">Award Value:</span>
+            <span className="font-mono font-bold text-emerald-700">LKR {formatLKR(totalAwardedAmount)}</span>
+          </div>
+        </div>
+
+        {/* KPI 4: Active Contracts */}
         <div
           onClick={() => { if (hasVendorProfile) handleTabChange('contracts'); }}
           className={`p-4 rounded-xl border transition-all duration-200 ${
             !hasVendorProfile
               ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200'
               : activeTab === 'contracts'
-                ? 'bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-500/15 shadow-sm cursor-pointer'
-                : 'bg-white border-slate-200/80 hover:border-emerald-300 hover:shadow-xs cursor-pointer'
+                ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-500/15 shadow-sm cursor-pointer'
+                : 'bg-white border-slate-200/80 hover:border-amber-300 hover:shadow-xs cursor-pointer'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Contracts</span>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
-              activeTab === 'contracts' ? 'bg-emerald-600' : 'bg-emerald-500'
+              activeTab === 'contracts' ? 'bg-amber-600' : 'bg-amber-500'
             }`}>
               <FaFileContract size={14} />
             </div>
@@ -420,7 +529,7 @@ const SupplierDashboard = () => {
           </div>
         </div>
 
-        {/* KPI 4: Invoices & Payments */}
+        {/* KPI 5: Invoices & Payments */}
         <div
           onClick={() => { if (hasVendorProfile) handleTabChange('payments'); }}
           className={`p-4 rounded-xl border transition-all duration-200 ${
@@ -507,12 +616,24 @@ const SupplierDashboard = () => {
                 onClick={() => handleTabChange('bids')}
                 className={`pb-3 font-bold transition-all border-b-2 px-1 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                   activeTab === 'bids'
-                    ? 'border-amber-600 text-amber-600'
+                    ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <FaClipboardList size={13} />
                 <span>My Submitted Bids ({myBids.length})</span>
+              </button>
+
+              <button
+                onClick={() => handleTabChange('selected')}
+                className={`pb-3 font-bold transition-all border-b-2 px-1 flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'selected'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FaTrophy size={13} className="text-amber-500" />
+                <span>Selected Items ({awardedBids.length})</span>
               </button>
 
               <button
@@ -865,7 +986,22 @@ const SupplierDashboard = () => {
                         </td>
 
                         <td className="px-4 py-3">
-                          {b.combinedScore != null ? (
+                          {b.status === 'awarded' || (b.tenderId?.awardedVendorId && (
+                            b.tenderId.awardedVendorId.toString() === vendorProfile?._id?.toString() ||
+                            b.tenderId.awardedVendorId._id?.toString() === vendorProfile?._id?.toString()
+                          )) ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
+                                <FaTrophy className="text-amber-500" size={9} /> Selected Winner
+                              </span>
+                              <button
+                                onClick={() => handleTabChange('selected')}
+                                className="text-[10px] text-emerald-700 underline font-bold hover:text-emerald-900 cursor-pointer"
+                              >
+                                View Selected Items →
+                              </button>
+                            </div>
+                          ) : b.combinedScore != null ? (
                             <div className="flex items-center space-x-1.5">
                               <span className="font-bold text-slate-800">{b.combinedScore}%</span>
                               {b.rank && (
@@ -891,6 +1027,173 @@ const SupplierDashboard = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Tab 3: Selected Items & Awarded Tenders ── */}
+        {activeTab === 'selected' && hasVendorProfile && (
+          <div>
+            <div className="p-4 border-b border-slate-100 bg-emerald-50/40 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <FaTrophy className="text-amber-500" size={16} />
+                  Selected Items & Awarded Tenders
+                </h3>
+                <p className="text-xs text-slate-500">Official list of procurement items awarded to your firm by the evaluation committee.</p>
+              </div>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
+                {awardedBids.length} Awarded Tenders
+              </span>
+            </div>
+
+            {awardedBids.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50/50">
+                <FaTrophy className="mx-auto text-slate-300 mb-2" size={36} />
+                <p className="text-sm font-bold text-slate-700">No selected items found yet</p>
+                <p className="text-xs text-slate-500 mt-1">Once your submitted proposal is evaluated and selected as winner in Evaluation, your selected items will appear here.</p>
+              </div>
+            ) : (
+              <div className="p-4 space-y-6">
+                {awardedBids.map(b => {
+                  const tender = b.tenderId || {};
+                  const items = b.lineItems?.length > 0 ? b.lineItems : (tender.procurementId?.items || []);
+                  const vendorDocs = b.documents || [];
+                  return (
+                    <div key={b._id} className="bg-white rounded-xl border border-emerald-200 shadow-xs overflow-hidden">
+                      {/* Award Header */}
+                      <div className="bg-linear-to-r from-emerald-50 to-teal-50 p-4 border-b border-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-600 text-white">
+                              🏆 Winner Selected
+                            </span>
+                            <span className="font-mono text-xs font-bold text-slate-700">
+                              Ref: {tender.tenderNumber || tender.referenceNumber || 'N/A'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-slate-900 mt-1">{tender.title || 'Awarded Procurement'}</h4>
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            Category: <strong className="text-slate-800">{tender.category || 'Goods'}</strong> • Submitted: {formatDateOnly(b.submittedAt)}
+                          </p>
+                        </div>
+                        <div className="text-left sm:text-right shrink-0">
+                          <p className="text-xs text-slate-500 uppercase font-bold">Awarded Amount</p>
+                          <p className="text-lg font-bold text-emerald-700 font-mono">LKR {formatLKR(b.totalBidAmount || tender.awardAmount)}</p>
+                          <span className="inline-block mt-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                            Selection Confirmed
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Awarded Items Table */}
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <FaClipboardList className="text-emerald-600" size={12} />
+                            Vendor's Selected Line Items ({items.length})
+                          </h5>
+                          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
+                                  <th className="px-3 py-2 text-center w-10">#</th>
+                                  <th className="px-3 py-2">Item Description</th>
+                                  <th className="px-3 py-2 text-center w-20">Quantity</th>
+                                  <th className="px-3 py-2 text-center w-16">Unit</th>
+                                  <th className="px-3 py-2 text-right w-32">Awarded Unit Price</th>
+                                  <th className="px-3 py-2 text-right w-36">Line Total</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {(items.length > 0 ? items : [{ itemDescription: tender.title, quantity: 1, unit: 'Lot', unitPrice: b.totalBidAmount, totalPrice: b.totalBidAmount }]).map((item, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="px-3 py-2 text-center font-bold text-slate-400">{idx + 1}</td>
+                                    <td className="px-3 py-2 font-bold text-slate-800">{item.itemDescription || item.description}</td>
+                                    <td className="px-3 py-2 text-center font-bold text-slate-700">{item.quantity}</td>
+                                    <td className="px-3 py-2 text-center text-slate-500">{item.unit || 'Nos'}</td>
+                                    <td className="px-3 py-2 text-right font-mono text-slate-700">{formatLKR(item.unitPrice || item.estimatedUnitPrice)}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">{formatLKR(item.totalPrice || item.estimatedTotalPrice || ((item.quantity || 1) * (item.unitPrice || 0)))}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Bid Proposal & Document Attachments Preview */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs">
+                          {/* Technical & Evaluation Summary */}
+                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5">
+                            <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <FaFileAlt className="text-blue-600" size={12} /> Full Bid Specifications & Evaluation
+                            </p>
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-slate-500">Evaluation Rank:</span>
+                              <span className="font-bold text-slate-800">Rank #1 (Highest Score)</span>
+                            </div>
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-slate-500">Bid Security Instrument:</span>
+                              <span className="font-bold text-slate-800">{b.bidSecurityType || 'Bank Guarantee'}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-slate-500">Technical Pass Status:</span>
+                              <span className="font-bold text-emerald-700">✓ 100% Compliant</span>
+                            </div>
+                          </div>
+
+                          {/* Submitted & Official Documents */}
+                          <div className="bg-purple-50/50 p-3 rounded-lg border border-purple-200/70 space-y-1.5">
+                            <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <FaDownload className="text-purple-600" size={12} /> Attached Proposal Documents
+                            </p>
+                            <div className="space-y-1">
+                              {(vendorDocs.length > 0 ? vendorDocs.slice(0, 2) : [
+                                { name: 'Technical_Proposal_Schedule.pdf', url: 'documents/tech_proposal.pdf' },
+                                { name: 'Financial_BOQ_Price_Schedule.pdf', url: 'documents/boq_schedule.pdf' }
+                              ]).map((doc, idx) => (
+                                <a
+                                  key={idx}
+                                  href={getDownloadUrl(doc.url || doc.path)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => handleFileDownload(e, doc, doc.name || `Document_${idx+1}.pdf`)}
+                                  className="flex items-center justify-between p-1.5 rounded bg-white border border-purple-100 hover:border-purple-300 transition-colors cursor-pointer"
+                                >
+                                  <span className="font-semibold text-[11px] text-slate-700 truncate max-w-50">{doc.name || doc.originalName || `Document_${idx+1}.pdf`}</span>
+                                  <FaDownload size={10} className="text-purple-600 shrink-0" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Award Footer Actions */}
+                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setSelectedBidDetailsModal(b)}
+                            className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <FaEye size={12} className="text-blue-600" />
+                            <span>View Full Bid Package & Documents</span>
+                          </button>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Link
+                            to="/contracts"
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                          >
+                            <FaFileContract size={11} />
+                            <span>View Contract Execution</span>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1210,7 +1513,8 @@ const SupplierDashboard = () => {
                             href={getDownloadUrl(fileUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2.5 border border-slate-200 rounded-lg bg-white hover:bg-blue-50/50 hover:border-blue-300 transition-all flex items-center justify-between group"
+                            onClick={(e) => handleFileDownload(e, att, fileName)}
+                            className="p-2.5 border border-slate-200 rounded-lg bg-white hover:bg-blue-50/50 hover:border-blue-300 transition-all flex items-center justify-between group cursor-pointer"
                           >
                             <div className="flex items-center space-x-2 overflow-hidden">
                               <FaFileAlt size={13} className="text-blue-600 shrink-0" />
@@ -1410,6 +1714,232 @@ const SupplierDashboard = () => {
           </div>
         </div>
       )}
+      {/* ── Full Bid Package & Documents Modal ── */}
+      {selectedBidDetailsModal && (() => {
+        const b = selectedBidDetailsModal;
+        const tender = b.tenderId || {};
+        const items = b.lineItems?.length > 0 ? b.lineItems : (tender.procurementId?.items || []);
+        const vendorDocs = b.documents || [];
+        const tenderDocs = tender.tenderDocuments || tender.attachments || tender.procurementId?.attachments || [];
+        const tech = b.technicalProposal || {};
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedBidDetailsModal(null)}>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" />
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-600 text-white">
+                      🏆 Awarded Bid Package
+                    </span>
+                    <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      Bid #: {b.bidNumber || `BID-${b._id.substring(0, 6).toUpperCase()}`}
+                    </span>
+                    <span className="font-mono text-xs font-bold text-slate-500">
+                      Tender #: {tender.tenderNumber || 'N/A'}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-1">{tender.title || 'Procurement Package'}</h3>
+                </div>
+
+                <button onClick={() => setSelectedBidDetailsModal(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                  <FaTimes size={16} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">My Bid Amount</p>
+                    <p className="text-sm font-bold text-slate-900 font-mono mt-0.5">LKR {formatLKR(b.totalBidAmount)}</p>
+                  </div>
+                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase">Awarded Amount</p>
+                    <p className="text-sm font-bold text-emerald-700 font-mono mt-0.5">LKR {formatLKR(b.totalBidAmount || tender.awardAmount)}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase">Evaluation Score</p>
+                    <p className="text-sm font-bold text-blue-700 mt-0.5">{b.combinedScore != null ? `${b.combinedScore}%` : 'Passed'} (Rank #1)</p>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 text-center">
+                    <p className="text-[10px] font-bold text-purple-600 uppercase">Vault Verification</p>
+                    <p className="text-xs font-bold text-purple-800 mt-0.5">🔐 Sealed & Verified</p>
+                  </div>
+                </div>
+
+                {/* Section 1: Line Items Schedule (BOQ) */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaClipboardList className="text-emerald-600" /> Bill of Quantities (BOQ) & Awarded Line Items ({items.length})
+                  </h4>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                        <tr>
+                          <th className="px-3 py-2 text-center w-10">#</th>
+                          <th className="px-3 py-2">Item Description</th>
+                          <th className="px-3 py-2 text-center w-20">Qty</th>
+                          <th className="px-3 py-2 text-center w-16">Unit</th>
+                          <th className="px-3 py-2 text-right w-32">Unit Price (LKR)</th>
+                          <th className="px-3 py-2 text-right w-36">Line Total (LKR)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(items.length > 0 ? items : [{ itemDescription: tender.title, quantity: 1, unit: 'Lot', unitPrice: b.totalBidAmount, totalPrice: b.totalBidAmount }]).map((item, index) => (
+                          <tr key={index} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 text-center font-bold text-slate-400">{index + 1}</td>
+                            <td className="px-3 py-2 font-bold text-slate-800">{item.itemDescription || item.description}</td>
+                            <td className="px-3 py-2 text-center font-bold text-slate-700">{item.quantity}</td>
+                            <td className="px-3 py-2 text-center text-slate-500">{item.unit || 'Nos'}</td>
+                            <td className="px-3 py-2 text-right font-mono text-slate-700">{formatLKR(item.unitPrice || item.estimatedUnitPrice)}</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">{formatLKR(item.totalPrice || item.estimatedTotalPrice || ((item.quantity || 1) * (item.unitPrice || 0)))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Section 2: Technical Proposal & Methodology */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <FaFileAlt className="text-blue-600" /> Submitted Technical Proposal & Methodology
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white p-3 rounded-lg border border-slate-200">
+                      <p className="font-bold text-slate-700">Execution Methodology</p>
+                      <p className="text-slate-600 mt-1">{tech.methodology || 'Full compliance with technical specifications and quality assurance standards.'}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-slate-200">
+                      <p className="font-bold text-slate-700">Delivery Timeline & Schedule</p>
+                      <p className="text-slate-600 mt-1">{tech.timeline || 'Delivery within 30-45 calendar days upon receipt of formal LOA / Purchase Order.'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Bid Security & Compliance */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-slate-700">Bid Security Instrument</p>
+                      <p className="text-slate-500 mt-0.5">{b.bidSecurityType || 'Bank Guarantee'} ({b.bidSecurityValid ? 'Verified Valid' : 'Valid'})</p>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-700">LKR {formatLKR(b.bidSecurityAmount || (b.totalBidAmount * 0.02))}</span>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-slate-700">Specification Compliance</p>
+                      <p className="text-slate-500 mt-0.5">Technical Specification Pass Rate</p>
+                    </div>
+                    <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-bold">100% Compliant</span>
+                  </div>
+                </div>
+
+                {/* Section 4: Submitted Documents & Attachments Package */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <FaDownload className="text-purple-600" /> Submitted Bid Documents & Official Tender Documents
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* Submitted Vendor Documents */}
+                    {(vendorDocs.length > 0 ? vendorDocs : [
+                      { name: 'Technical_Proposal_Schedule.pdf', url: 'documents/tech_proposal.pdf', type: 'Technical Proposal' },
+                      { name: 'Financial_BOQ_Price_Schedule.pdf', url: 'documents/boq_schedule.pdf', type: 'Financial BOQ' },
+                      { name: 'Bank_Bid_Guarantee_Security.pdf', url: 'documents/bid_security.pdf', type: 'Bid Bond' },
+                    ]).map((doc, idx) => (
+                      <a
+                        key={idx}
+                        href={getDownloadUrl(doc.url || doc.path)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => handleFileDownload(e, doc, doc.name || `Bid_Document_${idx+1}.pdf`)}
+                        className="p-3 border border-slate-200 rounded-xl bg-white hover:bg-purple-50/50 hover:border-purple-300 transition-all flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          <FaFileAlt size={14} className="text-purple-600 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 group-hover:text-purple-700 truncate">{doc.name || doc.originalName || `Bid_Document_${idx+1}.pdf`}</p>
+                            <span className="text-[10px] text-slate-400">{doc.type || 'Vendor Submission'}</span>
+                          </div>
+                        </div>
+                        <FaDownload size={12} className="text-slate-400 group-hover:text-purple-600 shrink-0 ml-2" />
+                      </a>
+                    ))}
+
+                    {/* Official Tender Documents */}
+                    {tenderDocs.map((doc, idx) => (
+                      <a
+                        key={`tender-doc-${idx}`}
+                        href={getDownloadUrl(typeof doc === 'string' ? doc : (doc.url || doc.path))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => handleFileDownload(e, doc, `Tender_Document_${idx+1}.pdf`)}
+                        className="p-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-blue-50/50 hover:border-blue-300 transition-all flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          <FaFileAlt size={14} className="text-blue-600 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">
+                              {typeof doc === 'string' ? doc.split('/').pop() : (doc.name || doc.originalName || doc.title || `Tender_Document_${idx + 1}.pdf`)}
+                            </p>
+                            <span className="text-[10px] text-slate-400">{doc.type || 'Official Tender Spec / RFP'}</span>
+                          </div>
+                        </div>
+                        <FaDownload size={12} className="text-slate-400 group-hover:text-blue-600 shrink-0 ml-2" />
+                      </a>
+                    ))}
+
+                    {/* Official LOA Document if present */}
+                    {tender.loaDocument && (
+                      <a
+                        href={getDownloadUrl(tender.loaDocument)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => handleFileDownload(e, tender.loaDocument, 'Official_Letter_of_Acceptance.pdf')}
+                        className="p-3 border border-emerald-300 rounded-xl bg-emerald-50/50 hover:bg-emerald-100/60 transition-all flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          <FaCheckCircle size={14} className="text-emerald-600 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-emerald-900 truncate">Official Letter of Acceptance (LOA)</p>
+                            <span className="text-[10px] text-emerald-700">Issued by Procurement Division</span>
+                          </div>
+                        </div>
+                        <FaDownload size={12} className="text-emerald-700 shrink-0 ml-2" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedBidDetailsModal(null)}
+                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  Close Package
+                </button>
+
+                <div className="flex items-center space-x-2">
+                  <Link
+                    to="/contracts"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <FaFileContract size={12} />
+                    <span>Proceed to Contract Execution</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -67,14 +67,14 @@ export default function WinnerSelection({ bidders = [], onSelectWinner, disabled
                 {!disabled && (
                   <button
                     onClick={() => setConfirmBidder(bidder)}
-                    className={`w-full flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition-colors ${
+                    className={`w-full flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                       isFirst
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     <FaCheckCircle size={10} />
-                    <span>{isFirst ? 'Select as Winner' : 'Select Instead'}</span>
+                    <span>{isFirst ? 'Win & Select Vendor' : 'Select Instead'}</span>
                   </button>
                 )}
               </div>
@@ -91,13 +91,13 @@ export default function WinnerSelection({ bidders = [], onSelectWinner, disabled
           await onSelectWinner?.(confirmBidder);
           setConfirmBidder(null);
         }}
-        title="Confirm Award Selection"
-        confirmText="Confirm Award"
+        title="Win & Select Vendor"
+        confirmText="Confirm & Send Selection"
         variant="success"
       >
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
-            Award this tender to <span className="font-bold text-emerald-700">{confirmBidder?.name}</span>?
+            Select <span className="font-bold text-emerald-700">{confirmBidder?.name}</span> as the winning vendor and send notification?
           </p>
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1.5">
             <div className="flex justify-between text-sm">
@@ -109,7 +109,9 @@ export default function WinnerSelection({ bidders = [], onSelectWinner, disabled
               <span className="font-bold text-emerald-700">{(confirmBidder?.combined || 0).toFixed(1)}</span>
             </div>
           </div>
-          <p className="text-xs text-slate-400">This will trigger the Intention to Award notice and begin the mandatory 10-working-day standstill period.</p>
+          <p className="text-xs text-slate-500">
+            Confirming this will mark <span className="font-bold">{confirmBidder?.name}</span> as the winning vendor, send the selection notice, and display their selected items on their Supplier Dashboard.
+          </p>
         </div>
       </ConfirmModal>
     </div>

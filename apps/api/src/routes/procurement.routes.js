@@ -39,7 +39,7 @@ router.get('/:id/budget-check',
 router.get('/',
   authorize(
     'department_user', 'department_head', 'dean',
-    'procurement_officer', 'admin', 'vc',
+    'procurement_officer', 'supplies_division', 'tec_member', 'admin', 'vc',
     'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,
@@ -48,7 +48,7 @@ router.get('/',
 router.get('/:id',
   authorize(
     'department_user', 'department_head', 'dean',
-    'procurement_officer', 'admin', 'vc',
+    'procurement_officer', 'supplies_division', 'tec_member', 'admin', 'vc',
     'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,
@@ -57,25 +57,25 @@ router.get('/:id',
 
 // Create (write roles only — readOnlyGuard blocks auditor/guest)
 router.post('/',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'supplies_division', 'admin', 'super_admin'),
   readOnlyGuard,
   requireSameFaculty,
   createProcurement
 );
 router.put('/:id',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin', 'vc', 'dean'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'supplies_division', 'admin', 'super_admin', 'vc', 'dean'),
   readOnlyGuard,
   updateProcurement
 );
 router.delete('/:id',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin', 'vc', 'dean'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'supplies_division', 'admin', 'super_admin', 'vc', 'dean'),
   readOnlyGuard,
   deleteProcurement
 );
 
 // Workflow Actions (write + workflow phase guard)
 router.post('/:id/submit',
-  authorize('department_user', 'department_head', 'procurement_officer', 'admin', 'super_admin'),
+  authorize('department_user', 'department_head', 'procurement_officer', 'supplies_division', 'admin', 'super_admin'),
   readOnlyGuard,
   requireWorkflowPhase,
   submitProcurement
@@ -108,7 +108,7 @@ router.post('/:id/unlock-budget',
 
 // Publish to suppliers (after VC approval)
 router.post('/:id/publish',
-  authorize('procurement_officer', 'admin', 'super_admin'),
+  authorize('procurement_officer', 'supplies_division', 'admin', 'super_admin'),
   readOnlyGuard,
   publishProcurement
 );
