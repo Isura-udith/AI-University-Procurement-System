@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import {
   FaLockOpen,
@@ -27,6 +27,7 @@ import {
   FaUserPlus,
   FaExternalLinkAlt,
   FaMoneyBillWave,
+  FaTimes,
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import tenderService from "../../../services/tender.service";
@@ -150,6 +151,22 @@ export default function BidOpeningPage() {
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tenderSearchTerm, setTenderSearchTerm] = useState("");
+  const [isTenderDropdownOpen, setIsTenderDropdownOpen] = useState(false);
+  const tenderDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        tenderDropdownRef.current &&
+        !tenderDropdownRef.current.contains(event.target)
+      ) {
+        setIsTenderDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Modals
   const [startModal, setStartModal] = useState(false);
@@ -452,10 +469,26 @@ export default function BidOpeningPage() {
   const activeBidsCount = bids.length - withdrawnBidsCount;
   const sealedBidsCount = activeBidsCount - openedBids.length;
 
+  const filteredTenders = useMemo(() => {
+    if (!tenderSearchTerm.trim()) return allTenders;
+    const q = tenderSearchTerm.toLowerCase();
+    return allTenders.filter(
+      (t) =>
+        (t.tenderNumber || "").toLowerCase().includes(q) ||
+        (t.title || "").toLowerCase().includes(q) ||
+        (t.status || "").toLowerCase().includes(q)
+    );
+  }, [allTenders, tenderSearchTerm]);
+
+  const selectedTenderObj = useMemo(
+    () => allTenders.find((t) => t._id === selectedTenderId),
+    [allTenders, selectedTenderId]
+  );
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-16">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-lg relative">
         <div className="flex items-center space-x-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
@@ -465,21 +498,121 @@ export default function BidOpeningPage() {
         </div>
 
         {allTenders.length > 0 && (
-          <div className="flex items-center space-x-3 bg-slate-800/90 border border-slate-700/80 shadow-inner px-4 py-2.5 rounded-xl">
-            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">
-              Tender Ref:
-            </span>
-            <select
-              value={selectedTenderId}
-              onChange={(e) => setSelectedTenderId(e.target.value)}
-              className="px-3 py-1.5 border border-slate-700 rounded-lg text-xs bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer font-semibold max-w-70 md:max-w-90"
+          <div ref={tenderDropdownRef} className="relative min-w-72 sm:min-w-88">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
+                Tender Ref:
+              </label>
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                {filteredTenders.length} {filteredTenders.length === 1 ? "tender" : "tenders"}
+              </span>
+            </div>
+
+            {/* Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setIsTenderDropdownOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border border-slate-700 hover:border-emerald-500 rounded-xl text-left text-xs font-semibold text-white transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
-              {allTenders.map((t) => (
-                <option key={t._id} value={t._id}>
-                  {t.tenderNumber} — {t.title.length > 28 ? t.title.substring(0, 28) + "..." : t.title} [{t.status}]
-                </option>
-              ))}
-            </select>
+              <div className="truncate pr-2">
+                {selectedTenderObj ? (
+                  <span className="truncate">
+                    <strong className="text-emerald-400 font-bold mr-1.5 font-mono">
+                      {selectedTenderObj.tenderNumber}
+                    </strong>
+                    <span>
+                      {selectedTenderObj.title.length > 28
+                        ? selectedTenderObj.title.substring(0, 28) + "..."
+                        : selectedTenderObj.title}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Select tender ref...</span>
+                )}
+              </div>
+              <FaChevronDown
+                className={`text-slate-400 transition-transform duration-200 shrink-0 ${
+                  isTenderDropdownOpen ? "rotate-180 text-emerald-400" : ""
+                }`}
+                size={11}
+              />
+            </button>
+
+            {/* Searchable Dropdown Popup Menu */}
+            {isTenderDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 w-full sm:w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-3 space-y-2.5 animate-in fade-in duration-150">
+                {/* Live Search Input */}
+                <div className="relative">
+                  <FaSearch
+                    className="absolute left-3 top-2.5 text-slate-400"
+                    size={12}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search by tender #, title or status..."
+                    value={tenderSearchTerm}
+                    onChange={(e) => setTenderSearchTerm(e.target.value)}
+                    autoFocus
+                    className="w-full pl-9 pr-7 py-2 border border-slate-700 rounded-lg text-xs bg-slate-950 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {tenderSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setTenderSearchTerm("")}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                      title="Clear search"
+                    >
+                      <FaTimes size={11} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtered Tenders List */}
+                <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                  {filteredTenders.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-slate-400">
+                      No tenders match "{tenderSearchTerm}"
+                    </div>
+                  ) : (
+                    filteredTenders.map((t) => {
+                      const isSelected = t._id === selectedTenderId;
+                      return (
+                        <button
+                          key={t._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTenderId(t._id);
+                            setIsTenderDropdownOpen(false);
+                          }}
+                          className={`w-full text-left p-2.5 rounded-lg text-xs transition-all flex items-start justify-between gap-2 border cursor-pointer ${
+                            isSelected
+                              ? "bg-emerald-950/60 border-emerald-500/50 text-white font-semibold"
+                              : "hover:bg-slate-800/80 border-transparent text-slate-300 hover:text-white"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-mono text-emerald-400 font-bold text-[11px]">
+                                {t.tenderNumber}
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 uppercase font-semibold">
+                                {t.status}
+                              </span>
+                            </div>
+                            <p className="truncate text-slate-300 text-[11px] mt-0.5">
+                              {t.title}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <FaCheckCircle className="text-emerald-400 shrink-0 mt-0.5" size={13} />
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
