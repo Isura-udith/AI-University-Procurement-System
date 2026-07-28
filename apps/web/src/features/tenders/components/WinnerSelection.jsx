@@ -1,6 +1,6 @@
-import { FaStar, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
-import ConfirmModal from '../../../components/ConfirmModal';
 import { useState } from 'react';
+import { FaTrophy, FaExclamationTriangle } from 'react-icons/fa';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 /**
  * Side-by-side comparison of top bidders with award selection.
@@ -15,65 +15,96 @@ export default function WinnerSelection({ bidders = [], onSelectWinner, disabled
 
   const topBidders = bidders.slice(0, 3);
 
-  return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Award Recommendation</h3>
+  const getRankBadge = (i) => {
+    if (i === 0) return { label: '1st Recommended', bg: 'bg-amber-100 text-amber-950 border-amber-300' };
+    if (i === 1) return { label: '2nd Runner-up', bg: 'bg-slate-100 text-slate-800 border-slate-300' };
+    return { label: '3rd Place', bg: 'bg-amber-50 text-amber-900 border-amber-200' };
+  };
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+            <FaTrophy className="text-amber-500" size={16} />
+            <span>Top Bidders & Award Recommendation</span>
+          </h3>
+          <p className="text-xs text-slate-500">QCBS ranked top 3 bidder proposals for final vendor selection</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {topBidders.map((bidder, i) => {
           const isFirst = i === 0;
+          const badge = getRankBadge(i);
           return (
-            <div key={bidder.id || i} className={`relative rounded-xl border p-5 transition-all ${
-              isFirst ? 'border-emerald-300 bg-emerald-50/30 shadow-md' : 'border-slate-200 bg-white hover:shadow-sm'
-            }`}>
+            <div
+              key={bidder.id || i}
+              className={`relative rounded-2xl border p-6 transition-all duration-200 flex flex-col justify-between ${
+                isFirst
+                  ? 'border-emerald-100 bg-linear-to-b from-emerald-50/60 to-white shadow-md ring-2 ring-emerald-500/10'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+              }`}
+            >
               {/* Rank Badge */}
-              <div className={`absolute -top-3 left-4 w-6 h-6 rounded-full flex items-center justify-center text-xs font-extrabold shadow-sm ${
-                isFirst ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
-              }`}>
-                {isFirst ? <FaStar size={10} /> : i + 1}
+              <div className="flex items-center justify-between mb-4">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border shadow-xs ${badge.bg}`}>
+                  <span>{badge.label}</span>
+                </span>
+                {isFirst && (
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-emerald-800">
+                    Highest Combined Score
+                  </span>
+                )}
               </div>
 
-              <div className="pt-2 space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm font-bold text-slate-800">{bidder.name}</p>
-                  {isFirst && <p className="text-[10px] font-bold text-emerald-600 uppercase mt-0.5">Highest Combined Score</p>}
+                  <h4 className="text-base font-bold text-slate-900 line-clamp-1">{bidder.name}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Bid ID: {bidder.id?.substring(0, 10) || 'N/A'}</p>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Combined Score</span>
-                    <span className={`font-bold ${isFirst ? 'text-emerald-700' : 'text-slate-700'}`}>{(bidder.combined || 0).toFixed(1)}</span>
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2 text-xs">
+                  <div className="flex justify-between items-center pb-1 border-b border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Combined Score</span>
+                    <span className={`font-black text-sm ${isFirst ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      {(bidder.combined || 0).toFixed(1)} / 100
+                    </span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Technical</span>
-                    <span className="font-medium text-slate-700">{(bidder.techWeighted || 0).toFixed(1)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Technical Score</span>
+                    <span className="font-semibold text-slate-700">{(bidder.techWeighted || 0).toFixed(1)} pts</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Financial</span>
-                    <span className="font-medium text-slate-700">{(bidder.finWeighted || 0).toFixed(1)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Financial Score</span>
+                    <span className="font-semibold text-slate-700">{(bidder.finWeighted || 0).toFixed(1)} pts</span>
                   </div>
-                  <div className="flex justify-between text-xs pt-2 border-t border-slate-100">
-                    <span className="text-slate-500">Bid Price</span>
-                    <span className="font-bold text-slate-800">LKR {(bidder.correctedPrice || 0).toLocaleString()}</span>
+                  <div className="flex justify-between pt-1 border-t border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Corrected Price</span>
+                    <span className="font-bold text-slate-900">
+                      LKR {(bidder.correctedPrice || bidder.quotedPrice || 0).toLocaleString()}
+                    </span>
                   </div>
                 </div>
 
                 {bidder.hasAnomaly && (
-                  <div className="flex items-center space-x-1 text-[10px] text-red-500 font-semibold bg-red-50 px-2 py-1 rounded">
-                    <FaExclamationTriangle size={8} /> <span>Anomaly Detected</span>
+                  <div className="flex items-center space-x-1.5 text-xs text-red-700 font-semibold bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl">
+                    <FaExclamationTriangle className="text-red-500" size={11} />
+                    <span>Price / Compliance Anomaly Flagged</span>
                   </div>
                 )}
+              </div>
 
+              <div className="mt-5 pt-3 border-t border-slate-100">
                 {!disabled && (
                   <button
                     onClick={() => setConfirmBidder(bidder)}
-                    className={`w-full flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-center space-x-2 py-2.5 px-4 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs ${
                       isFirst
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow-md'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
-                    <FaCheckCircle size={10} />
                     <span>{isFirst ? 'Win & Select Vendor' : 'Select Instead'}</span>
                   </button>
                 )}
@@ -95,22 +126,26 @@ export default function WinnerSelection({ bidders = [], onSelectWinner, disabled
         confirmText="Confirm & Send Selection"
         variant="success"
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Select <span className="font-bold text-emerald-700">{confirmBidder?.name}</span> as the winning vendor and send notification?
+            Are you sure you want to select <span className="font-bold text-emerald-800">{confirmBidder?.name}</span> as the winning vendor for this tender?
           </p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Bid Amount</span>
-              <span className="font-bold text-slate-800">LKR {(confirmBidder?.correctedPrice || 0).toLocaleString()}</span>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-600 font-medium">Selected Vendor:</span>
+              <span className="font-bold text-emerald-900">{confirmBidder?.name}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Combined Score</span>
-              <span className="font-bold text-emerald-700">{(confirmBidder?.combined || 0).toFixed(1)}</span>
+            <div className="flex justify-between">
+              <span className="text-slate-600 font-medium">Corrected Bid Amount:</span>
+              <span className="font-bold text-slate-900">LKR {(confirmBidder?.correctedPrice || confirmBidder?.quotedPrice || 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600 font-medium">QCBS Combined Score:</span>
+              <span className="font-bold text-emerald-700">{(confirmBidder?.combined || 0).toFixed(1)} / 100</span>
             </div>
           </div>
           <p className="text-xs text-slate-500">
-            Confirming this will mark <span className="font-bold">{confirmBidder?.name}</span> as the winning vendor, send the selection notice, and display their selected items on their Supplier Dashboard.
+            This action will mark the vendor as selected, notify the vendor, and update the tender state for Awarding & Contract generation.
           </p>
         </div>
       </ConfirmModal>
