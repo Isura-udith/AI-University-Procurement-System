@@ -17,12 +17,23 @@ export default function CreateAnnualPlan() {
   const prefillMPPId = location.state?.masterPlanId || '';
 
   const [masterPlans, setMasterPlans] = useState([]);
+  const [finalMasterPlans, setFinalMasterPlans] = useState([]);
+  const [allMasterPlans, setAllMasterPlans] = useState([]);
   const [saving, setSaving] = useState(false);
   const [fetching, setFetching] = useState(!!id);
 
   useEffect(() => {
-    planningService.getMasterPlans({ limit: 50 })
-      .then(res => setMasterPlans(res.data?.data || res.data || []))
+    Promise.all([
+      planningService.getMasterPlans({ limit: 50 }),
+      planningService.getFinalMasterPlans({ limit: 50 }),
+    ])
+      .then(([mppRes, fmpRes]) => {
+        const mpps = (mppRes.data?.data || mppRes.data || []).map(m => ({ ...m, planType: 'mpp' }));
+        const fmps = (fmpRes.data?.data || fmpRes.data || []).map(f => ({ ...f, planType: 'fmp' }));
+        setMasterPlans(mpps);
+        setFinalMasterPlans(fmps);
+        setAllMasterPlans([...mpps, ...fmps]);
+      })
       .catch(() => {});
   }, []);
 
@@ -68,54 +79,90 @@ export default function CreateAnnualPlan() {
     }
   }, [id, reset, currentYear]);
 
-  // Derive items from selected Master Plan if adding new
+  // Derive items from selected Master Plan or Final Master Plan if adding new
   useEffect(() => {
     if (!id && watchMasterPlanId && watchMasterPlanId !== 'demo-mpp-id') {
-      planningService.getMasterPlan(watchMasterPlanId)
-        .then(res => {
-          const mpp = res.data?.data || res.data;
-          if (mpp && mpp.requirements && mpp.requirements.length > 0) {
-            const cycleYr = Number(watchCycleYearNumber || 1);
-            const startYr = Number(mpp.cycleStart || 0);
+      const selectedPlan = allMasterPlans.find(p => p._id === watchMasterPlanId);
+      if (selectedPlan?.planType === 'fmp') {
+        planningService.getFinalMasterPlan(watchMasterPlanId)
+          .then(res => {
+            const fmp = res.data?.data || res.data;
+            if (fmp && fmp.items && fmp.items.length > 0) {
+              const cycleYr = Number(watchCycleYearNumber || 1);
+              const startYr = Number(fmp.planYear || currentYear);
 
-            const getPlannedYr = (r) => {
-              const py = Number(r.plannedYear || r.year);
-              if (!py) return 1;
-              if (py === 1 || py === startYr) return 1;
-              if (py === 2 || py === (startYr + 1)) return 2;
-              if (py === 3 || py === (startYr + 2)) return 3;
-              return 1;
-            };
+              const cycleReqs = fmp.items.filter(r => (Number(r.plannedYear) || 1) === cycleYr);
+              const targetReqs = cycleReqs.length > 0 ? cycleReqs : fmp.items;
 
-            const cycleReqs = mpp.requirements.filter(r => getPlannedYr(r) === cycleYr);
-            const targetReqs = cycleReqs.length > 0 ? cycleReqs : mpp.requirements;
+              const newItems = targetReqs.map(r => ({
+                masterPlanRequirementId: r._id,
+                dappNumber: r.dappNumber || '',
+                department: r.department || '',
+                faculty: r.faculty || '',
+                description: r.description || '',
+                category: r.category || 'Goods',
+                estimatedQuantity: Number(r.estimatedQuantity) || 1,
+                unit: r.unit || 'Units',
+                estimatedUnitCost: Number(r.estimatedUnitCost) || 0,
+                priority: r.priority || 'medium',
+                quarter: 1
+              }));
+              setValue('items', newItems, { shouldValidate: true });
+              const calculatedYr = startYr + (cycleYr - 1);
+              setValue('planYear', calculatedYr);
+              if (fmp.title) {
+                setValue('title', `Annual Procurement Plan ${calculatedYr} (Year ${cycleYr} of 3) — ${fmp.title}`);
+              }
+            }
+          })
+          .catch(err => console.error('Failed to fetch FMP details', err));
+      } else {
+        planningService.getMasterPlan(watchMasterPlanId)
+          .then(res => {
+            const mpp = res.data?.data || res.data;
+            if (mpp && mpp.requirements && mpp.requirements.length > 0) {
+              const cycleYr = Number(watchCycleYearNumber || 1);
+              const startYr = Number(mpp.cycleStart || 0);
 
-            const newItems = targetReqs.map(r => ({
-              masterPlanRequirementId: r._id,
-              dappNumber: r.dappNumber || r.reqCode || '',
-              department: r.department || '',
-              faculty: r.faculty || '',
-              description: r.description || '',
-              category: r.category || 'Goods',
-              estimatedQuantity: Number(r.estimatedQuantity) || 1,
-              unit: r.unit || 'Units',
-              estimatedUnitCost: Number(r.estimatedUnitCost) || 0,
-              priority: r.priority || 'medium',
-              quarter: 1
-            }));
-            setValue('items', newItems, { shouldValidate: true });
-          }
-        })
-        .catch(err => console.error('Failed to fetch MPP details', err));
+              const getPlannedYr = (r) => {
+                const py = Number(r.plannedYear || r.year);
+                if (!py) return 1;
+                if (py === 1 || py === startYr) return 1;
+                if (py === 2 || py === (startYr + 1)) return 2;
+                if (py === 3 || py === (startYr + 2)) return 3;
+                return 1;
+              };
+
+              const cycleReqs = mpp.requirements.filter(r => getPlannedYr(r) === cycleYr);
+              const targetReqs = cycleReqs.length > 0 ? cycleReqs : mpp.requirements;
+
+              const newItems = targetReqs.map(r => ({
+                masterPlanRequirementId: r._id,
+                dappNumber: r.dappNumber || r.reqCode || '',
+                department: r.department || '',
+                faculty: r.faculty || '',
+                description: r.description || '',
+                category: r.category || 'Goods',
+                estimatedQuantity: Number(r.estimatedQuantity) || 1,
+                unit: r.unit || 'Units',
+                estimatedUnitCost: Number(r.estimatedUnitCost) || 0,
+                priority: r.priority || 'medium',
+                quarter: 1
+              }));
+              setValue('items', newItems, { shouldValidate: true });
+            }
+          })
+          .catch(err => console.error('Failed to fetch MPP details', err));
+      }
     }
-  }, [id, watchMasterPlanId, watchCycleYearNumber, setValue]);
+  }, [id, watchMasterPlanId, watchCycleYearNumber, setValue, allMasterPlans, currentYear]);
 
   const totalBudget = watchItems.reduce((sum, item) => {
     return sum + (Number(item?.estimatedQuantity || 0) * Number(item?.estimatedUnitCost || 0));
   }, 0);
 
-  const selectedMPP = masterPlans.find(m => m._id === watchMasterPlanId);
-  const isMPPApproved = selectedMPP && ['active', 'council_approved'].includes(selectedMPP.status);
+  const selectedPlan = allMasterPlans.find(m => m._id === watchMasterPlanId);
+  const isPlanApproved = selectedPlan && ['active', 'council_approved', 'vc_approved', 'bursar_approved'].includes(selectedPlan.status);
 
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
@@ -129,29 +176,25 @@ export default function CreateAnnualPlan() {
       }));
       const payload = {
         ...data,
-        planYear: Number(data.planYear),
-        cycleYearNumber: Number(data.cycleYearNumber),
         items,
-        status: isMPPApproved ? 'active' : 'draft',
+        status: submitAfter ? (isPlanApproved ? 'active' : 'submitted') : 'draft',
       };
-      
-      let targetId = id;
+
       if (id) {
         await planningService.updateAnnualPlan(id, payload);
-        toast.success('Annual Plan updated!');
+        toast.success('Annual Procurement Plan updated');
       } else {
         const res = await planningService.createAnnualPlan(payload);
-        targetId = res.data?.data?._id || res.data?._id;
-        toast.success(isMPPApproved ? 'Annual Plan created as Active (Approved via Master Plan)!' : 'Annual Plan saved as draft!');
+        const newPlan = res.data?.data || res.data;
+        toast.success(isPlanApproved ? 'Annual Procurement Plan created (Active)' : 'Annual Procurement Plan created');
+        if (submitAfter && !isPlanApproved && newPlan?._id) {
+          await planningService.submitAnnualPlan(newPlan._id);
+        }
       }
-
-      if (submitAfter && targetId && !isMPPApproved) {
-        await planningService.submitAnnualPlan(targetId);
-        toast.success('Submitted for Dean review!');
-      }
-      navigate(targetId ? `/planning/annual-plans/${targetId}` : '/planning/annual-plans');
+      navigate('/planning/annual-plans');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save');
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Failed to save Annual Plan');
     } finally {
       setSaving(false);
     }
@@ -159,14 +202,14 @@ export default function CreateAnnualPlan() {
 
   const fmtCurrency = (n) => `LKR ${Number(n).toLocaleString()}`;
 
-  if (fetching) {
-    return (
-      <div className="max-w-5xl mx-auto flex items-center justify-center py-20 text-slate-500 gap-3">
+  if (fetching) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3 text-slate-400">
         <FaSpinner className="animate-spin text-2xl text-blue-600" />
-        <span className="text-sm font-medium">Loading Annual Plan...</span>
+        <p className="text-sm">Loading annual plan…</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
@@ -177,7 +220,7 @@ export default function CreateAnnualPlan() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Create Annual Procurement Plan</h1>
-          <p className="text-sm text-slate-500">Phase 2 · Derived from approved 3-Year Master Plan</p>
+          <p className="text-sm text-slate-500">Phase 2 · Derived from approved 3-Year Master Plan or Final Master Plan</p>
         </div>
       </div>
 
@@ -191,18 +234,29 @@ export default function CreateAnnualPlan() {
               <select {...register('masterPlanId', { required: 'Select a master plan' })}
                 className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">— Select Master Plan —</option>
-                {masterPlans.map(m => (
-                  <option key={m._id} value={m._id}>{m.referenceNumber} — {m.title} ({m.status === 'active' ? 'Active' : m.status})</option>
-                ))}
-                {masterPlans.length === 0 && (
+                {masterPlans.length > 0 && (
+                  <optgroup label="3-Year Master Procurement Plans (MPP)">
+                    {masterPlans.map(m => (
+                      <option key={m._id} value={m._id}>{m.referenceNumber} — {m.title} ({m.status === 'active' ? 'Active' : m.status})</option>
+                    ))}
+                  </optgroup>
+                )}
+                {finalMasterPlans.length > 0 && (
+                  <optgroup label="Final Master Plans (Compiled Drafts)">
+                    {finalMasterPlans.map(f => (
+                      <option key={f._id} value={f._id}>{f.referenceNumber} — {f.title} ({f.status === 'active' ? 'Active' : f.status})</option>
+                    ))}
+                  </optgroup>
+                )}
+                {allMasterPlans.length === 0 && (
                   <option value="" disabled>No Master Plans found. Please create a Master Plan first.</option>
                 )}
               </select>
               {errors.masterPlanId && <p className="text-red-500 text-xs mt-1">{errors.masterPlanId.message}</p>}
-              {isMPPApproved && (
+              {isPlanApproved && (
                 <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Selected 3-Year Master Plan is Approved ({selectedMPP.referenceNumber}). Derived Annual Plans are automatically Active and do not require re-approval.
+                  Selected {selectedPlan.planType === 'fmp' ? 'Final Master Plan' : '3-Year Master Plan'} is Approved ({selectedPlan.referenceNumber}). Derived Annual Plans are automatically Active and do not require re-approval.
                 </div>
               )}
             </div>

@@ -59,14 +59,17 @@ export default function AnnualPlanList() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [cycleYearFilter, setCycleYearFilter] = useState('all');
+
   const uniqueYears = [...new Set(plans.map(p => p.planYear))].sort((a, b) => b - a);
 
   const filtered = plans.filter(p => {
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchYear = yearFilter === 'all' || String(p.planYear) === yearFilter;
+    const matchCycleYear = cycleYearFilter === 'all' || String(p.cycleYearNumber || 1) === cycleYearFilter;
     const matchDept = deptFilter === 'all' || p.faculty === deptFilter || p.department === deptFilter || p.items?.some(i => i.faculty === deptFilter || i.department === deptFilter);
     const matchSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.referenceNumber?.includes(search);
-    return matchStatus && matchYear && matchDept && matchSearch;
+    return matchStatus && matchYear && matchCycleYear && matchDept && matchSearch;
   });
 
   return (
@@ -74,7 +77,7 @@ export default function AnnualPlanList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Annual Procurement Plans</h1>
-          <p className="text-sm text-slate-500 mt-1">Phases 2 & 3 · Yearly plans derived from the 3-Year MPP</p>
+          <p className="text-sm text-slate-500 mt-1">Phases 2 & 3 · Yearly plans derived from 3-Year Master Plans & Final Master Plans</p>
         </div>
         {canCreate && (
           <Link to="/planning/annual-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all shadow-sm">
@@ -90,9 +93,16 @@ export default function AnnualPlanList() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
+        <select value={cycleYearFilter} onChange={e => setCycleYearFilter(e.target.value)}
+          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-blue-800">
+          <option value="all">All 3-Year Cycle Years</option>
+          <option value="1">Year 1 (Cycle Yr 1)</option>
+          <option value="2">Year 2 (Cycle Yr 2)</option>
+          <option value="3">Year 3 (Cycle Yr 3)</option>
+        </select>
         <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
           className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="all">All Years</option>
+          <option value="all">All Calendar Years</option>
           {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
@@ -159,7 +169,12 @@ export default function AnnualPlanList() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-slate-400">MPP: {plan.masterPlanRef}</p>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Master Plan:</span>
+                <span className={`font-mono font-semibold px-2 py-0.5 rounded ${plan.masterPlanRef?.includes('FMP') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-violet-50 text-violet-700 border border-violet-200'}`}>
+                  {plan.masterPlanRef || plan.masterPlanId?.referenceNumber || '—'}
+                </span>
+              </div>
               <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                 {plan.status === 'draft' ? (
                   <Link to={`/planning/annual-plans/${plan._id}/edit`} onClick={e => e.stopPropagation()} className="text-xs text-amber-600 font-semibold flex items-center gap-1 hover:underline">

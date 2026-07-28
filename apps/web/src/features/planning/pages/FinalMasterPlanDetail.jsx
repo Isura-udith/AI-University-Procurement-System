@@ -215,12 +215,30 @@ export default function FinalMasterPlanDetail() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-slate-400">
-            <span>Year: <strong className="text-white">{plan.planYear}</strong></span>
-            <span>Faculty: <strong className="text-white">{plan.faculty || 'All'}</strong></span>
-            <span>Items: <strong className="text-white">{plan.items?.length || 0}</strong></span>
-            <span>Created: <strong className="text-white">{new Date(plan.createdAt).toLocaleDateString()}</strong></span>
-            <span>By: <strong className="text-white">{plan.createdBy?.name || plan.createdBy?.email || 'Unknown'}</strong></span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-4 text-xs text-slate-400 pt-3 border-t border-slate-700/50">
+            <div className="flex flex-wrap items-center gap-4">
+              <span>Year Cycle: <strong className="text-white">{plan.planYear}–{Number(plan.planYear) + 2} (3-Year Plan)</strong></span>
+              <span>Faculty: <strong className="text-white">{plan.faculty || 'All'}</strong></span>
+              <span>Items: <strong className="text-white">{plan.items?.length || 0}</strong></span>
+              <span>Created: <strong className="text-white">{new Date(plan.createdAt).toLocaleDateString()}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-semibold text-emerald-400 mr-1">3-Yr Annual Plans:</span>
+              {[1, 2, 3].map(yrNum => (
+                <Link
+                  key={yrNum}
+                  to="/planning/annual-plans/new"
+                  state={{
+                    masterPlanId: plan._id,
+                    cycleYearNumber: yrNum,
+                    planYear: Number(plan.planYear || new Date().getFullYear()) + (yrNum - 1)
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition-all border border-emerald-400/30"
+                >
+                  <FaClipboardList size={10} /> Yr {yrNum} ({Number(plan.planYear || new Date().getFullYear()) + (yrNum - 1)})
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>

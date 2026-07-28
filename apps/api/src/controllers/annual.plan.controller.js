@@ -4,6 +4,7 @@
  */
 const AnnualPlan = require('../models/annual.plan.model');
 const MasterPlan = require('../models/master.plan.model');
+const FinalMasterPlan = require('../models/final.master.plan.model');
 const { success, created, paginated } = require('../utils/response');
 
 const INTERNAL_ROLE_TO_STAGE = {
@@ -24,15 +25,22 @@ const INTERNAL_TRANSITIONS = {
   council: 'ugc_submitted',
 };
 
-/** POST /api/annual-plans — Create annual plan from MPP */
+/** POST /api/annual-plans — Create annual plan from MPP or FMP */
 const createAnnualPlan = async (req, res, next) => {
   try {
     const { masterPlanId, planYear, cycleYearNumber, title, description, items, status } = req.body;
-    const masterPlan = await MasterPlan.findOne({ _id: masterPlanId, tenantId: req.tenantId });
+    let masterPlan = await MasterPlan.findOne({ _id: masterPlanId, tenantId: req.tenantId });
+    let isFinalMasterPlan = false;
+    if (!masterPlan) {
+      masterPlan = await FinalMasterPlan.findOne({ _id: masterPlanId, tenantId: req.tenantId });
+      if (masterPlan) {
+        isFinalMasterPlan = true;
+      }
+    }
     if (!masterPlan) return res.status(404).json({ message: 'Master Plan not found' });
 
-    // If Master Plan is approved (active/council_approved), Annual Plan is automatically active (does not need re-approval)
-    const isMasterApproved = ['active', 'council_approved'].includes(masterPlan.status);
+    // If Master Plan / Final Master Plan is approved (active/council_approved/vc_approved/bursar_approved), Annual Plan is automatically active
+    const isMasterApproved = ['active', 'council_approved', 'vc_approved', 'bursar_approved'].includes(masterPlan.status);
     const finalStatus = isMasterApproved ? 'active' : (status || 'draft');
 
     const formattedItems = (items || []).map(i => ({
@@ -61,9 +69,11 @@ const createAnnualPlan = async (req, res, next) => {
     });
     await plan.save();
 
-    // Link back to master plan
-    masterPlan.annualPlanIds.push(plan._id);
-    await masterPlan.save();
+    // Link back to master plan if standard MPP
+    if (!isFinalMasterPlan && masterPlan.annualPlanIds) {
+      masterPlan.annualPlanIds.push(plan._id);
+      await masterPlan.save();
+    }
 
     return created(res, plan, isMasterApproved ? 'Annual Procurement Plan created (Active — approved via Master Plan)' : 'Annual Procurement Plan created');
   } catch (err) { next(err); }
@@ -82,11 +92,29 @@ const getAnnualPlans = async (req, res, next) => {
     const [data, total] = await Promise.all([
       AnnualPlan.find(filter)
         .populate('createdBy', 'name email')
-        .populate('masterPlanId', 'title referenceNumber cycleStart cycleEnd')
+        .populate('masterPlanId', 'title referenceNumber cycleStart cycleEnd planYear status')
         .sort({ planYear: -1 })
         .skip(skip).limit(Number(limit)),
       AnnualPlan.countDocuments(filter),
     ]);
+
+    // Check if any masterPlanId refers to a FinalMasterPlan (unpopulated by MasterPlan ref)
+    const unpopulatedIds = data
+      .filter(p => p.masterPlanId && (typeof p.masterPlanId !== 'object' || !p.masterPlanId.title))
+      .map(p => p.masterPlanId._id || p.masterPlanId);
+
+    if (unpopulatedIds.length > 0) {
+      const fmpDocs = await FinalMasterPlan.find({ _id: { $in: unpopulatedIds } }).select('title referenceNumber planYear status');
+      const fmpMap = {};
+      fmpDocs.forEach(f => { fmpMap[f._id.toString()] = f; });
+      data.forEach(p => {
+        const idStr = (p.masterPlanId?._id || p.masterPlanId)?.toString();
+        if (idStr && fmpMap[idStr]) {
+          p.masterPlanId = fmpMap[idStr];
+        }
+      });
+    }
+
     return paginated(res, data, total, Number(page), Number(limit));
   } catch (err) { next(err); }
 };
@@ -96,10 +124,18 @@ const getAnnualPlan = async (req, res, next) => {
   try {
     const plan = await AnnualPlan.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate('createdBy', 'name email role')
-      .populate('masterPlanId', 'title referenceNumber cycleStart cycleEnd')
+      .populate('masterPlanId', 'title referenceNumber cycleStart cycleEnd planYear status')
       .populate('internalApprovals.approver', 'name email role')
       .populate('externalApprovals.recordedBy', 'name email');
     if (!plan) return res.status(404).json({ message: 'Annual Plan not found' });
+
+    if (plan.masterPlanId && (typeof plan.masterPlanId !== 'object' || !plan.masterPlanId.title)) {
+      const fmp = await FinalMasterPlan.findOne({ _id: plan.masterPlanId, tenantId: req.tenantId }).select('title referenceNumber planYear status');
+      if (fmp) {
+        plan.masterPlanId = fmp;
+      }
+    }
+
     return success(res, plan);
   } catch (err) { next(err); }
 };

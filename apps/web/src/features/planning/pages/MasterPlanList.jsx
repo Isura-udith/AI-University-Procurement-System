@@ -17,10 +17,8 @@ const STATUS_FILTERS = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-
-
 function statusStyle(s) {
-  if (s === 'active') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (['active', 'council_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
   if (s === 'rejected') return 'bg-red-100 text-red-700 border-red-200';
   if (s === 'draft') return 'bg-slate-100 text-slate-600 border-slate-200';
   return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -43,7 +41,7 @@ export default function MasterPlanList() {
       })
       .catch(() => {
         setPlans([]);
-        toast.error('Failed to load master plans');
+        toast.error('Failed to load 3-Year master plans');
       })
       .finally(() => setLoading(false));
   }, []);
@@ -61,7 +59,7 @@ export default function MasterPlanList() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Master Procurement Plans</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Master Procurement Plans (3-Yr)</h1>
           <p className="text-sm text-slate-500 mt-1">Phase 1 · 3-Year strategic procurement planning</p>
         </div>
         {canCreate && (
@@ -91,7 +89,7 @@ export default function MasterPlanList() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3 text-slate-400">
             <FaLayerGroup size={32} className="text-slate-300" />
-            <p className="text-sm">No master plans found.</p>
+            <p className="text-sm">No 3-year master plans found.</p>
             {canCreate && <Link to="/planning/master-plans/new" className="text-sm text-violet-600 font-semibold hover:underline">Create the first one →</Link>}
           </div>
         ) : (
