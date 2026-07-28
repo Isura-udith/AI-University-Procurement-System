@@ -21,6 +21,7 @@ export const ROLES = {
   DEPARTMENT_HEAD:     'department_head',
   DEPARTMENT_USER:     'department_user',
   STORE_MANAGER:       'store_manager',
+  SUPPLIES_DIVISION:   'supplies_division',
   SUPPLIER:            'supplier',
   AUDITOR:             'auditor',
   COUNCIL:             'council',
@@ -130,6 +131,15 @@ export const ROLE_CONFIG = {
     hierarchy: 65,
     isCrossTenant: true,
     primaryArea: 'Tendering Lifecycle',
+  },
+  [ROLES.SUPPLIES_DIVISION]: {
+    label: 'Supplies Division',
+    description: 'Vendor registration review, supplier verification, master catalog, and account invitation management.',
+    category: ROLE_CATEGORIES.PROCUREMENT,
+    color: 'teal',
+    hierarchy: 65,
+    isCrossTenant: true,
+    primaryArea: 'Vendor Registration & Verification',
   },
   [ROLES.CONTRACT_MANAGER]: {
     label: 'Contract Manager',

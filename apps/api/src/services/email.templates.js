@@ -228,6 +228,23 @@ const templates = {
     <a href="${data.dashboardLink || '#'}" class="cta">Open Dashboard →</a>
   `),
 
+  // Vendor Account Setup Email
+  vendor_account_setup: (data) => baseLayout(`
+    <h2>🎉 Registration Approved by Supplies Division</h2>
+    <p>Dear <strong>${data.companyName || 'Supplier'}</strong>,</p>
+    <p>We are pleased to inform you that your vendor registration request with Uva Wellassa University has been <strong>Approved by the Supplies Division</strong>.</p>
+    <p>Please click the button below to set up your official vendor login account (email and password):</p>
+    ${metaTable([
+      ['Company Name', data.companyName],
+      ['Registration No.', data.registrationNumber],
+      ['Approved Date', new Date().toLocaleDateString('en-GB')],
+    ])}
+    <p style="text-align:center;margin:24px 0">
+      <a href="${data.setupUrl}" class="cta" style="font-size:15px;padding:14px 32px">Create Vendor Login Account →</a>
+    </p>
+    <p style="font-size:12px;color:#94a3b8">Note: This setup link is valid for 7 days. If the button does not work, copy and paste this URL into your browser:<br/><a href="${data.setupUrl}" style="color:#059669">${data.setupUrl}</a></p>
+  `),
+
   // Generic fallback
   default: (data) => baseLayout(`
     <h2>${data.title || 'Notification'}</h2>

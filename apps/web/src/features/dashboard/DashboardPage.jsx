@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
 import SupplierDashboard from "./SupplierDashboard";
 import CouncilDashboard from "./CouncilDashboard";
+import SuppliesDivisionDashboard from "./SuppliesDivisionDashboard";
 import {
   FaClipboardList,
   FaMoneyCheckAlt,
@@ -340,6 +341,7 @@ export default function DashboardPage() {
   // ── Role-specific short-circuits ──────────────────────────────────────────
   if (user?.role === "supplier") return <SupplierDashboard />;
   if (user?.role === "council") return <CouncilDashboard />;
+  if (user?.role === "supplies_division") return <SuppliesDivisionDashboard />;
 
   // ── Extract typed data ────────────────────────────────────────────────────
   const procStats = rawData?.procStatsRaw?.data || null;

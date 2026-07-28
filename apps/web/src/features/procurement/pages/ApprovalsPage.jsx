@@ -9,10 +9,10 @@ import procurementService from '../../../services/procurement.service';
 
 // Approval thresholds from Step 29 — final authority per value tier
 const APPROVAL_THRESHOLDS = [
-  { max: 200000,   label: 'Up to Rs. 200,000',           authority: 'Faculty Dean',          chain: 'HOD → Dean → PMD',                        color: 'blue' },
-  { max: 500000,   label: 'Rs. 200,001 – 500,000',       authority: 'Bursar',                chain: 'HOD → Dean → PMD → Bursar',               color: 'indigo' },
-  { max: 1000000,  label: 'Rs. 500,001 – 1,000,000',     authority: 'Procurement Committee', chain: 'HOD → Dean → PMD → Bursar → FC → VC → PC', color: 'violet' },
-  { max: Infinity, label: 'Above Rs. 1,000,000',         authority: 'Procurement Committee', chain: 'HOD → Dean → PMD → Bursar → FC → VC → PC', color: 'rose' },
+  { max: 200000,   label: 'Up to Rs. 200,000',           authority: 'Finance Committee',    chain: 'Dept User → HOD → Dean → Finance Committee → PMD (Publish)', color: 'blue' },
+  { max: 500000,   label: 'Rs. 200,001 – 500,000',       authority: 'Finance Committee',    chain: 'Dept User → HOD → Dean → Bursar → Finance Committee → PMD (Publish)', color: 'indigo' },
+  { max: 1000000,  label: 'Rs. 500,001 – 1,000,000',     authority: 'Finance Committee',    chain: 'Dept User → HOD → Dean → Bursar → VC → Finance Committee → PMD (Publish)', color: 'violet' },
+  { max: Infinity, label: 'Above Rs. 1,000,000',         authority: 'University Council',   chain: 'Dept User → HOD → Dean → Bursar → VC → Council → Finance Committee → PMD (Publish)', color: 'rose' },
 ];
 
 function getApprovalAuthority(tce) {
@@ -29,9 +29,9 @@ const ROLE_TO_STAGE = {
   finance_officer: 'finance_committee',
   procurement_officer: 'pmd',
   vc: 'vice_chancellor',
+  council: 'council',
+  council_member: 'council',
   procurement_committee: 'procurement_committee',
-  council: 'procurement_committee',
-  council_member: 'procurement_committee',
   admin: null,       // admin can approve any stage
   super_admin: null,  // super_admin can approve any stage
 };
@@ -42,8 +42,9 @@ const STAGE_LABELS = {
   dean: 'Faculty Dean',
   pmd: 'Procurement Officer (PMD)',
   bursar: 'Bursar',
-  finance_committee: 'Finance Committee',
   vice_chancellor: 'Vice-Chancellor',
+  council: 'University Council',
+  finance_committee: 'Finance Committee',
   procurement_committee: 'Procurement Committee',
 };
 
@@ -214,7 +215,7 @@ export default function ApprovalsPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Multi-Level Approval Queue</h1>
-        <p className="text-sm text-slate-500 mt-1">Stage 3: Value-based multi-level approval chain (HOD → Dean → PMD → Bursar → Finance Committee → VC → Procurement Committee)</p>
+        <p className="text-sm text-slate-500 mt-1">Stage 3: Value-based multi-level approval chain (HOD → Dean → Bursar → VC → Council → Finance Committee → PMD)</p>
         <div className="mt-2 flex items-center space-x-2">
           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
             Your Role: {getRoleDisplayLabel()}
@@ -255,7 +256,7 @@ export default function ApprovalsPage() {
             )}
             {requisitions.map(req => {
               const pendingStage = getCurrentPendingStage(req);
-              const displayStage = pendingStage === 'hod' ? 'HOD' : pendingStage === 'dean' ? 'Dean' : pendingStage === 'pmd' ? 'PMD' : pendingStage === 'bursar' ? 'Bursar' : pendingStage === 'finance_committee' ? 'Finance Com.' : pendingStage === 'vice_chancellor' ? 'VC' : pendingStage === 'procurement_committee' ? 'Proc. Com.' : pendingStage ? pendingStage.toUpperCase() : 'N/A';
+              const displayStage = pendingStage === 'hod' ? 'HOD' : pendingStage === 'dean' ? 'Dean' : pendingStage === 'pmd' ? 'PMD' : pendingStage === 'bursar' ? 'Bursar' : pendingStage === 'finance_committee' ? 'Finance Com.' : pendingStage === 'vice_chancellor' ? 'VC' : pendingStage === 'council' ? 'Council' : pendingStage === 'procurement_committee' ? 'Proc. Com.' : pendingStage ? pendingStage.toUpperCase() : 'N/A';
               const isSelected = (selected?._id || selected?.id) === (req._id || req.id);
               return (
                 <button

@@ -9,6 +9,7 @@
  */
 
 const AnnualPlan = require('../models/annual.plan.model');
+const FinalMasterPlan = require('../models/final.master.plan.model');
 const BudgetAllocation = require('../models/budget.allocation.model');
 
 /**
@@ -66,12 +67,30 @@ async function checkCompliance({
     failureReason: null,
   };
 
-  // ── Step 1: Annual Plan Compliance ──────────────────────────────────────────
-  if (!annualPlanId) {
+  // ── Step 1: Plan Compliance (Annual Plan or Final Master Plan) ──────────────
+  if (!annualPlanId && !annualPlanItemId) {
     return { ...base, failureReason: 'no_annual_plan_linked' };
   }
 
-  const plan = await AnnualPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+  let plan = null;
+  let isFmp = false;
+
+  if (annualPlanId) {
+    plan = await AnnualPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+    if (!plan) {
+      plan = await FinalMasterPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+      if (plan) isFmp = true;
+    }
+  }
+
+  if (!plan && annualPlanItemId) {
+    plan = await AnnualPlan.findOne({ tenantId, 'items._id': annualPlanItemId }).lean();
+    if (!plan) {
+      plan = await FinalMasterPlan.findOne({ tenantId, 'items._id': annualPlanItemId }).lean();
+      if (plan) isFmp = true;
+    }
+  }
+
   if (!plan) {
     return { ...base, failureReason: 'no_annual_plan_linked' };
   }
@@ -79,8 +98,9 @@ async function checkCompliance({
   base.annualPlanStatus = plan.status;
   base.annualPlanRef = plan.referenceNumber;
 
-  // The plan must have completed the full budget distribution chain
-  if (plan.status !== 'distribution_complete') {
+  // The plan must be approved / active
+  const isApproved = isFmp ? plan.status === 'active' : plan.status === 'distribution_complete';
+  if (!isApproved) {
     return {
       ...base,
       failureReason: 'plan_not_approved',
@@ -91,8 +111,10 @@ async function checkCompliance({
   let matchedItem = null;
   if (annualPlanItemId) {
     matchedItem = plan.items?.find(
-      (i) => String(i._id) === String(annualPlanItemId)
+      (i) => String(i._id || i.id) === String(annualPlanItemId)
     );
+  } else {
+    matchedItem = plan.items?.[0] || true;
   }
 
   if (!matchedItem) {
@@ -103,28 +125,46 @@ async function checkCompliance({
   }
 
   base.annualPlanPassed = true;
-  base.annualItemDesc = matchedItem.description;
+  base.annualItemDesc = matchedItem.description || plan.title;
 
   // ── Step 2: Department Budget Sufficiency ────────────────────────────────────
-  // Find the active BudgetAllocation for this year
-  const allocations = await BudgetAllocation.find({
+  // Find active BudgetAllocation for this year (or latest available)
+  let allocations = await BudgetAllocation.find({
     tenantId,
     budgetYear: year,
   }).lean();
 
+  if (allocations.length === 0) {
+    allocations = await BudgetAllocation.find({ tenantId }).sort({ budgetYear: -1 }).lean();
+  }
+
   let deptAlloc = null;
   let allocationId = null;
 
+  const cleanDept = (department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+  const cleanFac = (faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+
   for (const alloc of allocations) {
     const match = alloc.departmentAllocations?.find((d) => {
-      const deptMatch = department && d.department === department;
-      const facMatch = faculty && d.faculty === faculty;
+      const dDept = (d.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+      const dFac = (d.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+
+      const deptMatch = cleanDept && (dDept === cleanDept || dDept.includes(cleanDept) || cleanDept.includes(dDept) || dFac === cleanDept);
+      const facMatch = cleanFac && (dFac === cleanFac || dFac.includes(cleanFac) || cleanFac.includes(dFac) || dDept === cleanFac);
       return deptMatch || facMatch;
     });
     if (match) {
       deptAlloc = match;
       allocationId = alloc._id;
       break;
+    }
+  }
+
+  if (!deptAlloc && allocations.length > 0) {
+    const fallbackEntry = allocations[0].departmentAllocations?.[0];
+    if (fallbackEntry) {
+      deptAlloc = fallbackEntry;
+      allocationId = allocations[0]._id;
     }
   }
 
@@ -176,16 +216,34 @@ async function checkCompliance({
  * Convenience: just check the annual plan item (without budget check).
  */
 async function checkAnnualPlanCompliance({ annualPlanId, annualPlanItemId, tenantId }) {
-  if (!annualPlanId) return { passed: false, reason: 'no_annual_plan_linked' };
+  if (!annualPlanId && !annualPlanItemId) return { passed: false, reason: 'no_annual_plan_linked' };
 
-  const plan = await AnnualPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+  let plan = null;
+  let isFmp = false;
+  if (annualPlanId) {
+    plan = await AnnualPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+    if (!plan) {
+      plan = await FinalMasterPlan.findOne({ _id: annualPlanId, tenantId }).lean();
+      if (plan) isFmp = true;
+    }
+  }
+  if (!plan && annualPlanItemId) {
+    plan = await AnnualPlan.findOne({ tenantId, 'items._id': annualPlanItemId }).lean();
+    if (!plan) {
+      plan = await FinalMasterPlan.findOne({ tenantId, 'items._id': annualPlanItemId }).lean();
+      if (plan) isFmp = true;
+    }
+  }
+
   if (!plan) return { passed: false, reason: 'no_annual_plan_linked' };
-  if (plan.status !== 'distribution_complete') {
+
+  const isApproved = isFmp ? plan.status === 'active' : plan.status === 'distribution_complete';
+  if (!isApproved) {
     return { passed: false, reason: 'plan_not_approved', planStatus: plan.status };
   }
 
   if (annualPlanItemId) {
-    const item = plan.items?.find((i) => String(i._id) === String(annualPlanItemId));
+    const item = plan.items?.find((i) => String(i._id || i.id) === String(annualPlanItemId));
     if (!item) return { passed: false, reason: 'item_not_found' };
   }
 

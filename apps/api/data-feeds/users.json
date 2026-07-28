@@ -116,6 +116,17 @@
     ]
   },
   {
+    "role": "supplies_division",
+    "firstName": "Supplies",
+    "lastName": "Division",
+    "email": "supplies@uwu.ac.lk",
+    "employeeId": "UWU-PRO-005",
+    "department": "Supplies Division",
+    "permissions": [
+      "create_requisition", "manage_vendors", "view_reports", "record_grn", "manage_inventory", "ai_analysis"
+    ]
+  },
+  {
     "role": "tec_member",
     "firstName": "TEC",
     "lastName": "Member",

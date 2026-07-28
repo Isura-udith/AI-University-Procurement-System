@@ -5,10 +5,10 @@ import ProcurementWorkflowTracker from '../../../components/ProcurementWorkflowT
 import planningService from '../../../services/planning.service';
 
 const APPROVAL_TABLE = [
-  { range: 'Up to Rs. 200,000', authority: 'Faculty Dean', color: 'blue' },
-  { range: 'Rs. 200,001 – 500,000', authority: 'Bursar', color: 'indigo' },
-  { range: 'Rs. 500,001 – 1,000,000', authority: 'Procurement Committee', color: 'violet' },
-  { range: 'Above Rs. 1,000,000', authority: 'Procurement Committee', color: 'rose' },
+  { range: 'Up to Rs. 200,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Finance Committee → PMD (Publish)', color: 'blue' },
+  { range: 'Rs. 200,001 – 500,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Bursar → Finance Committee → PMD (Publish)', color: 'indigo' },
+  { range: 'Rs. 500,001 – 1,000,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Bursar → VC → Finance Committee → PMD (Publish)', color: 'violet' },
+  { range: 'Above Rs. 1,000,000', authority: 'University Council', chain: 'Dept User → HOD → Dean → Bursar → VC → Council → Finance Committee → PMD (Publish)', color: 'rose' },
 ];
 
 const PHASE_CARDS = [
@@ -125,14 +125,15 @@ export default function WorkflowDashboard() {
       {/* Approval Thresholds Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-          <h3 className="text-sm font-bold text-slate-800">Step 29: Value-Based Approval Authority</h3>
+          <h3 className="text-sm font-bold text-slate-800">Step 29: Value-Based Approval Authority Reference</h3>
           <p className="text-xs text-slate-500 mt-0.5">Procurement requests are routed based on their estimated total cost</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Procurement Value</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Procurement Value Range</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Full Approval Chain</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Approval Authority</th>
               </tr>
             </thead>
@@ -140,6 +141,7 @@ export default function WorkflowDashboard() {
               {APPROVAL_TABLE.map((row, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 text-sm font-medium text-slate-700">{row.range}</td>
+                  <td className="px-6 py-3 text-xs text-slate-500 font-mono tracking-tight">{row.chain}</td>
                   <td className="px-6 py-3">
                     <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${row.color}-100 text-${row.color}-700`}>{row.authority}</span>
                   </td>

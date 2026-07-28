@@ -83,10 +83,10 @@ const PHASES = [
 
 // ─── Value-Based Approval Thresholds (Step 29) ─────────────────
 const APPROVAL_THRESHOLDS = [
-  { maxValue: 200000,   authority: 'dean',               label: 'Faculty Dean' },
-  { maxValue: 500000,   authority: 'bursar',             label: 'Bursar' },
-  { maxValue: 1000000,  authority: 'vice_chancellor',    label: 'Vice Chancellor' },
-  { maxValue: Infinity, authority: 'procurement_committee', label: 'Procurement Committee' },
+  { maxValue: 200000,   authority: 'finance_committee',  label: 'Finance Committee' },
+  { maxValue: 500000,   authority: 'finance_committee',  label: 'Finance Committee' },
+  { maxValue: 1000000,  authority: 'finance_committee',  label: 'Finance Committee' },
+  { maxValue: Infinity, authority: 'council',            label: 'University Council' },
 ];
 
 /**

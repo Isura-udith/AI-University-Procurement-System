@@ -104,25 +104,85 @@ const advanceDistribution = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/budget-allocations/my-budget — Get budget for the current user's department */
+/** GET /api/budget-allocations/my-budget — Get budget for the current user's department or queried faculty */
 const getMyBudget = async (req, res, next) => {
   try {
-    const userDept = req.user.department;
-    const userFaculty = req.user.faculty;
+    const userDept = req.query.department || req.user?.department;
+    const userFaculty = req.query.faculty || req.user?.faculty;
     const currentYear = new Date().getFullYear();
-    const allocations = await BudgetAllocation.find({ tenantId: req.tenantId, budgetYear: currentYear });
+
+    let allocations = await BudgetAllocation.find({ tenantId: req.tenantId, budgetYear: currentYear });
+    if (!allocations || allocations.length === 0) {
+      allocations = await BudgetAllocation.find({ tenantId: req.tenantId }).sort({ budgetYear: -1 });
+    }
+
+    const FACULTY_MAP = {
+      fom: 'Faculty of Medicine',
+      fots: 'Faculty of Technological Studies',
+      foas: 'Faculty of Applied Sciences',
+      foahs: 'Faculty of Animal Science & Export Agriculture',
+      'fom-mgt': 'Faculty of Management',
+      supplies: 'Supplies Division',
+      works: 'Works Division',
+      'vc-office': "Vice Chancellor's Office",
+      'admin-building': 'Administration Building',
+      'exam-division': 'Examination Division',
+      'student-affairs': 'Student Affairs Division',
+      library: 'Library',
+      'main-canteen': 'Main Canteen (Samajaya)',
+      'gallery-canteen': 'Gallery Canteen',
+      'g-canteen': 'G Canteen',
+      'sports-unit': 'Sports & Physical Education Unit',
+      hostels: 'Hostels',
+      'security-unit': 'Security Unit',
+    };
+
+    const targetFacLabel = userFaculty ? (FACULTY_MAP[userFaculty] || userFaculty) : '';
+    const targetDeptLabel = userDept || '';
+
     let myAlloc = null;
     for (const alloc of allocations) {
-      const deptEntry = alloc.departmentAllocations.find(d => {
-        if (userDept && userFaculty) {
-          return d.department === userDept && d.faculty === userFaculty;
-        }
-        if (userDept) return d.department === userDept;
-        if (userFaculty) return d.faculty === userFaculty;
+      const deptEntry = alloc.departmentAllocations?.find(d => {
+        const facMatch = userFaculty ? (
+          (d.faculty && d.faculty.toLowerCase() === userFaculty.toLowerCase()) ||
+          (d.faculty && targetFacLabel && d.faculty.toLowerCase() === targetFacLabel.toLowerCase()) ||
+          (d.faculty && targetFacLabel && (d.faculty.toLowerCase().includes(targetFacLabel.toLowerCase()) || targetFacLabel.toLowerCase().includes(d.faculty.toLowerCase())))
+        ) : true;
+
+        const deptMatch = userDept ? (
+          (d.department && d.department.toLowerCase() === targetDeptLabel.toLowerCase()) ||
+          (d.department && (d.department.toLowerCase().includes(targetDeptLabel.toLowerCase()) || targetDeptLabel.toLowerCase().includes(d.department.toLowerCase())))
+        ) : true;
+
+        if (userFaculty && userDept) return facMatch && deptMatch;
+        if (userFaculty) return facMatch;
+        if (userDept) return deptMatch;
         return false;
       });
-      if (deptEntry) { myAlloc = { ...deptEntry.toJSON(), allocationId: alloc._id }; break; }
+
+      if (deptEntry) {
+        const remaining = (deptEntry.allocatedAmount || 0) - (deptEntry.consumedAmount || 0);
+        myAlloc = {
+          ...deptEntry.toJSON(),
+          remainingAmount: deptEntry.remainingAmount !== undefined && deptEntry.remainingAmount !== null ? deptEntry.remainingAmount : remaining,
+          allocationId: alloc._id
+        };
+        break;
+      }
     }
+
+    if (!myAlloc && allocations.length > 0) {
+      const firstAlloc = allocations[0];
+      const sumAllocated = firstAlloc.totalAllocated || firstAlloc.procurementBudget || firstAlloc.totalUniversityBudget || 0;
+      const sumConsumed = firstAlloc.totalConsumed || 0;
+      myAlloc = {
+        allocatedAmount: sumAllocated,
+        consumedAmount: sumConsumed,
+        remainingAmount: sumAllocated - sumConsumed,
+        allocationId: firstAlloc._id,
+      };
+    }
+
     return success(res, myAlloc || { allocatedAmount: 0, consumedAmount: 0, remainingAmount: 0 });
   } catch (err) { next(err); }
 };

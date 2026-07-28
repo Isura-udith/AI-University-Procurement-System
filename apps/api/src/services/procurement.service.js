@@ -12,15 +12,17 @@ const { isCrossTenantRole } = require('../../../../packages/types/rbac.config');
 
 class ProcurementService {
   async create(data, userId, tenantId) {
-    const requestor = await User.findById(userId).select('department faculty');
+    const requestor = await User.findById(userId).select('department faculty employeeId');
     const createData = { ...data, requestedBy: userId, tenantId, status: 'draft' };
     if (requestor) {
       if (!createData.department && requestor.department) createData.department = requestor.department;
       if (!createData.faculty && requestor.faculty) createData.faculty = requestor.faculty;
+      if (!createData.employeeId && requestor.employeeId) createData.employeeId = requestor.employeeId;
+      if (!createData.empId && requestor.employeeId) createData.empId = requestor.employeeId;
     }
     
-    // If fmpItemId or dappItem is provided, verify linkage to active Final Master Plan
-    const targetItemId = data.fmpItemId || data.dappItem;
+    // If fmpItemId, dappItem or annualPlanItemId is provided, verify linkage to active Final Master Plan or Annual Plan
+    const targetItemId = data.fmpItemId || data.dappItem || data.annualPlanItemId;
     if (targetItemId) {
       const fmp = await FinalMasterPlan.findOne({
         tenantId,
@@ -29,6 +31,18 @@ class ProcurementService {
       });
       if (fmp) {
         createData.mppReference = fmp.referenceNumber;
+        createData.annualPlanId = fmp._id;
+        createData.annualPlanItemId = targetItemId;
+      } else {
+        const AnnualPlan = require('../models/annual.plan.model');
+        const ap = await AnnualPlan.findOne({
+          tenantId,
+          'items._id': targetItemId,
+        });
+        if (ap) {
+          createData.annualPlanId = ap._id;
+          createData.annualPlanItemId = targetItemId;
+        }
       }
     }
 
@@ -122,7 +136,7 @@ class ProcurementService {
     if (query.search) filters.$or = [{ title: { $regex: query.search, $options: 'i' } }, { referenceNumber: { $regex: query.search, $options: 'i' } }];
 
     const [data, total] = await Promise.all([
-      Procurement.find(filters).populate('requestedBy', 'firstName lastName email role department').sort(sort).skip(skip).limit(limit),
+      Procurement.find(filters).populate('requestedBy', 'firstName lastName email role department employeeId').sort(sort).skip(skip).limit(limit),
       Procurement.countDocuments(filters),
     ]);
     return { data, total, page, limit };
@@ -130,12 +144,34 @@ class ProcurementService {
 
   async getById(id, tenantId) {
     const procurement = await Procurement.findOne({ _id: id, tenantId })
-      .populate('requestedBy', 'firstName lastName email role department')
+      .populate('requestedBy', 'firstName lastName email role department employeeId')
       .populate('approvalChain.approver', 'firstName lastName email role')
       .populate('revisionHistory.changedBy', 'firstName lastName email role')
       .populate('tenderId').populate('contractId');
     if (!procurement) throw Object.assign(new Error('Procurement not found'), { statusCode: 404 });
-    return procurement;
+
+    // Dynamically evaluate budget compliance check for up-to-date Step 27 details
+    const targetPlanId = procurement.annualPlanId;
+    const targetItemId = procurement.annualPlanItemId || procurement.dappReference || procurement.fmpItemId;
+    const cost = procurement.totalEstimatedCost || (procurement.items?.reduce((sum, item) => sum + (item.estimatedTotalPrice || (item.quantity * item.estimatedUnitPrice) || 0), 0)) || 0;
+
+    const complianceResult = await budgetValidationService.checkCompliance({
+      annualPlanId: targetPlanId,
+      annualPlanItemId: targetItemId,
+      department: procurement.department,
+      faculty: procurement.faculty,
+      totalEstimatedCost: cost,
+      budgetYear: procurement.budgetYear,
+      tenantId,
+    });
+
+    const docObj = procurement.toObject();
+    docObj.budgetComplianceCheck = {
+      checkedAt: new Date(),
+      ...complianceResult,
+    };
+
+    return docObj;
   }
 
   async update(id, data, userId, userRole, tenantId) {
@@ -154,6 +190,31 @@ class ProcurementService {
     const changesMessage = `Edited by ${editorName} (${roleLabel})`;
 
     Object.assign(procurement, data);
+
+    const targetItemId = data.fmpItemId || data.dappItem || data.annualPlanItemId;
+    if (targetItemId) {
+      const fmp = await FinalMasterPlan.findOne({
+        tenantId,
+        status: 'active',
+        'items._id': targetItemId,
+      });
+      if (fmp) {
+        procurement.mppReference = fmp.referenceNumber;
+        procurement.annualPlanId = fmp._id;
+        procurement.annualPlanItemId = targetItemId;
+      } else {
+        const AnnualPlan = require('../models/annual.plan.model');
+        const ap = await AnnualPlan.findOne({
+          tenantId,
+          'items._id': targetItemId,
+        });
+        if (ap) {
+          procurement.annualPlanId = ap._id;
+          procurement.annualPlanItemId = targetItemId;
+        }
+      }
+    }
+
     procurement.revisionHistory.push({
       version: procurement.version,
       changedBy: userId,
@@ -287,7 +348,7 @@ class ProcurementService {
     procurement.submittedAt = new Date();
     procurement.currentStage = 3; // Stage 3 = Multi-Level Approval
     
-    // Set up approval chain (reset for re-submissions)
+    // Build approval chain based on TCE value thresholds (Step 29)
     const newApprovalChain = [
       { stage: 'hod', status: 'pending' }
     ];
@@ -297,27 +358,22 @@ class ProcurementService {
       newApprovalChain.push({ stage: 'dean', status: 'pending' });
     }
 
-    newApprovalChain.push({ stage: 'pmd', status: 'pending' });
-
-    // Step 29: Build the higher-level approval chain stages based on TCE value thresholds.
-    // We derive the authority fresh from the TCE here (rather than the stored field) to ensure
-    // correctness even if items were edited after the last draft save.
-    // Thresholds (matching the model's pre-save hook):
-    //   TCE ≤ 200,000  → Dean is final authority  (HOD → [Dean] → PMD is sufficient)
-    //   TCE ≤ 500,000  → Bursar is final authority (+ Bursar stage added)
-    //   TCE ≤ 1,000,000 → VC is final authority   (+ Bursar + Finance Committee + VC)
-    //   TCE > 1,000,000 → Procurement Committee   (same chain as VC: + Bursar + FC + VC)
     const tce = procurement.totalEstimatedCost || 0;
+
+    // Threshold stages insertion
     if (tce > 200000) {
       newApprovalChain.push({ stage: 'bursar', status: 'pending' });
     }
     if (tce > 500000) {
-      newApprovalChain.push(
-        { stage: 'finance_committee', status: 'pending' },
-        { stage: 'vice_chancellor', status: 'pending' },
-        { stage: 'procurement_committee', status: 'pending' }
-      );
+      newApprovalChain.push({ stage: 'vice_chancellor', status: 'pending' });
     }
+    if (tce > 1000000) {
+      newApprovalChain.push({ stage: 'council', status: 'pending' });
+    }
+
+    // Finance Committee approves before PMD publishes
+    newApprovalChain.push({ stage: 'finance_committee', status: 'pending' });
+    newApprovalChain.push({ stage: 'pmd', status: 'pending' });
     
     procurement.approvalChain = newApprovalChain;
     
@@ -326,11 +382,11 @@ class ProcurementService {
     const chainNames = newApprovalChain.map(s => {
       if (s.stage === 'hod') return 'HOD';
       if (s.stage === 'dean') return 'Dean';
-      if (s.stage === 'pmd') return 'PMD';
       if (s.stage === 'bursar') return 'Bursar';
-      if (s.stage === 'finance_committee') return 'Finance Committee';
       if (s.stage === 'vice_chancellor') return 'VC';
-      if (s.stage === 'procurement_committee') return 'Procurement Committee';
+      if (s.stage === 'council') return 'Council';
+      if (s.stage === 'finance_committee') return 'Finance Committee';
+      if (s.stage === 'pmd') return 'PMD';
       return s.stage.toUpperCase();
     }).join(' → ');
 
@@ -373,14 +429,21 @@ class ProcurementService {
       .populate('approvalChain.approver', 'firstName lastName email role');
     if (!procurement) throw Object.assign(new Error('Not found'), { statusCode: 404 });
 
+    // Ensure approvalChain stages are sorted according to standard sequential workflow
+    const approvalOrder = ['hod', 'dean', 'bursar', 'vice_chancellor', 'council', 'finance_committee', 'pmd'];
+    if (procurement.approvalChain && Array.isArray(procurement.approvalChain)) {
+      procurement.approvalChain.sort((a, b) => approvalOrder.indexOf(a.stage) - approvalOrder.indexOf(b.stage));
+    }
+
     // Validate that the approving role matches the expected approver for this stage
     const stageToRole = {
       hod: ['department_head', 'admin', 'super_admin'],
       dean: ['dean', 'admin', 'super_admin'],
-      pmd: ['procurement_officer', 'admin', 'super_admin'],
       bursar: ['bursar', 'admin', 'super_admin'],
-      finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
       vice_chancellor: ['vc', 'admin', 'super_admin'],
+      council: ['council', 'council_member', 'admin', 'super_admin'],
+      finance_committee: ['finance_committee', 'finance_officer', 'admin', 'super_admin'],
+      pmd: ['procurement_officer', 'admin', 'super_admin'],
       procurement_committee: ['procurement_committee', 'council', 'council_member', 'admin', 'super_admin'],
     };
     const allowedRoles = stageToRole[stage] || [];
@@ -389,7 +452,6 @@ class ProcurementService {
     }
 
     // Enforce sequential approval order — only allow approving the NEXT pending stage
-    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor', 'procurement_committee'];
     const currentStageIndex = approvalOrder.indexOf(stage);
     if (currentStageIndex > 0) {
       const previousStages = approvalOrder.slice(0, currentStageIndex);
@@ -420,11 +482,11 @@ class ProcurementService {
       const chainNames = procurement.approvalChain.map(s => {
         if (s.stage === 'hod') return 'HOD';
         if (s.stage === 'dean') return 'Dean';
-        if (s.stage === 'pmd') return 'PMD';
         if (s.stage === 'bursar') return 'Bursar';
-        if (s.stage === 'finance_committee') return 'Finance Committee';
         if (s.stage === 'vice_chancellor') return 'VC';
-        if (s.stage === 'procurement_committee') return 'Procurement Committee';
+        if (s.stage === 'council') return 'Council';
+        if (s.stage === 'finance_committee') return 'Finance Committee';
+        if (s.stage === 'pmd') return 'PMD';
         return s.stage.toUpperCase();
       }).join(' → ');
 
@@ -440,14 +502,14 @@ class ProcurementService {
       } catch (err) { logger.warn('Notification failed', { error: err.message }); }
     } else {
       // Progress status based on completed stage
-      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', pmd: 'pmd_approved', bursar: 'bursar_approved', finance_committee: 'finance_committee_approved', vice_chancellor: 'vc_approved', procurement_committee: 'procurement_committee_approved' };
+      const stageMap = { hod: 'hod_approved', dean: 'dean_approved', bursar: 'bursar_approved', vice_chancellor: 'vc_approved', council: 'council_approved', finance_committee: 'finance_committee_approved', pmd: 'pmd_approved' };
       procurement.status = stageMap[stage] || procurement.status;
       procurement.currentStage = 3; // Still in approval phase
 
       // Find the next pending stage and notify
       const nextPending = procurement.approvalChain.find(s => s.status === 'pending');
       if (nextPending) {
-        const nextStageLabel = nextPending.stage === 'hod' ? 'HOD' : nextPending.stage === 'dean' ? 'Dean' : nextPending.stage === 'pmd' ? 'Procurement Officer (PMD)' : nextPending.stage === 'bursar' ? 'Bursar' : nextPending.stage === 'finance_committee' ? 'Finance Committee' : nextPending.stage === 'vice_chancellor' ? 'Vice Chancellor' : nextPending.stage === 'procurement_committee' ? 'Procurement Committee' : nextPending.stage;
+        const nextStageLabel = nextPending.stage === 'hod' ? 'HOD' : nextPending.stage === 'dean' ? 'Dean' : nextPending.stage === 'bursar' ? 'Bursar' : nextPending.stage === 'vice_chancellor' ? 'Vice Chancellor' : nextPending.stage === 'council' ? 'University Council' : nextPending.stage === 'finance_committee' ? 'Finance Committee' : nextPending.stage === 'pmd' ? 'Procurement Officer (PMD)' : nextPending.stage;
         
         // Notify the requester about progress
         try {
@@ -686,9 +748,9 @@ class ProcurementService {
       finance_officer: 'finance_committee',
       procurement_officer: 'pmd',
       vc: 'vice_chancellor',
+      council: 'council',
+      council_member: 'council',
       procurement_committee: 'procurement_committee',
-      council: 'procurement_committee',
-      council_member: 'procurement_committee',
     };
     const targetStage = roleToStage[role];
 
@@ -709,8 +771,8 @@ class ProcurementService {
     }
 
     // Find procurements where this role's stage is pending AND all prior stages are approved
-    // This ensures sequential order: HOD sees 'submitted', Dean sees 'hod_approved', PMD sees 'dean_approved'
-    const approvalOrder = ['hod', 'dean', 'pmd', 'bursar', 'finance_committee', 'vice_chancellor', 'procurement_committee'];
+    // Standard order: HOD → Dean → Bursar → VC → Council → Finance Committee → PMD
+    const approvalOrder = ['hod', 'dean', 'bursar', 'vice_chancellor', 'council', 'finance_committee', 'pmd'];
     const stageIndex = approvalOrder.indexOf(targetStage);
     const previousStages = approvalOrder.slice(0, stageIndex);
 
@@ -743,6 +805,13 @@ class ProcurementService {
       .populate('requestedBy', 'firstName lastName email department')
       .populate('approvalChain.approver', 'firstName lastName email role')
       .sort('-createdAt');
+
+    // Sort each procurement's approvalChain to match standard sequential order
+    results.forEach(proc => {
+      if (proc.approvalChain && Array.isArray(proc.approvalChain)) {
+        proc.approvalChain.sort((a, b) => approvalOrder.indexOf(a.stage) - approvalOrder.indexOf(b.stage));
+      }
+    });
 
     // Filter in-memory: ensure all previous stages are approved (sequential order)
     return results.filter(proc => {

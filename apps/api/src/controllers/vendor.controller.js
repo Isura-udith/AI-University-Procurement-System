@@ -30,4 +30,19 @@ const rejectVendor = async (req, res, next) => {
   try { return success(res, await vendorService.reject(req.params.id, req.body.reason, req.user._id, req.tenantId), 'Rejected'); } catch (err) { next(err); }
 };
 
-module.exports = { registerVendor, getAllVendors, getVendor, getMe, verifyVendor, blacklistVendor, updatePerformance, rejectVendor };
+const approveAndSendSetupLink = async (req, res, next) => {
+  try { return success(res, await vendorService.approveAndSendSetupLink(req.params.id, req.user._id, req.tenantId), 'Vendor approved and account setup link sent'); } catch (err) { next(err); }
+};
+
+const getSetupAccountInfo = async (req, res, next) => {
+  try { return success(res, await vendorService.getSetupAccountInfo(req.query.token)); } catch (err) { next(err); }
+};
+
+const completeSetupAccount = async (req, res, next) => {
+  try { return success(res, await vendorService.completeSetupAccount(req.body.token, req.body), 'Vendor account created successfully'); } catch (err) { next(err); }
+};
+
+module.exports = {
+  registerVendor, getAllVendors, getVendor, getMe, verifyVendor, blacklistVendor,
+  updatePerformance, rejectVendor, approveAndSendSetupLink, getSetupAccountInfo, completeSetupAccount
+};

@@ -79,6 +79,100 @@ class VendorService {
     logger.audit('VENDOR_REJECTED', userId, { vendorId: vendor._id, reason });
     return vendor;
   }
+
+  async approveAndSendSetupLink(id, userId, tenantId) {
+    const crypto = require('crypto');
+    const notificationService = require('./notification.service');
+    const vendor = await Vendor.findOne({ _id: id, tenantId });
+    if (!vendor) throw Object.assign(new Error('Vendor not found'), { statusCode: 404 });
+
+    const setupToken = crypto.randomBytes(32).toString('hex');
+    vendor.status = 'verified';
+    vendor.verifiedAt = new Date();
+    vendor.verifiedBy = userId;
+    vendor.accountSetupToken = setupToken;
+    vendor.accountSetupExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    vendor.accountSetupEmailSentAt = new Date();
+    vendor.performanceScore = calculateVendorScore(vendor);
+    await vendor.save();
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const setupUrl = `${frontendUrl}/supplier/setup-account?token=${setupToken}`;
+
+    // Send email notification template
+    await notificationService.sendNotification({
+      tenantId: vendor.tenantId,
+      recipientId: vendor._id,
+      recipientEmail: vendor.email,
+      recipientRole: 'supplier',
+      title: 'Vendor Registration Approved — Setup Login Account',
+      message: `Your vendor registration has been approved by Supplies Division. Please click the setup link to create your email and password login account.`,
+      type: 'email',
+      metadata: {
+        templateType: 'vendor_account_setup',
+        companyName: vendor.companyName,
+        registrationNumber: vendor.registrationNumber,
+        setupUrl,
+      },
+    }).catch(err => logger.error('Failed to send vendor setup email:', err));
+
+    logger.audit('VENDOR_APPROVED_SETUP_LINK_SENT', userId, { vendorId: vendor._id, setupToken });
+    return { vendor, setupUrl, setupToken };
+  }
+
+  async getSetupAccountInfo(token) {
+    if (!token) throw Object.assign(new Error('Setup token is required'), { statusCode: 400 });
+    const vendor = await Vendor.findOne({
+      accountSetupToken: token,
+      accountSetupExpires: { $gt: new Date() }
+    });
+    if (!vendor) throw Object.assign(new Error('Invalid or expired account setup link'), { statusCode: 404 });
+
+    return {
+      vendorId: vendor._id,
+      companyName: vendor.companyName,
+      registrationNumber: vendor.registrationNumber,
+      email: vendor.email,
+      contactPerson: vendor.contactPerson,
+      status: vendor.status,
+    };
+  }
+
+  async completeSetupAccount(token, { email, password, firstName, lastName }) {
+    const authService = require('./auth.service');
+    if (!token) throw Object.assign(new Error('Setup token is required'), { statusCode: 400 });
+
+    const vendor = await Vendor.findOne({
+      accountSetupToken: token,
+      accountSetupExpires: { $gt: new Date() }
+    });
+    if (!vendor) throw Object.assign(new Error('Invalid or expired account setup link'), { statusCode: 404 });
+
+    const userEmail = email || vendor.email;
+    const userFirstName = firstName || vendor.contactPerson?.split(' ')[0] || vendor.companyName;
+    const userLastName = lastName || vendor.contactPerson?.split(' ').slice(1).join(' ') || 'Supplier';
+
+    // Register supplier user
+    const { user, accessToken, refreshToken } = await authService.register({
+      email: userEmail.toLowerCase().trim(),
+      password,
+      firstName: userFirstName,
+      lastName: userLastName,
+      role: 'supplier',
+      tenantId: vendor.tenantId,
+      department: 'Supplies Division',
+      phone: vendor.phone,
+    });
+
+    // Link user to vendor and clear setup token
+    vendor.userId = user._id || user.id;
+    vendor.accountSetupToken = undefined;
+    vendor.accountSetupExpires = undefined;
+    await vendor.save();
+
+    logger.audit('VENDOR_ACCOUNT_SETUP_COMPLETED', user._id || user.id, { vendorId: vendor._id });
+    return { vendor, user, accessToken, refreshToken };
+  }
 }
 
 module.exports = new VendorService();

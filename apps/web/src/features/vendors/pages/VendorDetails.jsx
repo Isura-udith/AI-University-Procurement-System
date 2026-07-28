@@ -1,29 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { FaArrowLeft, FaBuilding, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaShieldAlt, FaChartLine, FaCheck, FaTimes } from 'react-icons/fa';
 import vendorService from '../../../services/vendor.service';
+import {
+  FaArrowLeft, FaCheck, FaTimes, FaBuilding, FaShieldAlt, FaEnvelope,
+  FaPhone, FaGlobe, FaMapMarkerAlt, FaChartLine, FaEnvelopeOpenText, FaCopy, FaExternalLinkAlt
+} from 'react-icons/fa';
 
-const ScoreBar = ({ label, value, max = 100 }) => (
-  <div className="space-y-1">
-    <div className="flex justify-between text-xs"><span className="text-slate-600">{label}</span><span className="font-semibold text-slate-800">{value}{max === 5 ? '/5' : '%'}</span></div>
-    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(value / max * 100) >= 80 ? 'bg-emerald-500' : (value / max * 100) >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${(value / max) * 100}%` }} /></div>
-  </div>
-);
+function ScoreBar({ label, value, max = 100 }) {
+  const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-slate-600 font-medium">{label}</span>
+        <span className="text-slate-800 font-bold">{value}{max === 100 ? '%' : ''}</span>
+      </div>
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${percentage >= 80 ? 'bg-emerald-500' : percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export default function VendorDetails() {
   const { id } = useParams();
+  const { user } = useSelector(state => state.auth);
   const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const { user } = useSelector(state => state.auth);
+  const [rejectReason, setRejectReason] = useState('');
+  const [setupUrlModal, setSetupUrlModal] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchVendor = async () => {
       try {
         const res = await vendorService.getById(id);
-        setVendor(res.data?.data || res.data); // depending on how success response is structured
+        setVendor(res.data?.data || res.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -35,43 +48,62 @@ export default function VendorDetails() {
 
   const handleApprove = async () => {
     try {
-      await vendorService.verify(id);
-      const res = await vendorService.getById(id);
-      setVendor(res.data?.data || res.data);
-    } catch (err) { console.error(err); }
+      const res = await vendorService.approveAndSendSetupLink(id);
+      const data = res.data?.data || res.data;
+      if (data.setupUrl) {
+        setSetupUrlModal(data.setupUrl);
+      }
+      const updatedVendor = await vendorService.getById(id);
+      setVendor(updatedVendor.data?.data || updatedVendor.data);
+    } catch (err) {
+      console.error('Approval failed:', err);
+    }
   };
 
   const handleReject = async () => {
     try {
-      await vendorService.reject(id, rejectReason || 'Rejected by admin');
+      await vendorService.reject(id, rejectReason || 'Rejected by Supplies Division');
       setShowRejectModal(false);
       const res = await vendorService.getById(id);
       setVendor(res.data?.data || res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading vendor...</div>;
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading vendor details...</div>;
   if (!vendor) return <div className="p-8 text-center text-slate-500">Vendor not found</div>;
+
+  const canManage = ['supplies_division', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           {user?.role !== 'supplier' && (
-            <Link to="/vendors" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><FaArrowLeft size={16} /></Link>
+            <Link to="/vendors" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <FaArrowLeft size={16} />
+            </Link>
           )}
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{vendor.companyName}</h1>
             <p className="text-sm text-slate-500">Registration: {vendor.registrationNumber} • VAT: {vendor.vatNumber || 'N/A'}</p>
           </div>
         </div>
-        {vendor.status === 'pending' && (
+
+        {vendor.status === 'pending' && canManage && (
           <div className="flex space-x-3">
             <button onClick={() => setShowRejectModal(true)} className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 text-sm font-semibold rounded-lg transition-colors flex items-center space-x-2">
               <FaTimes size={14} /> <span>Reject</span>
             </button>
             <button onClick={handleApprove} className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-500 text-sm font-semibold rounded-lg transition-colors shadow-sm flex items-center space-x-2">
-              <FaCheck size={14} /> <span>Approve</span>
+              <FaCheck size={14} /> <span>Approve & Send Setup Link</span>
             </button>
           </div>
         )}
@@ -82,9 +114,9 @@ export default function VendorDetails() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-bold text-slate-800 mb-4">Company Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-start space-x-3"><FaBuilding className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Business Type</p><p className="text-sm font-medium text-slate-800">{vendor.businessType}</p></div></div>
-              <div className="flex items-start space-x-3"><FaShieldAlt className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">CIDA Grade</p><p className="text-sm font-medium text-slate-800">{vendor.cidaGrade}</p></div></div>
-              <div className="flex items-start space-x-3"><FaEnvelope className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Email</p><p className="text-sm font-medium text-slate-800">{vendor.email}</p></div></div>
+              <div className="flex items-start space-x-3"><FaBuilding className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Business Type</p><p className="text-sm font-medium text-slate-800">{vendor.businessType || 'N/A'}</p></div></div>
+              <div className="flex items-start space-x-3"><FaShieldAlt className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">CIDA Grade</p><p className="text-sm font-medium text-slate-800">{vendor.cidaGrade || 'N/A'}</p></div></div>
+              <div className="flex items-start space-x-3"><FaEnvelope className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Registered Email</p><p className="text-sm font-medium text-slate-800">{vendor.email}</p></div></div>
               <div className="flex items-start space-x-3"><FaPhone className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Phone</p><p className="text-sm font-medium text-slate-800">{vendor.phone}</p></div></div>
               <div className="flex items-start space-x-3"><FaGlobe className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Website</p><p className="text-sm font-medium text-emerald-600">{vendor.website || 'N/A'}</p></div></div>
               <div className="flex items-start space-x-3"><FaMapMarkerAlt className="text-slate-400 mt-0.5" size={14} /><div><p className="text-xs text-slate-500">Address</p><p className="text-sm font-medium text-slate-800">{vendor.address?.street}, {vendor.address?.city}</p></div></div>
@@ -125,6 +157,48 @@ export default function VendorDetails() {
         </div>
       </div>
 
+      {/* Setup URL Modal */}
+      {setupUrlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-emerald-100">
+            <div className="bg-emerald-900 text-white px-6 py-5">
+              <div className="flex items-center space-x-3">
+                <FaEnvelopeOpenText className="text-emerald-400 text-2xl" />
+                <div>
+                  <h3 className="text-lg font-bold">Approved & Account Setup Link Sent!</h3>
+                  <p className="text-xs text-emerald-200 mt-0.5">Supplies Division Verification Complete</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                An email notification has been dispatched to <strong>{vendor.email}</strong>. The vendor can click the link in their email to create their login email and password.
+              </p>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Direct Account Setup Link (Dev / Testing)</label>
+                <div className="flex items-center space-x-2">
+                  <input type="text" readOnly value={setupUrlModal} className="flex-1 bg-white border border-slate-200 rounded-lg text-xs px-3 py-2 text-slate-700 select-all font-mono" />
+                  <button onClick={() => copyToClipboard(setupUrlModal)} className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-500 flex items-center space-x-1">
+                    <FaCopy size={12} /> <span>{copied ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-2">
+                <a href={setupUrlModal} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl hover:bg-slate-800 flex items-center space-x-1.5">
+                  <span>Open Setup Link</span> <FaExternalLinkAlt size={11} />
+                </a>
+                <button onClick={() => setSetupUrlModal(null)} className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-200">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">

@@ -341,7 +341,7 @@ export default function VendorRegister() {
             </h2>
             <p className="text-slate-500 text-sm max-w-md mx-auto print:text-slate-600">
               Thank you for registering with Uva Wellassa University. Your
-              supplier profile has been queued for verification.
+              vendor application has been submitted to the <strong className="text-slate-800 font-semibold">Supplies Division</strong> for review and approval.
             </p>
 
             {/* Reference Number Card */}
@@ -353,11 +353,11 @@ export default function VendorRegister() {
                 {referenceNo}
               </p>
               <p className="text-xs text-slate-500 mt-2 print:text-slate-500">
-                A verification email has been sent to{" "}
+                Once approved by Supplies Division, an account setup email link will be sent to{" "}
                 <span className="text-slate-800 font-medium print:text-slate-800">
                   {form.email}
-                </span>
-                .
+                </span>{" "}
+                allowing you to create your login password.
               </p>
             </div>
 

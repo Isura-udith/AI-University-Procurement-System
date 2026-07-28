@@ -122,7 +122,7 @@ const procurementSchema = new mongoose.Schema({
   workflowStep: { type: Number, min: 1, max: 45, default: 27 }, // Current position in 45-step lifecycle
   approvalAuthority: {                                   // Value-based routing (Step 29)
     type: String,
-    enum: ['dean', 'bursar', 'vice_chancellor', 'procurement_committee'],
+    enum: ['dean', 'bursar', 'finance_committee', 'vice_chancellor', 'council', 'procurement_committee'],
   },
 
   // Procurement Method (determined by TCE)
@@ -141,6 +141,8 @@ const procurementSchema = new mongoose.Schema({
   requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   department: String,
   faculty: String,
+  employeeId: String,
+  empId: String,
 
   // Status
   status: {
@@ -329,10 +331,10 @@ procurementSchema.pre('save', async function () {
     }
 
     // Step 29: Determine approval authority based on procurement value
-    if (tce <= 200000) this.approvalAuthority = 'dean';
-    else if (tce <= 500000) this.approvalAuthority = 'bursar';
-    else if (tce <= 1000000) this.approvalAuthority = 'vice_chancellor';
-    else this.approvalAuthority = 'procurement_committee';
+    if (tce <= 200000) this.approvalAuthority = 'finance_committee';
+    else if (tce <= 500000) this.approvalAuthority = 'finance_committee';
+    else if (tce <= 1000000) this.approvalAuthority = 'finance_committee';
+    else this.approvalAuthority = 'council';
   }
 });
 

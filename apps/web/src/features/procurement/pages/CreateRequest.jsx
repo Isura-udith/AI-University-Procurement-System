@@ -153,6 +153,18 @@ const PRIORITIES = [
   { value: 'emergency', label: 'Emergency' },
 ];
 
+const getItemBudgetYear = (item) => {
+  if (!item) return '';
+  if (item.year && Number(item.year) >= 2000) return item.year;
+  if (item.plannedYear) {
+    if (Number(item.plannedYear) >= 2000) return item.plannedYear;
+    const startYr = Number(item.planYear) || new Date().getFullYear();
+    return startYr + (Number(item.plannedYear) - 1);
+  }
+  if (item.planYear) return item.planYear;
+  return new Date().getFullYear();
+};
+
 const currentYear = new Date().getFullYear();
 const genRef = `UWU/G/NCB/${currentYear}/${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`;
 
@@ -267,16 +279,33 @@ export default function CreateRequest() {
     }
   }, [isEditMode]);
 
+  // Re-fetch budget whenever originating faculty changes
+  useEffect(() => {
+    if (!isEditMode && form.faculty) {
+      planningService.getMyBudget({ faculty: form.faculty, department: form.faculty })
+        .then(res => {
+          const bData = res.data?.data || res.data || null;
+          if (bData) setMyBudget(bData);
+        })
+        .catch(() => {});
+    }
+  }, [isEditMode, form.faculty]);
+
   // Auto-populate form when an approved Final Master Plan item is selected
   const handleFinalPlanItemSelect = (itemId) => {
     setSelectedItemId(itemId);
     setBudgetCheck(null);
     if (!itemId) {
+      setSelectedPlanId('');
       setForm(f => ({ ...f, dappItem: '' }));
       return;
     }
     const item = approvedFinalPlanItems.find(i => (i._id || i.id) === itemId);
     if (!item) return;
+
+    if (item.planId) {
+      setSelectedPlanId(item.planId);
+    }
 
     // Auto-populate key fields from approved Final Master Plan item
     setForm(f => ({
@@ -898,30 +927,48 @@ export default function CreateRequest() {
                   Only items from an <strong>Approved (Active) Final Master Plan</strong> can be used to create Procurement Requests.
                 </p>
               </div>
-              {myBudget && (
-                <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0">
-                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dept. Budget Remaining</p>
-                  <p className={`text-lg font-bold ${(myBudget.remainingAmount || myBudget.allocatedAmount - myBudget.consumedAmount) > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                    LKR {((myBudget.remainingAmount || (myBudget.allocatedAmount - (myBudget.consumedAmount || 0))) || 0).toLocaleString()}
-                  </p>
-                  <div className="w-32 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${myBudget.allocatedAmount > 0 ? Math.min(100, 100 - ((myBudget.consumedAmount || 0) / myBudget.allocatedAmount * 100)) : 100}%` }} />
+              {(() => {
+                const b = myBudget || { allocatedAmount: 0, consumedAmount: 0, remainingAmount: 0 };
+                const allocated = Number(b.allocatedAmount) || 0;
+                const consumed = Number(b.consumedAmount) || 0;
+                const remaining = b.remainingAmount !== undefined && b.remainingAmount !== null
+                  ? Number(b.remainingAmount)
+                  : (allocated - consumed);
+                const pct = allocated > 0 ? Math.max(0, Math.min(100, (remaining / allocated) * 100)) : (remaining > 0 ? 100 : 0);
+
+                return (
+                  <div className="bg-white rounded-xl border border-emerald-200 px-4 py-2 text-right shrink-0 shadow-2xs">
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dept. Budget Remaining</p>
+                    <p className={`text-lg font-bold ${remaining > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                      LKR {remaining.toLocaleString()}
+                    </p>
+                    <div className="w-32 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Approved Final Master Plan Items Selector */}
             {approvedFinalPlanItems.length > 0 ? (
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">
-                  Select Approved Final Master Plan Item *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Select Approved Final Master Plan Item *
+                  </label>
+                  {selectedItemId && (
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
+                      <FaCalendarAlt size={10} className="text-emerald-600" />
+                      Item Budget Plan Year: {getItemBudgetYear(approvedFinalPlanItems.find(i => (i._id || i.id) === selectedItemId))}
+                    </span>
+                  )}
+                </div>
                 <div className="relative mb-2">
                   <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                   <input
                     type="text"
-                    placeholder="Search Approved Final Master Plan Items..."
+                    placeholder="Search Approved Final Master Plan Items by description or budget year..."
                     value={dappSearch}
                     onChange={e => setDappSearch(e.target.value)}
                     className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -944,16 +991,24 @@ export default function CreateRequest() {
                       );
                     }
                     if (dappSearch) {
-                      items = items.filter(i => i.description?.toLowerCase().includes(dappSearch.toLowerCase()));
+                      const s = dappSearch.toLowerCase();
+                      items = items.filter(i => 
+                        i.description?.toLowerCase().includes(s) ||
+                        String(getItemBudgetYear(i)).includes(s) ||
+                        i.planRef?.toLowerCase().includes(s)
+                      );
                     }
                     if (items.length === 0) {
                       return <option value="" disabled>No matching approved items found</option>;
                     }
-                    return items.map(item => (
-                      <option key={item._id || item.id} value={item._id || item.id}>
-                        [{item.planRef || 'FMP'}] [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
-                      </option>
-                    ));
+                    return items.map(item => {
+                      const itemYr = getItemBudgetYear(item);
+                      return (
+                        <option key={item._id || item.id} value={item._id || item.id}>
+                          [{item.planRef || 'FMP'}] [Budget Year: {itemYr}] [{item.department || item.faculty}] {item.description} — LKR {(item.estimatedTotalCost || 0).toLocaleString()}
+                        </option>
+                      );
+                    });
                   })()}
                 </select>
                 {selectedItemId && (
@@ -961,7 +1016,19 @@ export default function CreateRequest() {
                     <span className="flex items-center gap-1.5">
                       <FaCheckCircle className="text-emerald-600" /> Linked to Active Final Master Plan Item
                     </span>
-                    <span className="text-emerald-700 font-bold">{form.mppRef}</span>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const selItem = approvedFinalPlanItems.find(i => (i._id || i.id) === selectedItemId);
+                        const selYear = getItemBudgetYear(selItem);
+                        return selYear ? (
+                          <span className="bg-emerald-200/90 text-emerald-950 px-2.5 py-0.5 rounded-md font-bold text-[11px] border border-emerald-300 flex items-center gap-1">
+                            <FaCalendarAlt size={10} className="text-emerald-700" />
+                            Budget Plan Year: {selYear}
+                          </span>
+                        ) : null;
+                      })()}
+                      <span className="text-emerald-700 font-bold">{form.mppRef}</span>
+                    </div>
                   </div>
                 )}
               </div>

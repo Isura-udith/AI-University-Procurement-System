@@ -19,6 +19,7 @@ const DEMO_USERS = [
   { role: 'procurement_committee', firstName: 'Procurement', lastName: 'Committee', email: 'procurementcommittee@uwu.ac.lk', employeeId: 'UWU-PRO-004', jobTitle: 'Procurement Committee Member', category: 'Procurement', color: 'emerald', accessArea: 'Procurement Approvals' },
   // ─── Procurement & Evaluation ─────────────────────────────────
   { role: 'procurement_officer', firstName: 'Procurement', lastName: 'Officer',     email: 'procurement@uwu.ac.lk',   employeeId: 'UWU-PRO-001', jobTitle: 'Procurement Officer (PMD)',       category: 'Procurement', color: 'emerald', accessArea: 'Tendering Lifecycle' },
+  { role: 'supplies_division',   firstName: 'Supplies',    lastName: 'Division',    email: 'supplies@uwu.ac.lk',      employeeId: 'UWU-PRO-005', jobTitle: 'Supplies Division Staff',     category: 'Procurement', color: 'teal',    accessArea: 'Vendor Registration & Verification' },
   { role: 'contract_manager',    firstName: 'Contract',    lastName: 'Manager',     email: 'contracts@uwu.ac.lk',     employeeId: 'UWU-PRO-002', jobTitle: 'Contract Manager',          category: 'Procurement', color: 'emerald', accessArea: 'Contract Lifecycle Management' },
   { role: 'tec_member',          firstName: 'TEC',         lastName: 'Member',      email: 'tec@uwu.ac.lk',           employeeId: 'UWU-PRO-003', jobTitle: 'TEC Member',                category: 'Procurement', color: 'emerald', accessArea: 'Technical Evaluation Workspace' },
   // ─── Departmental & User ──────────────────────────────────────

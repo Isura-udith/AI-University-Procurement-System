@@ -49,7 +49,7 @@ export const planningService = {
   getBudgetAllocation: (id) => api.get(`/budget-allocations/${id}`),
   createBudgetAllocation: (data) => api.post('/budget-allocations', data),
   advanceDistribution: (id) => api.post(`/budget-allocations/${id}/advance`),
-  getMyBudget: () => api.get('/budget-allocations/my-budget'),
+  getMyBudget: (params) => api.get('/budget-allocations/my-budget', { params }),
   consumeBudget: (id, data) => api.post(`/budget-allocations/${id}/consume`, data),
   releaseBudget: (id, data) => api.post(`/budget-allocations/${id}/release`, data),
 

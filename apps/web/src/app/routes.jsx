@@ -10,6 +10,7 @@ import LoginPage from "../features/auth/login/LoginPage";
 import RegisterPage from "../features/auth/register/RegisterPage";
 import ForgotPassword from "../features/auth/forgot-password/ForgotPassword";
 import ResetPassword from "../features/auth/forgot-password/ResetPassword";
+import SetupSupplierAccount from "../features/vendors/pages/SetupSupplierAccount";
 
 // Dashboard
 import DashboardPage from "../features/dashboard/DashboardPage";
@@ -143,6 +144,7 @@ export default function RoutesConfig() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/vendor-register" element={<VendorRegister />} />
+      <Route path="/supplier/setup-account" element={<SetupSupplierAccount />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
       {/* Protected / Dashboard Routes — 15-Stage Lifecycle */}

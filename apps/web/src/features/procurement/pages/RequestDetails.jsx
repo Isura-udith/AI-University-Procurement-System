@@ -29,7 +29,7 @@ export default function RequestDetails() {
       setLoading(true);
       try {
         const res = await procurementService.getById(id);
-        setData(res.data || null);
+        setData(res.data?.data || res.data || null);
       } catch {
         setData(null);
         toast.error('Failed to load procurement request');
@@ -57,7 +57,7 @@ export default function RequestDetails() {
       await procurementService.submit(id);
       // Re-fetch the procurement to get the updated approval chain from backend
       const res = await procurementService.getById(id);
-      setData(res.data || res);
+      setData(res.data?.data || res.data || res);
       toast.success('📝 Request submitted for value-based multi-level approval.');
     } catch (err) {
       const errMsg = err?.message || err?.error || 'Submission failed';
@@ -75,7 +75,7 @@ export default function RequestDetails() {
     try {
       await procurementService.publish(id);
       const res = await procurementService.getById(id);
-      setData(res.data || res);
+      setData(res.data?.data || res.data || res);
       toast.success('🚀 Procurement published to suppliers! It is now visible on the public portal.');
     } catch (err) {
       const errMsg = err?.message || err?.error || 'Publishing failed';
@@ -208,7 +208,7 @@ export default function RequestDetails() {
               {[
                 { label: 'Faculty / Department', value: data.faculty },
                 { label: 'Requisitioning Officer', value: data.requestedBy ? `${data.requestedBy.firstName} ${data.requestedBy.lastName}` : (data.officer || 'Officer') },
-                { label: 'Employee ID', value: data.requestedBy?.employeeId || data.empId || 'N/A' },
+                { label: 'Employee ID', value: data.requestedBy?.employeeId || data.employeeId || data.empId || 'UWU-DEP-002' },
                 { label: 'DAPP Linkage', value: data.dappReference || data.dappRef || 'N/A' },
                 { label: 'MPP Reference', value: data.mppReference || data.mppRef || 'N/A' },
                 { label: 'Funding Source', value: data.fundingSource || 'N/A' },
@@ -592,11 +592,12 @@ export default function RequestDetails() {
             <div className="flex justify-between"><span className="text-slate-500">Approval Chain</span><span className="font-medium">
               {(() => {
                 const tce = data.totalEstimatedCost || data.tce || 0;
-                let chain = 'HOD';
+                let chain = 'Dept User → HOD';
                 if (data.faculty) chain += ' → Dean';
-                chain += ' → PMD';
                 if (tce > 200000) chain += ' → Bursar';
-                if (tce > 500000) chain += ' → Finance Com. → VC → Proc. Com.';
+                if (tce > 500000) chain += ' → VC';
+                if (tce > 1000000) chain += ' → Council';
+                chain += ' → Finance Com. → PMD (Publish)';
                 return chain;
               })()}
             </span></div>

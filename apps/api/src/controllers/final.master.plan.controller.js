@@ -303,6 +303,7 @@ const getApprovedFinalPlanItems = async (req, res, next) => {
           planId: plan._id,
           planTitle: plan.title,
           planRef: plan.referenceNumber,
+          planYear: plan.planYear,
         });
       }
     }
