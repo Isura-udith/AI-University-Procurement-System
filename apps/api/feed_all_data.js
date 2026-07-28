@@ -125,7 +125,7 @@ const feedDatabase = async () => {
           { stage: 'bursar', approver: userEmailMap['bursar@uwu.ac.lk'], status: 'approved', actionDate: new Date(), comments: 'Costing Checked', estimatedBudget: mp.bursarEstimatedBudget },
           { stage: 'finance_committee', approver: userEmailMap['finance@uwu.ac.lk'], status: 'approved', actionDate: new Date(), comments: 'Finance Committee Approved' },
           { stage: 'vice_chancellor', approver: userEmailMap['vc@uwu.ac.lk'], status: 'approved', actionDate: new Date(), comments: 'VC Approved' },
-          { stage: 'council', approver: userEmailMap['admin@uwu.ac.lk'], status: 'approved', actionDate: new Date(), comments: 'Council Activated Plan' }
+          { stage: 'council', approver: userEmailMap['council@uwu.ac.lk'] || userEmailMap['admin@uwu.ac.lk'], status: 'approved', actionDate: new Date(), comments: 'Council Activated Plan' }
         ]
       });
       await plan.save();

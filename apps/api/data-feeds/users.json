@@ -56,6 +56,18 @@
     ]
   },
   {
+    "role": "council",
+    "firstName": "University",
+    "lastName": "Council",
+    "email": "council@uwu.ac.lk",
+    "employeeId": "UWU-EXE-003",
+    "department": "Executive Governance",
+    "faculty": "Administration",
+    "permissions": [
+      "approve_requisition", "reject_requisition", "view_reports"
+    ]
+  },
+  {
     "role": "bursar",
     "firstName": "Chief",
     "lastName": "Bursar",
