@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaCheck, FaPlus, FaShoppingCart, FaCheckCircle, FaArrowRight } from 'react-icons/fa';
+import { FaCheck, FaPlus, FaShoppingCart, FaCheckCircle, FaArrowRight, FaCoins } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
 
 const DISTRIBUTION_STEPS = [
-  { key: 'vc_distributed', label: 'VC → Finance Committee', role: 'vc' },
-  { key: 'finance_committee_verified', label: 'Finance Committee Verified', role: 'finance_committee' },
-  { key: 'bursar_confirmed', label: 'Bursar Confirmed', role: 'bursar' },
-  { key: 'dean_notified', label: 'Deans Notified', role: 'dean' },
-  { key: 'hod_notified', label: 'HODs Notified', role: 'department_head' },
-  { key: 'complete', label: 'Distribution Complete', role: null },
+  { key: 'vc_distributed', label: 'VC → Finance Committee', role: 'vc', actionLabel: 'Distribute (VC)' },
+  { key: 'finance_committee_verified', label: 'Finance Committee Verified', role: 'finance_committee', actionLabel: 'Verify (Finance Committee)' },
+  { key: 'bursar_confirmed', label: 'Bursar Confirmed', role: 'bursar', actionLabel: 'Confirm (Bursar)' },
+  { key: 'dean_notified', label: 'Deans Notified', role: 'dean', actionLabel: 'Notify Deans' },
+  { key: 'hod_notified', label: 'HODs Notified', role: 'department_head', actionLabel: 'Notify HODs' },
+  { key: 'complete', label: 'Distribution Complete', role: 'department_head', actionLabel: 'Complete Distribution' },
 ];
-
-
 
 function BudgetBar({ consumed, allocated }) {
   const pct = allocated > 0 ? Math.min(100, (consumed / allocated) * 100) : 0;
@@ -33,21 +31,27 @@ function DistributionStep({ step, currentStatus, userRole, onAdvance, loading })
   const stepIdx = steps.indexOf(step.key);
   const isDone = stepIdx <= currentIdx;
   const isCurrent = stepIdx === currentIdx + 1;
-  const canAct = isCurrent && step.role === userRole;
+
+  const isAuthorizedRole = step.role === userRole ||
+    ['super_admin', 'admin', 'vc', 'bursar'].includes(userRole) ||
+    (step.key === 'complete' && ['department_head', 'dean', 'bursar', 'vc', 'admin', 'super_admin'].includes(userRole));
+
+  const canAct = isCurrent && isAuthorizedRole;
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl ${isCurrent ? 'bg-emerald-50 border border-emerald-200' : ''}`}>
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0
-        ${isDone ? 'bg-emerald-500' : isCurrent ? 'bg-amber-500' : 'bg-slate-200'}`}>
-        {isDone ? <FaCheck className="text-white" size={12} /> : <span className="text-xs font-bold text-white">{stepIdx + 1}</span>}
+    <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isCurrent ? 'bg-amber-50 border border-amber-200' : isDone ? 'bg-emerald-50/50' : 'bg-slate-50'}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-medium transition-colors
+        ${isDone ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-200 text-slate-500'}`}>
+        {isDone ? <FaCheck size={12} /> : <span className="text-xs font-bold">{stepIdx + 1}</span>}
       </div>
       <div className="flex-1">
-        <p className={`text-sm font-semibold ${isDone ? 'text-emerald-700' : isCurrent ? 'text-amber-700' : 'text-slate-500'}`}>{step.label}</p>
+        <p className={`text-sm font-semibold ${isDone ? 'text-emerald-800' : isCurrent ? 'text-amber-800' : 'text-slate-500'}`}>{step.label}</p>
+        {isCurrent && <p className="text-xs text-amber-600 font-medium">Pending action</p>}
       </div>
       {canAct && (
         <button onClick={onAdvance} disabled={loading}
-          className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 disabled:opacity-60">
-          {loading ? '…' : 'Confirm'}
+          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-60 shrink-0">
+          {loading ? 'Processing…' : step.actionLabel || 'Confirm'}
         </button>
       )}
     </div>
@@ -84,6 +88,48 @@ export default function BudgetDistribution() {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleAnnualPlanChange = (planId) => {
+    const selectedPlan = annualPlans.find(p => (p._id === planId || p.id === planId));
+    if (!selectedPlan) {
+      setCreateForm(f => ({ ...f, annualPlanId: planId }));
+      return;
+    }
+
+    const year = selectedPlan.planYear || new Date().getFullYear();
+    const procBudget = selectedPlan.totalAllocatedBudget || selectedPlan.totalBudgetRequest || '';
+    const totalUnivBudget = procBudget ? Math.round(procBudget * 2.5) : '';
+
+    const deptMap = {};
+    if (Array.isArray(selectedPlan.items) && selectedPlan.items.length > 0) {
+      selectedPlan.items.forEach(item => {
+        const fac = item.faculty || DEPARTMENTS_AND_FACULTIES[0];
+        const dept = item.department || DEPARTMENTS_BY_FACULTY[fac]?.[0] || 'General';
+        const cost = Number(item.estimatedTotalCost) || 0;
+        const key = `${fac}||${dept}`;
+        if (!deptMap[key]) {
+          deptMap[key] = { faculty: fac, department: dept, allocatedAmount: 0 };
+        }
+        deptMap[key].allocatedAmount += cost;
+      });
+    }
+
+    const deptAllocations = Object.values(deptMap).map(d => ({
+      ...d,
+      allocatedAmount: d.allocatedAmount > 0 ? String(d.allocatedAmount) : '',
+    }));
+
+    setCreateForm(f => ({
+      ...f,
+      annualPlanId: planId,
+      budgetYear: year,
+      procurementBudget: procBudget ? String(procBudget) : '',
+      totalUniversityBudget: totalUnivBudget ? String(totalUnivBudget) : '',
+      departmentAllocations: deptAllocations.length > 0 ? deptAllocations : [
+        { faculty: DEPARTMENTS_AND_FACULTIES[0], department: DEPARTMENTS_BY_FACULTY[DEPARTMENTS_AND_FACULTIES[0]]?.[0] || '', allocatedAmount: '' }
+      ],
+    }));
+  };
+
   const handleAdvance = async (id) => {
     setAdvanceLoading(true);
     try {
@@ -91,7 +137,7 @@ export default function BudgetDistribution() {
       const updated = res.data?.data || res.data;
       setAllocations(prev => prev.map(a => a._id === id ? { ...a, distributionStatus: updated.distributionStatus } : a));
       toast.success('Distribution status advanced!');
-    } catch (err) { console.error(err); toast.error('Failed to advance'); }
+    } catch (err) { console.error(err); toast.error('Failed to advance distribution status'); }
     finally { setAdvanceLoading(false); }
   };
 
@@ -100,11 +146,15 @@ export default function BudgetDistribution() {
       toast.error('Please select an Annual Plan');
       return;
     }
+    if (!createForm.procurementBudget || Number(createForm.procurementBudget) <= 0) {
+      toast.error('Please enter a valid Procurement Budget');
+      return;
+    }
     try {
       const payload = {
         ...createForm,
         budgetYear: Number(createForm.budgetYear),
-        totalUniversityBudget: Number(createForm.totalUniversityBudget),
+        totalUniversityBudget: Number(createForm.totalUniversityBudget || createForm.procurementBudget),
         procurementBudget: Number(createForm.procurementBudget),
         departmentAllocations: createForm.departmentAllocations.map(d => ({ ...d, allocatedAmount: Number(d.allocatedAmount) })),
       };
@@ -121,7 +171,7 @@ export default function BudgetDistribution() {
 
   const fmtCurrency = (n) => n ? `LKR ${(Number(n) / 1000000).toFixed(1)}M` : '—';
   const fmtFull = (n) => n ? `LKR ${Number(n).toLocaleString()}` : '—';
-  const canCreate = ['vc', 'admin', 'super_admin'].includes(user?.role);
+  const canCreate = ['vc', 'admin', 'super_admin', 'bursar', 'finance_committee', 'finance_officer'].includes(user?.role);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -143,13 +193,13 @@ export default function BudgetDistribution() {
       {showCreate && (
         <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm p-6 space-y-5 animate-scale-in">
           <h2 className="font-semibold text-slate-800 border-b border-slate-100 pb-3">Create Budget Allocation</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan</label>
-              <select value={createForm.annualPlanId} onChange={e => setCreateForm(f => ({ ...f, annualPlanId: e.target.value }))}
+              <select value={createForm.annualPlanId} onChange={e => handleAnnualPlanChange(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="">— Select Plan —</option>
-                {annualPlans.map(p => <option key={p._id} value={p._id}>{p.referenceNumber} ({p.planYear})</option>)}
+                {annualPlans.map(p => <option key={p._id} value={p._id}>{p.referenceNumber || p.title} ({p.planYear})</option>)}
               </select>
             </div>
             <div>
@@ -220,24 +270,49 @@ export default function BudgetDistribution() {
 
       {/* Allocation Cards */}
       {loading ? (
-        <div className="flex items-center justify-center h-48 text-slate-400">Loading…</div>
+        <div className="flex items-center justify-center h-48 text-slate-400">Loading budget allocations…</div>
+      ) : allocations.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4">
+          <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
+            <FaCoins size={28} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">No Budget Allocations Found</h3>
+            <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
+              There are no active budget distributions in the system. Create a new budget allocation linked to an approved Annual Plan to distribute funds across faculties and departments.
+            </p>
+          </div>
+          {canCreate && (
+            <button onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all shadow-sm">
+              <FaPlus size={12} /> Create Budget Allocation
+            </button>
+          )}
+        </div>
       ) : allocations.map(alloc => (
-        <div key={alloc._id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div key={alloc._id} className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           {/* Alloc Header */}
-          <div className="px-6 py-5 border-b border-slate-100 bg-linear-to-r from-emerald-50 to-white">
+          <div className="px-6 py-5 border-b border-slate-100 bg-linear-to-r from-emerald-50/70 to-white">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <span className="font-mono text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg">{alloc.referenceNumber}</span>
-                <h3 className="font-bold text-slate-900 mt-1">Budget Year {alloc.budgetYear}</h3>
-                <p className="text-sm text-slate-500">University Budget: {fmtCurrency(alloc.totalUniversityBudget)} · Procurement: {fmtCurrency(alloc.procurementBudget)}</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg">{alloc.referenceNumber}</span>
+                  {alloc.annualPlanId && (
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
+                      Plan: {alloc.annualPlanId.referenceNumber || alloc.annualPlanId.title || 'Annual Plan'}
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg mt-1">Budget Year {alloc.budgetYear}</h3>
+                <p className="text-sm text-slate-500">University Total: {fmtCurrency(alloc.totalUniversityBudget)} · Procurement Budget: {fmtCurrency(alloc.procurementBudget)}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-xs text-slate-400">Consumed</p>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Consumed</p>
                   <p className="text-lg font-bold text-slate-800">{fmtCurrency(alloc.totalConsumed)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-400">Remaining</p>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Remaining</p>
                   <p className="text-lg font-bold text-emerald-700">{fmtCurrency(alloc.totalRemaining)}</p>
                 </div>
               </div>
@@ -266,10 +341,10 @@ export default function BudgetDistribution() {
                 {alloc.departmentAllocations?.map((dept, i) => {
                   const pct = dept.allocatedAmount > 0 ? Math.round((dept.consumedAmount / dept.allocatedAmount) * 100) : 0;
                   return (
-                    <div key={i} className="space-y-1.5">
+                    <div key={i} className="space-y-1.5 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
                       <div className="flex items-center justify-between text-xs">
                         <div>
-                          <span className="font-semibold text-slate-700">{dept.department}</span>
+                          <span className="font-semibold text-slate-800">{dept.department}</span>
                           <span className="text-slate-400 ml-1">({dept.faculty})</span>
                         </div>
                         <div className="text-right">
@@ -314,3 +389,4 @@ export default function BudgetDistribution() {
     </div>
   );
 }
+

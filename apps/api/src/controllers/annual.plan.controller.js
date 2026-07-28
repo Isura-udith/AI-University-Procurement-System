@@ -39,9 +39,8 @@ const createAnnualPlan = async (req, res, next) => {
     }
     if (!masterPlan) return res.status(404).json({ message: 'Master Plan not found' });
 
-    // If Master Plan / Final Master Plan is approved (active/council_approved/vc_approved/bursar_approved), Annual Plan is automatically active
-    const isMasterApproved = ['active', 'council_approved', 'vc_approved', 'bursar_approved'].includes(masterPlan.status);
-    const finalStatus = isMasterApproved ? 'active' : (status || 'draft');
+    // Annual Plans do not require internal approvals — set directly to active (or draft if specified)
+    const finalStatus = (status === 'draft') ? 'draft' : 'active';
 
     const formattedItems = (items || []).map(i => ({
       ...i,
@@ -75,7 +74,7 @@ const createAnnualPlan = async (req, res, next) => {
       await masterPlan.save();
     }
 
-    return created(res, plan, isMasterApproved ? 'Annual Procurement Plan created (Active — approved via Master Plan)' : 'Annual Procurement Plan created');
+    return created(res, plan, 'Annual Procurement Plan created (Active)');
   } catch (err) { next(err); }
 };
 
@@ -165,16 +164,15 @@ const updateAnnualPlan = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** POST /api/annual-plans/:id/submit — Submit to Dean */
+/** POST /api/annual-plans/:id/submit — Activate Annual Plan (no internal approvals needed) */
 const submitAnnualPlan = async (req, res, next) => {
   try {
     const plan = await AnnualPlan.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!plan) return res.status(404).json({ message: 'Annual Plan not found' });
-    if (plan.status !== 'draft') return res.status(400).json({ message: 'Plan already submitted' });
-    plan.status = 'dean_review';
+    plan.status = 'active';
     plan.submittedAt = new Date();
     await plan.save();
-    return success(res, plan, 'Submitted for Dean review');
+    return success(res, plan, 'Annual Plan activated');
   } catch (err) { next(err); }
 };
 
@@ -317,36 +315,10 @@ const confirmBudgetReceived = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** GET /api/annual-plans/pending — Plans pending my approval */
+/** GET /api/annual-plans/pending — Plans pending approval (Annual Plans require no internal approvals) */
 const getPendingAnnualPlans = async (req, res, next) => {
   try {
-    // Super admin sees ALL pending plans across all review stages
-    if (req.user.role === 'super_admin') {
-      const plans = await AnnualPlan.find({
-        tenantId: req.tenantId,
-        status: { $in: ['dean_review', 'bursar_review', 'finance_committee_review', 'vc_review', 'council_review'] },
-      })
-        .populate('createdBy', 'name email')
-        .populate('masterPlanId', 'title referenceNumber')
-        .sort({ createdAt: -1 });
-      return success(res, plans);
-    }
-
-    const stageFilter = {
-      dean: 'dean_review',
-      bursar: 'bursar_review',
-      finance_committee: 'finance_committee_review',
-      finance_officer: 'finance_committee_review',
-      vc: 'vc_review',
-      admin: 'council_review',
-    };
-    const statusToFilter = stageFilter[req.user.role];
-    if (!statusToFilter) return success(res, []);
-    const plans = await AnnualPlan.find({ tenantId: req.tenantId, status: statusToFilter })
-      .populate('createdBy', 'name email')
-      .populate('masterPlanId', 'title referenceNumber')
-      .sort({ createdAt: -1 });
-    return success(res, plans);
+    return success(res, []);
   } catch (err) { next(err); }
 };
 

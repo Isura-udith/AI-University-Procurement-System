@@ -3,19 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
-  FaArrowLeft, FaCheck, FaTimes, FaGlobeAsia, FaCheckCircle, FaMoneyBillWave, FaEdit,
+  FaArrowLeft, FaGlobeAsia, FaCheckCircle, FaMoneyBillWave, FaEdit,
   FaPaperPlane, FaCalendarAlt, FaSearch,
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
-// Internal approval chain (Phase 3 — internal leg)
-const INTERNAL_CHAIN = [
-  { stage: 'dean', label: 'Faculty Dean', color: 'blue' },
-  { stage: 'bursar', label: 'Chief Bursar', color: 'indigo' },
-  { stage: 'finance_committee', label: 'Finance Committee', color: 'purple' },
-  { stage: 'vice_chancellor', label: 'Vice Chancellor', color: 'violet' },
-  { stage: 'council', label: 'University Council', color: 'emerald' },
-];
 
 // External approval chain (Phase 3 — national leg)
 const EXTERNAL_CHAIN = [
@@ -24,17 +16,6 @@ const EXTERNAL_CHAIN = [
   { body: 'parliament', label: 'Parliament (Budget Approval)', icon: '🏫', color: 'purple' },
 ];
 
-const ROLE_TO_INTERNAL_STAGE = {
-  dean: 'dean', bursar: 'bursar',
-  finance_committee: 'finance_committee', finance_officer: 'finance_committee', vc: 'vice_chancellor',
-  admin: 'council', super_admin: 'council',
-};
-
-const INTERNAL_PENDING = {
-  dean_review: 'dean', bursar_review: 'bursar',
-  finance_committee_review: 'finance_committee', vc_review: 'vice_chancellor',
-  council_review: 'council',
-};
 
 const EXTERNAL_STATUS_LABELS = {
   not_submitted: 'Not Submitted',
@@ -133,8 +114,6 @@ export default function AnnualPlanDetail() {
   const { user } = useSelector(s => s.auth);
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [comment, setComment] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -150,15 +129,13 @@ export default function AnnualPlanDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const myStage = ROLE_TO_INTERNAL_STAGE[user?.role];
-  const pendingInternal = plan ? INTERNAL_PENDING[plan.status] : null;
-  const canActInternal = user?.role === 'super_admin' ? !!pendingInternal : (myStage && pendingInternal === myStage);
   const canRecordExternal = ['bursar', 'vc', 'admin', 'super_admin'].includes(user?.role);
   const canConfirmBudget = ['vc', 'bursar', 'admin', 'super_admin'].includes(user?.role);
   const canSubmit = plan?.status === 'draft' && ['department_head', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
-  // Show external approvals section when internal chain is done or already in external stage
+  // Show external approvals section when active or in external stage
   const showExternal = plan && (
+    plan.status === 'active' ||
     plan.status === 'ugc_submitted' ||
     plan.status === 'ugc_approved' ||
     plan.status === 'treasury_submitted' ||
@@ -166,9 +143,7 @@ export default function AnnualPlanDetail() {
     plan.status === 'parliament_submitted' ||
     plan.status === 'parliament_approved' ||
     plan.status === 'budget_received' ||
-    plan.status === 'distribution_complete' ||
-    // show once council approved
-    (plan.internalApprovals?.some(a => a.stage === 'council' && a.status === 'approved'))
+    plan.status === 'distribution_complete'
   );
 
   const handleSubmit = async () => {
@@ -176,20 +151,9 @@ export default function AnnualPlanDetail() {
     try {
       const res = await planningService.submitAnnualPlan(id);
       setPlan(res.data?.data || res.data);
-      toast.success('Submitted for Dean review!');
-    } catch (err) { toast.error(err?.response?.data?.message || 'Failed to submit'); }
+      toast.success('Annual Plan activated!');
+    } catch (err) { toast.error(err?.response?.data?.message || 'Failed to activate'); }
     finally { setSubmitting(false); }
-  };
-
-  const handleInternalAction = async (action) => {
-    setActionLoading(true);
-    try {
-      const res = await planningService.approveAnnualPlan(id, { action, comments: comment });
-      setPlan(res.data?.data || res.data);
-      toast.success(action === 'approve' ? 'Approved!' : 'Rejected.');
-      setComment('');
-    } catch (err) { toast.error(err?.response?.data?.message || 'Failed'); }
-    finally { setActionLoading(false); }
   };
 
   const handleExternalRecord = async (body, data) => {
@@ -239,7 +203,6 @@ export default function AnnualPlanDetail() {
     </div>
   );
 
-  const getInternalApproval = (stage) => plan.internalApprovals?.find(a => a.stage === stage);
   const getExternalApproval = (body) => plan.externalApprovals?.find(a => a.body === body);
 
   return (
@@ -275,7 +238,7 @@ export default function AnnualPlanDetail() {
             <button onClick={handleSubmit} disabled={submitting}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all disabled:opacity-60">
               <FaPaperPlane size={12} />
-              {submitting ? 'Submitting…' : 'Submit for Dean Review'}
+              {submitting ? 'Activating…' : 'Activate Annual Plan'}
             </button>
           )}
           {plan.status === 'budget_received' && canConfirmBudget && (
@@ -417,42 +380,25 @@ export default function AnnualPlanDetail() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Internal Approval Chain */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <h2 className="font-semibold text-slate-800 mb-3 text-sm">Internal Approvals</h2>
-            <div className="space-y-2">
-              {INTERNAL_CHAIN.map(step => {
-                const approval = getInternalApproval(step.stage);
-                const isCurrent = pendingInternal === step.stage;
-                return (
-                  <div key={step.stage} className={`flex items-center gap-2.5 p-2 rounded-lg ${isCurrent ? 'bg-blue-50' : ''}`}>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0
-                      ${approval?.status === 'approved' ? 'bg-emerald-500' : approval?.status === 'rejected' ? 'bg-red-500' : isCurrent ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                      {approval?.status === 'approved' ? <FaCheck className="text-white" size={10} /> :
-                       approval?.status === 'rejected' ? <FaTimes className="text-white" size={10} /> :
-                       <span className="text-xs text-white font-bold">{INTERNAL_CHAIN.findIndex(s => s.stage === step.stage) + 1}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold ${isCurrent ? 'text-blue-700' : approval?.status === 'approved' ? 'text-emerald-700' : 'text-slate-500'}`}>{step.label}</p>
-                      {approval?.comments && <p className="text-xs text-slate-400 truncate">{approval.comments}</p>}
-                      {isCurrent && !approval && <p className="text-xs text-blue-400 font-medium">Awaiting action</p>}
-                    </div>
-                    {approval?.actionDate && (
-                      <span className="text-xs text-slate-400 shrink-0">{new Date(approval.actionDate).toLocaleDateString()}</span>
-                    )}
-                  </div>
-                );
-              })}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <h2 className="font-semibold text-slate-800 text-sm">Internal Approvals</h2>
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium flex items-center gap-2">
+              <FaCheckCircle className="text-emerald-600 shrink-0" size={14} />
+              <span>Not Required (Automatically Active)</span>
             </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Annual Procurement Plans do not require separate internal approval stages and are directly active.
+            </p>
           </div>
 
           {/* Active Status Banner */}
           {plan.status === 'active' && (
             <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-4 space-y-2">
               <div className="flex items-center gap-2 text-emerald-800 font-semibold text-xs">
-                <FaCheckCircle className="text-emerald-600" size={14} /> Active Plan (Pre-Approved)
+                <FaCheckCircle className="text-emerald-600" size={14} /> Active Plan
               </div>
               <p className="text-xs text-emerald-700 leading-relaxed">
-                This Annual Procurement Plan is derived from an Approved 3-Year Master Plan ({plan.masterPlanRef}). No separate internal approval process is required!
+                This Annual Procurement Plan is Active ({plan.masterPlanRef ? `Derived from ${plan.masterPlanRef}` : 'Standalone'}). Internal approval is not required.
               </p>
             </div>
           )}
@@ -461,27 +407,7 @@ export default function AnnualPlanDetail() {
           {canSubmit && plan.status === 'draft' && (
             <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 space-y-2">
               <p className="text-xs font-semibold text-blue-700">This plan is in Draft status.</p>
-              <p className="text-xs text-blue-600">Click "Submit for Dean Review" above to begin the approval process.</p>
-            </div>
-          )}
-
-          {/* Action: Internal */}
-          {canActInternal && (
-            <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
-              <h2 className="font-semibold text-blue-800 text-sm">Your Approval Required</h2>
-              <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                placeholder="Comments…" />
-              <div className="flex gap-2">
-                <button onClick={() => handleInternalAction('approve')} disabled={actionLoading}
-                  className="flex-1 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 disabled:opacity-60">
-                  <FaCheck size={10} className="inline mr-1" /> Approve
-                </button>
-                <button onClick={() => handleInternalAction('reject')} disabled={actionLoading}
-                  className="flex-1 py-2 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-400 disabled:opacity-60">
-                  <FaTimes size={10} className="inline mr-1" /> Reject
-                </button>
-              </div>
+              <p className="text-xs text-blue-600">Click "Activate Annual Plan" above to set it to Active status.</p>
             </div>
           )}
 

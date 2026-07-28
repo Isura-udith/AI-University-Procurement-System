@@ -161,9 +161,6 @@ export default function CreateAnnualPlan() {
     return sum + (Number(item?.estimatedQuantity || 0) * Number(item?.estimatedUnitCost || 0));
   }, 0);
 
-  const selectedPlan = allMasterPlans.find(m => m._id === watchMasterPlanId);
-  const isPlanApproved = selectedPlan && ['active', 'council_approved', 'vc_approved', 'bursar_approved'].includes(selectedPlan.status);
-
   const onSave = async (data, submitAfter = false) => {
     setSaving(true);
     try {
@@ -177,17 +174,17 @@ export default function CreateAnnualPlan() {
       const payload = {
         ...data,
         items,
-        status: submitAfter ? (isPlanApproved ? 'active' : 'submitted') : 'draft',
+        status: submitAfter ? 'active' : 'draft',
       };
 
       if (id) {
         await planningService.updateAnnualPlan(id, payload);
-        toast.success('Annual Procurement Plan updated');
+        toast.success(submitAfter ? 'Annual Procurement Plan updated (Active)' : 'Annual Procurement Plan draft updated');
       } else {
         const res = await planningService.createAnnualPlan(payload);
         const newPlan = res.data?.data || res.data;
-        toast.success(isPlanApproved ? 'Annual Procurement Plan created (Active)' : 'Annual Procurement Plan created');
-        if (submitAfter && !isPlanApproved && newPlan?._id) {
+        toast.success(submitAfter ? 'Annual Procurement Plan created (Active)' : 'Annual Procurement Plan created');
+        if (submitAfter && newPlan?._id) {
           await planningService.submitAnnualPlan(newPlan._id);
         }
       }
@@ -253,12 +250,10 @@ export default function CreateAnnualPlan() {
                 )}
               </select>
               {errors.masterPlanId && <p className="text-red-500 text-xs mt-1">{errors.masterPlanId.message}</p>}
-              {isPlanApproved && (
-                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Selected {selectedPlan.planType === 'fmp' ? 'Final Master Plan' : '3-Year Master Plan'} is Approved ({selectedPlan.referenceNumber}). Derived Annual Plans are automatically Active and do not require re-approval.
-                </div>
-              )}
+              <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                Annual Procurement Plans do not require separate internal approval and are set directly to Active.
+              </div>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Title *</label>
@@ -415,7 +410,7 @@ export default function CreateAnnualPlan() {
           <button type="button" disabled={saving}
             onClick={handleSubmit(d => onSave(d, true))}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all disabled:opacity-60">
-            <FaPaperPlane size={13} /> Save & Submit for Dean Review
+            <FaPaperPlane size={13} /> Save & Activate Annual Plan
           </button>
         </div>
       </form>

@@ -8,7 +8,7 @@ import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Status' },
-  { value: 'active', label: 'Active (Approved via MPP)' },
+  { value: 'active', label: 'Active' },
   { value: 'draft', label: 'Draft' },
   { value: 'dean_review', label: 'Dean Review' },
   { value: 'finance_committee_review', label: 'Finance Committee' },

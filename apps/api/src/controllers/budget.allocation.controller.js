@@ -17,7 +17,16 @@ const createBudgetAllocation = async (req, res, next) => {
       distributedAt: new Date(),
     });
     await allocation.save();
-    return created(res, allocation, 'Budget allocation created');
+
+    // Sync status of linked AnnualPlan if provided
+    if (allocation.annualPlanId) {
+      await AnnualPlan.findByIdAndUpdate(allocation.annualPlanId, {
+        $addToSet: { budgetAllocationIds: allocation._id },
+        status: 'distribution_in_progress',
+      });
+    }
+
+    return created(res, allocation, 'Budget allocation created successfully');
   } catch (err) { next(err); }
 };
 
@@ -31,6 +40,7 @@ const getBudgetAllocations = async (req, res, next) => {
     const allocations = await BudgetAllocation.find(filter)
       .populate('distributedBy', 'name email')
       .populate('verifiedByBursar', 'name email')
+      .populate('annualPlanId', 'title planYear referenceNumber totalBudgetRequest status')
       .sort({ budgetYear: -1 });
 
     // Filter by faculty/dept if scoped role
@@ -56,7 +66,7 @@ const getBudgetAllocation = async (req, res, next) => {
   try {
     const allocation = await BudgetAllocation.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate('distributedBy', 'name email')
-      .populate('annualPlanId', 'title planYear referenceNumber');
+      .populate('annualPlanId', 'title planYear referenceNumber totalBudgetRequest status');
     if (!allocation) return res.status(404).json({ message: 'Budget Allocation not found' });
     return success(res, allocation);
   } catch (err) { next(err); }
@@ -77,7 +87,7 @@ const advanceDistribution = async (req, res, next) => {
     const next_status = transitions[allocation.distributionStatus];
     if (!next_status) return res.status(400).json({ message: 'Already at final distribution stage' });
     allocation.distributionStatus = next_status;
-    if (req.user.role === 'bursar' || (req.user.role === 'super_admin' && next_status === 'bursar_confirmed')) {
+    if (req.user.role === 'bursar' || (['super_admin', 'admin', 'vc'].includes(req.user.role) && next_status === 'bursar_confirmed')) {
       allocation.verifiedByBursar = req.user._id;
       allocation.verifiedAt = new Date();
     }
