@@ -5,7 +5,7 @@ import {
   FaTachometerAlt, FaClipboardList, FaCheckDouble, FaLock,
   FaFileAlt, FaBoxOpen, FaGavel, FaBalanceScale,
   FaFileContract, FaTruck, FaMoneyCheckAlt, FaChartBar,
-  FaUsers, FaShieldAlt, FaArchive, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
+  FaUsers, FaShieldAlt, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
   FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot, FaTable,
 } from 'react-icons/fa';
 import { logout } from '../app/store';
@@ -99,7 +99,6 @@ const navSections = [
       { path: '/users', label: 'User Management', icon: FaUserShield },
       { path: '/vendors', label: 'Vendors', icon: FaUsers },
       { path: '/reports', label: 'Reports & Audit', icon: FaChartBar },
-      { path: '/archive', label: 'Archive', icon: FaArchive },
     ]
   },
 ];

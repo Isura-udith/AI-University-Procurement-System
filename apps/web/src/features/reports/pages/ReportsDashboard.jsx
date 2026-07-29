@@ -148,25 +148,29 @@ export default function ReportsDashboard() {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* ── Premium Header ─────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-linear-to-bl from-purple-100/50 via-indigo-50/30 to-transparent rounded-bl-full pointer-events-none" />
+      {/* ── Header Section ─────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden border border-slate-800">
         <div className="relative z-10">
-          <div className="flex items-center space-x-2 mb-1">
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-extrabold rounded-full uppercase tracking-wider">Stage 15 Lifecycle</span>
+          <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none"> 
+            <FaChartBar size={160} />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Advanced Reporting & Audit Engine</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">Real-time procurement performance, GOSL compliance reports, & audit trail analytics</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center space-x-3">
+            <span>Advanced Reporting & Audit Engine</span>
+          </h1>
         </div>
         <div className="flex items-center space-x-3 relative z-10">
-          <button onClick={fetchData} className="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all" title="Refresh Reports">
-            <FaSync size={14} />
+          <button
+            onClick={() => fetchData(true)}
+            className="p-2.5 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors shadow-sm cursor-pointer"
+            title="Refresh Reports Data"
+          >
+            <FaSync className={loading ? "animate-spin text-purple-300" : ""} size={14} />
           </button>
           <button
             onClick={() => setIsGenerateModalOpen(true)}
-            className="px-6 py-3 bg-purple-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-purple-600/20 hover:bg-purple-500 transition-all flex items-center transform hover:-translate-y-0.5"
+            className="px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-colors shadow-md flex items-center space-x-2 cursor-pointer"
           >
-            <FaPlus className="mr-2" size={12} /> Generate New Report
+            <span>Generate New Report</span>
           </button>
         </div>
       </div>
