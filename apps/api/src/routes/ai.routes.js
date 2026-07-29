@@ -5,7 +5,7 @@ const {
   parseRequisition, getMarketAlerts, getRiskScore,
   getComparativeAnalysis, getHistoricalMatch, getDemandForecast,
   getExplainabilityLogs, getExplainabilityStats, getExplainabilityLog,
-  acknowledgeAlert, getAIStatus, askFlowiseChat, runInternalQuery,
+  acknowledgeAlert, getAIStatus, askFlowiseChat, proxyFlowisePrediction, runInternalQuery,
   uploadKnowledgeDocument, getKnowledgeDocuments, deleteKnowledgeDocument,
   processKnowledgeBase, scanDocumentsFolder,
   // New chat session endpoints
@@ -18,6 +18,10 @@ const { upload } = require('../integrations/file.storage');
 
 // Public route for local Flowise server (authenticated via shared secret header)
 router.post('/internal-query', runInternalQuery);
+
+// Flowise prediction proxy (enables embed chatbot authorization)
+router.post('/prediction', proxyFlowisePrediction);
+router.post('/prediction/:chatflowId', proxyFlowisePrediction);
 
 router.use(protect);
 

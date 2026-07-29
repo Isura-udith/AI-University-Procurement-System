@@ -27,6 +27,11 @@ const budgetAllocationRoutes = require('./budget.allocation.routes');
 const inventoryRoutes = require('./inventory.routes');
 // Workflow Engine
 const workflowRoutes = require('./workflow.routes');
+const { proxyFlowisePrediction } = require('../controllers/ai.controller');
+
+// Flowise prediction proxy for embedded chatbot widget
+router.post('/prediction/:chatflowId', proxyFlowisePrediction);
+router.post('/prediction', proxyFlowisePrediction);
 
 router.use('/auth', authRoutes);
 router.use('/procurements', procurementRoutes);

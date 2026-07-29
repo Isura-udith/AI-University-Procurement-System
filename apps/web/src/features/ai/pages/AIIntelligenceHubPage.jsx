@@ -23,7 +23,7 @@ const AI_FEATURES = [
     gradient: 'from-teal-500 to-emerald-600',
     badgeColor: 'bg-teal-100 text-teal-700 border-teal-200',
     path: '/ai/chat',
-    roles: ['department_user', 'department_head', 'procurement_officer', 'admin', 'vc', 'dean', 'super_admin'],
+    roles: ['department_user', 'department_head', 'procurement_officer', 'tec_member', 'bursar', 'finance_officer', 'finance_committee', 'contract_manager', 'auditor', 'supplies_division', 'store_manager', 'admin', 'vc', 'dean', 'super_admin'],
     requiresId: false,
     category: 'Requisition',
   },
@@ -251,7 +251,8 @@ export default function AIIntelligenceHubPage() {
 
         if (tRes.status === 'fulfilled') {
           const t = tRes.value || {};
-          setTenders((t.data || t.tenders || []).map(x => ({
+          const tList = t.data || t.tenders || (Array.isArray(t) ? t : []);
+          setTenders(tList.map(x => ({
             id:     x._id,
             label:  x.title || x.tenderNumber || 'Unnamed Tender',
             ref:    x.tenderNumber || '',
@@ -260,7 +261,8 @@ export default function AIIntelligenceHubPage() {
         }
         if (pRes.status === 'fulfilled') {
           const p = pRes.value || {};
-          setProcurements((p.data || p.procurements || []).map(x => ({
+          const pList = p.data || p.procurements || (Array.isArray(p) ? p : []);
+          setProcurements(pList.map(x => ({
             id:     x._id,
             label:  x.title || x.referenceNumber || 'Unnamed Procurement',
             ref:    x.referenceNumber || '',

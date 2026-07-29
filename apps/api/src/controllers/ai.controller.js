@@ -1121,6 +1121,34 @@ const scanDocumentsFolder = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+/**
+ * Flowise Prediction Proxy
+ * POST /ai/prediction/:chatflowId
+ */
+const proxyFlowisePrediction = async (req, res, next) => {
+  try {
+    const env = require('../config/env');
+    const chatflowId = req.params.chatflowId || env.FLOWISE_CHATFLOW_ID;
+    const targetUrl = `${env.FLOWISE_API_URL}/prediction/${chatflowId}`;
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (env.FLOWISE_API_KEY) {
+      headers['Authorization'] = `Bearer ${env.FLOWISE_API_KEY}`;
+    }
+
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req.body),
+    });
+
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getMarketPrice,
   verifyQuotations,
@@ -1137,6 +1165,7 @@ module.exports = {
   acknowledgeAlert,
   getAIStatus,
   askFlowiseChat,
+  proxyFlowisePrediction,
   runInternalQuery,
   uploadKnowledgeDocument,
   getKnowledgeDocuments,

@@ -371,9 +371,9 @@ class AIService {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getFlowiseHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ question, sessionId }),
-        signal: AbortSignal.timeout(6000), // 6s timeout (faster fallback to local RAG)
+        signal: AbortSignal.timeout(10000), // 10s timeout
       });
 
       if (!response.ok) {
