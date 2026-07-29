@@ -13,7 +13,6 @@ import { logout } from '../app/store';
 import { ROLES, ROLE_CONFIG, getRoleLabel } from '../constants/roles';
 import { canAccessRoute } from '../constants/routes';
 import { hasPermission, PERMISSIONS } from '../constants/permissions';
-import Footer from '../components/navigation/Footer';
 import Sidebar from '../components/navigation/Sidebar';
 import Navbar from '../components/navigation/Navbar';
 import messageService from '../services/message.service';
@@ -414,7 +413,6 @@ export default function DashboardLayout() {
         {/* Main Route Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50/50 flex flex-col">
           <Outlet context={{ category, setCategory, timeRange, setTimeRange }} />
-          <Footer variant="dashboard" theme="light" />
         </main>
       </div>
     </div>
