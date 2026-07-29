@@ -59,7 +59,7 @@ const AI_FEATURES = [
     id: 'smart-recommendations',
     feature: '3',
     title: 'Smart Decision Support',
-    subtitle: 'Trade-off Analysis (BEC)',
+    subtitle: 'Trade-off Analysis',
     description: 'Multi-dimensional vendor analysis providing Best Price, Best Value, Fastest Delivery, and Lowest Risk recommendations for the committee.',
     icon: FaBalanceScale,
     gradient: 'from-violet-500 to-purple-600',
@@ -166,45 +166,6 @@ const CATEGORY_COLORS = {
   Audit:       'bg-slate-50 text-slate-700 border-slate-200',
 };
 
-const STATUS_CFG = {
-  connected:      { bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', label: 'text-emerald-800', sub: 'text-emerald-700' },
-  quota_exceeded: { bg: 'bg-amber-50 border-amber-200',     dot: 'bg-amber-500',   label: 'text-amber-800',   sub: 'text-amber-700' },
-  unconfigured:   { bg: 'bg-red-50 border-red-200',         dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
-  error:          { bg: 'bg-red-50 border-red-200',         dot: 'bg-red-500',     label: 'text-red-800',     sub: 'text-red-700' },
-};
-
-const STATUS_LABELS = {
-  connected:      'Connected',
-  quota_exceeded: 'Quota Exceeded',
-  unconfigured:   'Not Configured',
-  error:          'Connection Error',
-};
-
-// ─── Sub-components ───────────────────────────────────────────────
-
-function AIStatusBanner({ aiStatus }) {
-  const cfg = STATUS_CFG[aiStatus.status] || {
-    bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400', label: 'text-slate-800', sub: 'text-slate-600',
-  };
-  return (
-    <div className={`flex items-start gap-3 rounded-2xl border px-5 py-3.5 ${cfg.bg}`}>
-      <span className={`mt-1.5 w-2.5 h-2.5 shrink-0 rounded-full ${cfg.dot} ${aiStatus.status === 'connected' ? 'animate-pulse' : ''}`} />
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm font-bold ${cfg.label}`}>
-          Gemini AI &mdash; {aiStatus.model || '?'}&nbsp;&middot;&nbsp;
-          {STATUS_LABELS[aiStatus.status] || aiStatus.status}
-        </p>
-        <p className={`text-xs mt-0.5 ${cfg.sub}`}>{aiStatus.message}</p>
-        {aiStatus.detail && aiStatus.status !== 'connected' && (
-          <details className="mt-1">
-            <summary className={`text-[11px] cursor-pointer font-semibold ${cfg.sub} opacity-70`}>Technical detail</summary>
-            <pre className={`mt-1 text-[10px] whitespace-pre-wrap break-all font-mono ${cfg.sub} opacity-80`}>{aiStatus.detail}</pre>
-          </details>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function IdPickerModal({ type, items, onSelect, onClose }) {
   const [search, setSearch] = useState('');
@@ -274,7 +235,6 @@ export default function AIIntelligenceHubPage() {
   const [loading,      setLoading]      = useState(true);
   const [picker,       setPicker]       = useState(null);
   const [filter,       setFilter]       = useState('All');
-  const [aiStatus,     setAiStatus]     = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,12 +271,6 @@ export default function AIIntelligenceHubPage() {
           setStats(sRes.value?.data || sRes.value);
         }
 
-        // Non-blocking AI status check
-        aiService.getAIStatus()
-          .then(r => { if (!cancelled) setAiStatus(r?.data || r); })
-          .catch(() => {
-            if (!cancelled) setAiStatus({ status: 'error', model: '', message: 'Could not reach the AI status endpoint.' });
-          });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -359,51 +313,36 @@ export default function AIIntelligenceHubPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
 
-      {/* Hero Header */}
-      <div className="relative overflow-hidden bg-linear-to-br from-slate-700 via-slate-600 to-slate-700 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
+      {/* ── Hero Banner ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaBrain size={160} /> 
         </div>
-        <div className="relative z-10 flex items-start justify-between flex-wrap gap-6">
-          <div>
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-900/30">
-                <FaBrain size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Gemini AI Powered</p>
-                <h1 className="text-3xl font-black text-white">AI Intelligence Hub</h1>
-              </div>
-            </div>
-            <p className="text-slate-300 max-w-xl text-sm leading-relaxed">
-              Nine integrated AI features powered by Google Gemini AI, designed for Sri Lanka&apos;s
-              Procurement Guidelines 2024.
-            </p>
-          </div>
 
-          {/* Stats KPIs */}
-          {!loading && stats && (
-            <div className="grid grid-cols-3 gap-3 shrink-0">
-              {[
-                { label: 'Total AI Analyses', value: stats.total      || 0,                        icon: FaRobot,      color: 'text-emerald-400' },
-                { label: 'Last 24 Hours',      value: stats.last24h   || 0,                        icon: FaChartLine,  color: 'text-blue-400'    },
-                { label: 'Feature Types',      value: stats.byFeature?.length || 0,                icon: FaChartBar,   color: 'text-violet-400'  },
-              ].map((s, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-center backdrop-blur-sm">
-                  <s.icon className={`mx-auto mb-2 ${s.color}`} size={18} />
-                  <p className="text-2xl font-black text-white">{s.value}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="relative z-10 space-y-1">
+          <div className="flex items-center space-x-2 mb-1">
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">AI Intelligence Hub</h1>
         </div>
+
+        {/* Stats KPIs */}
+        {!loading && stats && (
+          <div className="relative z-10 flex items-center gap-3 shrink-0">
+            {[
+              { label: 'Total AI Analyses', value: stats.total      || 0,                          color: 'text-emerald-400' }, 
+              { label: 'Last 24 Hours',      value: stats.last24h   || 0,                          color: 'text-blue-400'    },
+              { label: 'Feature Types',      value: stats.byFeature?.length || 0,                 color: 'text-violet-400'  },
+            ].map((s, i) => (
+              <div key={i} className="bg-white/10 border border-white/15 rounded-xl px-4 py-2.5 text-center backdrop-blur-md">
+                <p className="text-lg font-black text-white">{s.value}</p>
+                <p className="text-[10px] text-slate-300 font-semibold">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* AI Status Banner */}
-      {aiStatus && <AIStatusBanner aiStatus={aiStatus} />}
 
       {/* Category Filter */}
       <div className="flex items-center gap-2 flex-wrap">
