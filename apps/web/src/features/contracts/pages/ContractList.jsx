@@ -6,6 +6,8 @@ import ConfirmModal from '../../../components/ConfirmModal';
 import StatusBadge from '../../../components/StatusBadge';
 import { FaFileAlt } from 'react-icons/fa';
 
+import usePermissions from '../../../hooks/usePermissions';
+
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'draft', label: 'Draft' },
@@ -23,6 +25,7 @@ const TYPE_FILTERS = [
 ];
 
 export default function ContractList() {
+  const { role } = usePermissions();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -31,34 +34,48 @@ export default function ContractList() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [backendStats, setBackendStats] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await contractService.getAll();
-      const rawData = res.data || res || [];
-      const mapped = rawData.map((c) => {
-        const totalDeliv = c.deliverables?.length || 0;
-        const acceptedDeliv = c.deliverables?.filter((d) => d.status === 'accepted').length || 0;
-        const progressPct = totalDeliv > 0 ? Math.round((acceptedDeliv / totalDeliv) * 100) : 0;
+      const [res, statsRes] = await Promise.allSettled([
+        contractService.getAll(),
+        contractService.getStats()
+      ]);
 
-        return {
-          _id: c._id,
-          contractNumber: c.contractNumber,
-          title: c.title,
-          vendor: c.vendorId?.companyName || 'Unknown Vendor',
-          value: c.contractValue || 0,
-          status: c.status,
-          type: c.contractType || 'goods',
-          startDate: c.startDate ? c.startDate.split('T')[0] : '—',
-          endDate: c.endDate ? c.endDate.split('T')[0] : '—',
-          progress: progressPct,
-          performanceRating:
-            c.performanceRating ||
-            (c.slaMetrics?.[0]?.actual ? parseFloat(c.slaMetrics[0].actual) : null),
-        };
-      });
-      setData(mapped);
+      if (res.status === 'fulfilled') {
+        const rawData = res.value.data || res.value || [];
+        const mapped = rawData.map((c) => {
+          const totalDeliv = c.deliverables?.length || 0;
+          const acceptedDeliv = c.deliverables?.filter((d) => d.status === 'accepted').length || 0;
+          const progressPct = totalDeliv > 0 ? Math.round((acceptedDeliv / totalDeliv) * 100) : 0;
+
+          return {
+            _id: c._id,
+            contractNumber: c.contractNumber,
+            title: c.title,
+            vendor:
+              (typeof c.vendorId === 'object' && c.vendorId !== null)
+                ? (c.vendorId.companyName || c.vendorId.tradingName || c.vendorId.name || c.vendorId.contactPerson || 'Unknown Vendor')
+                : (c.vendorName || c.supplierName || (typeof c.tenderId === 'object' && c.tenderId?.awardedVendorId?.companyName) || (typeof c.vendorId === 'string' && !c.vendorId.match(/^[0-9a-fA-F]{24}$/) ? c.vendorId : 'Unknown Vendor')),
+            value: c.contractValue || 0,
+            status: c.status,
+            type: c.contractType || 'goods',
+            startDate: c.startDate ? c.startDate.split('T')[0] : '—',
+            endDate: c.endDate ? c.endDate.split('T')[0] : '—',
+            progress: progressPct,
+            performanceRating:
+              c.performanceRating ||
+              (c.slaMetrics?.[0]?.actual ? parseFloat(c.slaMetrics[0].actual) : null),
+          };
+        });
+        setData(mapped);
+      }
+
+      if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
+        setBackendStats(statsRes.value.data);
+      }
     } catch (err) {
       console.error('Failed to fetch contracts:', err);
       setData([]);
@@ -134,15 +151,20 @@ export default function ContractList() {
   const totalPages = Math.ceil(totalItems / perPage) || 1;
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const stats = {
+  const now = new Date();
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const calculatedStats = {
     total: data.length,
-    active: data.filter((d) => d.status === 'active').length,
-    expiring: data.filter((d) => d.status === 'expiring').length,
+    active: data.filter((d) => ['active', 'in_progress', 'pending_signature', 'loa_issued', 'draft'].includes(d.status)).length,
+    expiring: data.filter((d) => d.status === 'expiring' || (d.endDate && d.endDate !== '—' && new Date(d.endDate) >= now && new Date(d.endDate) <= thirtyDaysFromNow)).length,
     completed: data.filter((d) => d.status === 'completed').length,
     totalValue: data
-      .filter((d) => d.status === 'active' || d.status === 'expiring')
+      .filter((d) => d.status !== 'terminated')
       .reduce((s, d) => s + (d.value || 0), 0),
   };
+
+  const stats = backendStats || calculatedStats;
 
   const startItem = totalItems > 0 ? (page - 1) * perPage + 1 : 0;
   const endItem = Math.min(page * perPage, totalItems);
@@ -168,12 +190,14 @@ export default function ContractList() {
             >
               Export CSV
             </button>
-            <Link
-              to="/contracts/new"
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl transition-colors shadow-md"
-            >
-              + Create Contract
-            </Link>
+            {role !== 'supplier' && (
+              <Link
+                to="/contracts/new"
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl transition-colors shadow-md"
+              >
+                + Create Contract
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -21,20 +21,96 @@ class ContractService {
     // Supplier users can only see their own contracts
     if (userContext.role === 'supplier' && userContext.userId) {
       const Vendor = require('../models/vendor.model');
-      const vendor = await Vendor.findOne({ userId: userContext.userId, tenantId });
+      const User = require('../models/user.model');
+
+      const user = await User.findById(userContext.userId).select('email');
+
+      let vendor = await Vendor.findOne({
+        tenantId,
+        $or: [
+          { userId: userContext.userId },
+          ...(user?.email ? [{ email: user.email }] : [])
+        ]
+      });
+
       if (vendor) {
-        filters.vendorId = vendor._id;
+        if (!vendor.userId || String(vendor.userId) !== String(userContext.userId)) {
+          vendor.userId = userContext.userId;
+          await vendor.save().catch(() => {});
+        }
+        filters.$or = [
+          { vendorId: vendor._id },
+          { 'signatures.signatory': userContext.userId }
+        ];
       } else {
-        // Supplier with no vendor profile — return empty
-        return { data: [], total: 0, page, limit };
+        filters.$or = [
+          { createdBy: userContext.userId },
+          { 'signatures.signatory': userContext.userId }
+        ];
       }
     }
 
     const [data, total] = await Promise.all([
-      Contract.find(filters).populate('vendorId', 'companyName').populate('procurementId', 'referenceNumber title').sort(sort).skip(skip).limit(limit),
+      Contract.find(filters)
+        .populate('vendorId', 'companyName tradingName name contactPerson email')
+        .populate('procurementId', 'referenceNumber title')
+        .populate({ path: 'tenderId', select: 'tenderNumber title awardedVendorId', populate: { path: 'awardedVendorId', select: 'companyName tradingName name' } })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
       Contract.countDocuments(filters),
     ]);
     return { data, total, page, limit };
+  }
+
+  async getStats(tenantId, userContext = {}) {
+    const filters = { tenantId };
+
+    if (userContext.role === 'supplier' && userContext.userId) {
+      const Vendor = require('../models/vendor.model');
+      const User = require('../models/user.model');
+
+      const user = await User.findById(userContext.userId).select('email');
+
+      let vendor = await Vendor.findOne({
+        tenantId,
+        $or: [
+          { userId: userContext.userId },
+          ...(user?.email ? [{ email: user.email }] : [])
+        ]
+      });
+
+      if (vendor) {
+        filters.$or = [
+          { vendorId: vendor._id },
+          { 'signatures.signatory': userContext.userId }
+        ];
+      } else {
+        filters.$or = [
+          { createdBy: userContext.userId },
+          { 'signatures.signatory': userContext.userId }
+        ];
+      }
+    }
+
+    const contracts = await Contract.find(filters).select('status contractValue endDate');
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const activeCount = contracts.filter(c => ['active', 'in_progress', 'pending_signature', 'loa_issued', 'draft'].includes(c.status)).length;
+    const expiringCount = contracts.filter(c => c.status === 'expiring' || (c.endDate && new Date(c.endDate) >= now && new Date(c.endDate) <= thirtyDaysFromNow)).length;
+    const completedCount = contracts.filter(c => c.status === 'completed').length;
+    const totalValueSum = contracts
+      .filter(c => c.status !== 'terminated')
+      .reduce((sum, c) => sum + (c.contractValue || 0), 0);
+
+    return {
+      total: contracts.length,
+      active: activeCount,
+      expiring: expiringCount,
+      completed: completedCount,
+      totalValue: totalValueSum
+    };
   }
 
   async getById(id, tenantId) {

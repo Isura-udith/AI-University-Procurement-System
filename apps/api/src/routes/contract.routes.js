@@ -13,7 +13,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  createContract, getAllContracts, getContract, updateContract, deleteContract,
+  createContract, getAllContracts, getContractStats, getContract, updateContract, deleteContract,
   signContract, terminateContract, suspendContract, extendContract,
   addVariation, addAmendment, addMilestone, updateMilestone,
   addDeliverable, updateDeliverable, updatePerformance, markPaymentPaid,
@@ -23,6 +23,12 @@ const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
 
 router.use(protect);
+
+// KPI Stats
+router.get('/stats',
+  authorize('contract_manager', 'procurement_officer', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'auditor', 'supplier', 'super_admin'),
+  getContractStats
+);
 
 // Expiring contracts alerts (contract managers + admin)
 router.get('/expiring',
@@ -67,9 +73,9 @@ router.delete('/:id',
   deleteContract
 );
 
-// Digital signature (VC signs high-value contracts)
+// Digital signature (VC, Admin, Supplier signs contracts)
 router.post('/:id/sign',
-  authorize('vc', 'admin', 'super_admin'),
+  authorize('vc', 'admin', 'supplier', 'super_admin'),
   readOnlyGuard,
   signContract
 );

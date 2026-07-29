@@ -231,7 +231,7 @@ export default function ContractDetails() {
             <button onClick={() => setTerminateModal(true)} className="flex items-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors"><FaTimesCircle size={10} /><span>Terminate</span></button>
           </div>
         )}
-        {contract.status === 'pending_signature' && !hasUserSigned && (role === 'vc' || role === 'admin' || role === 'super_admin' || hasPermission(PERMISSIONS.SIGN_CONTRACT)) && (
+        {contract.status === 'pending_signature' && !hasUserSigned && (role === 'supplier' || role === 'vc' || role === 'admin' || role === 'super_admin' || hasPermission(PERMISSIONS.SIGN_CONTRACT)) && (
           <div className="flex items-center space-x-2">
             <button onClick={() => setSignModal(true)} className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm animate-pulse">
               <FaShieldAlt size={10} /><span>Sign Contract</span>
@@ -256,12 +256,22 @@ export default function ContractDetails() {
           <p className="text-sm font-bold text-slate-800 mt-1">{contract.startDate} → {contract.endDate}</p>
           <p className="text-[10px] text-slate-400">{daysRemaining}d remaining</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm cursor-pointer hover:border-amber-300 transition-colors" onClick={() => { setNewRating(contract.performanceRating || 0); setRatingModal(true); }}>
+        <div
+          className={`bg-white border border-slate-200 rounded-lg p-4 shadow-sm ${role !== 'supplier' ? 'cursor-pointer hover:border-amber-300' : ''} transition-colors`}
+          onClick={() => {
+            if (role !== 'supplier') {
+              setNewRating(contract.performanceRating || 0);
+              setRatingModal(true);
+            }
+          }}
+        >
           <p className="text-[10px] text-slate-400 uppercase font-bold">Performance</p>
           <div className="flex items-center space-x-1 mt-1">
             {Array.from({ length: 5 }, (_, i) => <FaStar key={i} size={14} className={i < Math.round(contract.performanceRating || 0) ? 'text-amber-400' : 'text-slate-200'} />)}
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">{(contract.performanceRating || 0).toFixed(1)}/5.0 — Click to edit</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            {(contract.performanceRating || 0).toFixed(1)}/5.0 {role !== 'supplier' ? '— Click to edit' : ''}
+          </p>
         </div>
       </div>
 

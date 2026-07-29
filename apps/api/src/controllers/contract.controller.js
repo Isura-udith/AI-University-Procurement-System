@@ -17,6 +17,12 @@ const getAllContracts = async (req, res, next) => {
     return paginated(res, data, total, page, limit);
   } catch (err) { next(err); }
 };
+const getContractStats = async (req, res, next) => {
+  try {
+    const stats = await contractService.getStats(req.tenantId, { role: req.user.role, userId: req.user._id });
+    return success(res, stats);
+  } catch (err) { next(err); }
+};
 const getContract = async (req, res, next) => {
   try { return success(res, await contractService.getById(req.params.id, req.tenantId)); } catch (err) { next(err); }
 };
@@ -79,7 +85,7 @@ const resolveDiscrepancy = async (req, res, next) => {
 };
 
 module.exports = {
-  createContract, getAllContracts, getContract, updateContract, deleteContract,
+  createContract, getAllContracts, getContractStats, getContract, updateContract, deleteContract,
   signContract, terminateContract, suspendContract, extendContract,
   addVariation, addAmendment, addMilestone, updateMilestone,
   addDeliverable, updateDeliverable, updatePerformance, markPaymentPaid,

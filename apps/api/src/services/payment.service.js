@@ -49,11 +49,26 @@ class PaymentService {
     // Supplier users can only see their own payments
     if (userContext.role === 'supplier' && userContext.userId) {
       const Vendor = require('../models/vendor.model');
-      const vendor = await Vendor.findOne({ userId: userContext.userId, tenantId });
+      const User = require('../models/user.model');
+
+      const user = await User.findById(userContext.userId).select('email');
+
+      let vendor = await Vendor.findOne({
+        tenantId,
+        $or: [
+          { userId: userContext.userId },
+          ...(user?.email ? [{ email: user.email }] : [])
+        ]
+      });
+
       if (vendor) {
+        if (!vendor.userId || String(vendor.userId) !== String(userContext.userId)) {
+          vendor.userId = userContext.userId;
+          await vendor.save().catch(() => {});
+        }
         filters.vendorId = vendor._id;
       } else {
-        return { data: [], total: 0, page, limit };
+        filters.createdBy = userContext.userId;
       }
     }
 

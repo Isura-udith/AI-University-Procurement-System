@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaSave, FaFileSignature, FaPlus, FaTrash, FaCalendarAlt, FaSpinner, FaShieldAlt, FaChevronLeft } from 'react-icons/fa';
+import { FaSave, FaFileSignature, FaPlus, FaTrash, FaCalendarAlt, FaSpinner, FaShieldAlt, FaChevronLeft, FaSearch, FaCheckCircle } from 'react-icons/fa';
 import contractService from '../../../services/contract.service';
 import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -21,6 +21,7 @@ export default function ContractCreate() {
   const [selectedTender, setSelectedTender] = useState(null);
   const [clearedTenders, setClearedTenders] = useState([]);
   const [loadingTenders, setLoadingTenders] = useState(false);
+  const [tenderSearch, setTenderSearch] = useState('');
 
   const [form, setForm] = useState({
     title: initialData.title ? `Contract for ${initialData.title}` : '',
@@ -45,30 +46,40 @@ export default function ContractCreate() {
       Promise.resolve().then(() => {
         setLoadingTenders(true);
         return Promise.all([
-          tenderService.getAll({ status: 'awarded,loa_issued,standstill,cleared,appealed' }),
-          contractService.getAll()
+          tenderService.getAll({ limit: 100 }),
+          contractService.getAll({ limit: 100 })
         ]);
-      }).then(([tendersRes, contractsRes]) => {
+      }).then(([tendersRes]) => {
         const items = tendersRes.data || tendersRes || [];
-        const contracts = contractsRes.data || contractsRes || [];
-        
-        const existingTenderIds = new Set(contracts.map(c => c.tenderId?._id || c.tenderId).filter(Boolean));
-        const filtered = items.filter(t => {
-          const id = t._id;
-          const isStandstillExpired = t.standstillEndDate && new Date(t.standstillEndDate) < new Date();
+
+        // Strictly filter ONLY tenders that have been selected/awarded to a supplier
+        const selectedOnly = items.filter(t => {
           const hasActiveAppeals = t.appeals && t.appeals.some(ap => ap.status === 'pending' || ap.status === 'under-review');
-          const isCleared = (t.status === 'cleared') || (isStandstillExpired && !hasActiveAppeals);
-          
-          return (t.status === 'cleared' || t.status === 'loa_issued' || isCleared) && !existingTenderIds.has(id);
+          if (hasActiveAppeals) return false;
+
+          const isSelected = ['awarded', 'loa_issued', 'standstill', 'cleared'].includes(t.status) || Boolean(t.awardedVendorId) || Boolean(t.winner);
+          return isSelected;
         });
-        setClearedTenders(filtered);
+
+        setClearedTenders(selectedOnly.length > 0 ? selectedOnly : items.filter(t => Boolean(t.awardedVendorId) || ['awarded', 'loa_issued', 'standstill', 'cleared'].includes(t.status)));
       }).catch(err => {
-        console.error('Failed to load tenders or contracts:', err);
+        console.error('Failed to load selected tenders:', err);
       }).finally(() => {
         setLoadingTenders(false);
       });
     }
   }, [initialData.title]);
+
+  const searchedTenders = useMemo(() => {
+    if (!tenderSearch.trim()) return clearedTenders;
+    const query = tenderSearch.toLowerCase();
+    return clearedTenders.filter(t => {
+      const vName = (t.winner?.name || t.awardedVendorId?.companyName || t.awardedVendorId?.tradingName || '').toLowerCase();
+      const num = (t.tenderNumber || '').toLowerCase();
+      const title = (t.title || '').toLowerCase();
+      return num.includes(query) || title.includes(query) || vName.includes(query);
+    });
+  }, [clearedTenders, tenderSearch]);
 
   const handleChange = (key, val) => {
     setForm(f => ({ ...f, [key]: val }));
@@ -218,49 +229,111 @@ export default function ContractCreate() {
 
       {/* Select Tender Dropdown (if loaded directly without initial state) */}
       {!initialData.title && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-sm font-bold text-slate-700 mb-2">Select Cleared Tender</h3>
-          {loadingTenders ? (
-            <div className="flex items-center space-x-2 text-sm text-slate-500">
-              <FaSpinner className="animate-spin text-emerald-600" />
-              <span>Loading cleared tenders...</span>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <FaCheckCircle className="text-emerald-600" />
+                Select Awarded / Selected Tender
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Choose from tenders awarded to selected suppliers to generate contract agreement
+              </p>
             </div>
-          ) : clearedTenders.length > 0 ? (
-            <select
-              onChange={async (e) => {
-                const id = e.target.value;
-                if (!id) return;
-                try {
-                  const res = await tenderService.getById(id);
-                  const tender = res.data || res;
-                  setSelectedTender(tender);
-                  setForm(f => ({
-                    ...f,
-                    title: `Contract for ${tender.title}`,
-                    vendorName: tender.winner?.name || '',
-                    tenderRef: tender.tenderNumber || '',
-                    loaRef: tender.loaRef || `LOA/UWU/2026/${tender._id.toString().slice(-3).toUpperCase()}`,
-                    type: tender.category?.toLowerCase() || 'goods',
-                    value: tender.winner?.bidAmount || '',
-                    description: tender.description || '',
-                    milestones: [{ title: 'Delivery & Commissioning', dueDate: '', amount: tender.winner?.bidAmount || '', deliverables: 'Full supply and installation' }],
-                  }));
-                } catch (err) {
-                  console.error('Failed to load tender details:', err);
-                  toast.error('Failed to load tender details.');
-                }
-              }}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-            >
-              <option value="">-- Choose a cleared tender awaiting contract --</option>
-              {clearedTenders.map(t => (
-                <option key={t._id} value={t._id}>
-                  {t.tenderNumber} - {t.title} ({t.winner?.name})
-                </option>
-              ))}
-            </select>
+
+            {clearedTenders.length > 0 && (
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                {clearedTenders.length} Selected Tender(s)
+              </span>
+            )}
+          </div>
+
+          {/* Search input for Selected Tenders */}
+          <div className="relative">
+            <FaSearch className="absolute left-3.5 top-3 text-slate-400 text-xs" />
+            <input
+              type="text"
+              value={tenderSearch}
+              onChange={(e) => setTenderSearch(e.target.value)}
+              placeholder="Search selected tenders by tender #, title, or supplier name..."
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+            />
+          </div>
+
+          {loadingTenders ? (
+            <div className="flex items-center space-x-2 text-xs text-slate-500 py-4">
+              <FaSpinner className="animate-spin text-emerald-600" />
+              <span>Loading selected tenders...</span>
+            </div>
+          ) : searchedTenders.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+              {searchedTenders.map((t) => {
+                const isSelected = selectedTender?._id === t._id;
+                const vName = t.winner?.name || t.awardedVendorId?.companyName || t.awardedVendorId?.tradingName || 'Awarded Supplier';
+                const amount = t.winner?.bidAmount || t.awardAmount || t.estimatedValue || 0;
+
+                return (
+                  <button
+                    key={t._id}
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await tenderService.getById(t._id);
+                        const tender = res.data || res;
+                        const vendorDisplayName = tender.winner?.name || tender.awardedVendorId?.companyName || tender.awardedVendorId?.tradingName || tender.awardedVendorId?.name || vName;
+                        const winValue = tender.winner?.bidAmount || tender.awardAmount || tender.estimatedValue || amount;
+                        setSelectedTender(tender);
+                        setForm(f => ({
+                          ...f,
+                          title: `Contract for ${tender.title}`,
+                          vendorName: vendorDisplayName,
+                          tenderRef: tender.tenderNumber || '',
+                          loaRef: tender.loaRef || `LOA/UWU/2026/${tender._id.toString().slice(-3).toUpperCase()}`,
+                          type: tender.category?.toLowerCase() || 'goods',
+                          value: winValue,
+                          description: tender.description || '',
+                          milestones: [{ title: 'Delivery & Commissioning', dueDate: '', amount: winValue, deliverables: 'Full supply and installation' }],
+                        }));
+                        toast.success(`Selected tender ${tender.tenderNumber} (${vendorDisplayName})`);
+                      } catch (err) {
+                        console.error('Failed to load tender details:', err);
+                        toast.error('Failed to load tender details.');
+                      }
+                    }}
+                    className={`p-3 text-left rounded-xl border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/80'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded">
+                          {t.tenderNumber}
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {t.status || 'Awarded'}
+                        </span>
+                      </div>
+                      <p className="font-bold text-xs text-slate-900 mt-2 line-clamp-1">{t.title}</p>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-600 truncate max-w-37.5">
+                        👤 {vName}
+                      </span>
+                      <span className="font-extrabold text-slate-900">
+                        LKR {Number(amount).toLocaleString()}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           ) : (
-            <p className="text-xs text-slate-500">No cleared tenders awaiting contract found. Tenders must be awarded and clear standstill first.</p>
+            <p className="text-xs text-slate-500 py-3">
+              {tenderSearch ? `No selected tenders match "${tenderSearch}".` : 'No awarded tenders available for contract creation.'}
+            </p>
           )}
         </div>
       )}

@@ -2,6 +2,7 @@ import api from './api';
 
 export const contractService = {
   getAll: (params) => api.get('/contracts', { params }),
+  getStats: () => api.get('/contracts/stats'),
   getById: (id) => api.get(`/contracts/${id}`),
   create: (data) => api.post('/contracts', data),
   update: (id, data) => api.put(`/contracts/${id}`, data),

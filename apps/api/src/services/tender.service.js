@@ -448,6 +448,45 @@ class TenderService {
     // Update the winning bid status to 'awarded'
     await Bid.updateOne({ _id: data.bidId, tenantId }, { status: 'awarded' });
 
+    // Auto-create or link contract record for the selected awarded supplier
+    try {
+      const Contract = require('../models/contract.model');
+      let contract = await Contract.findOne({ tenderId: tender._id, tenantId });
+      if (!contract && tender.procurementId) {
+        const contractCount = await Contract.countDocuments({ tenantId });
+        const year = new Date().getFullYear();
+        const contractNumber = `CNT-${year}-${String(contractCount + 1).padStart(4, '0')}`;
+
+        await Contract.create({
+          tenantId,
+          procurementId: tender.procurementId,
+          tenderId: tender._id,
+          bidId: data.bidId,
+          vendorId: data.vendorId,
+          contractNumber,
+          title: `Contract for ${tender.title}`,
+          description: tender.description || `Contract generated from awarded tender ${tender.tenderNumber}`,
+          contractType: tender.category || 'goods',
+          contractValue: data.amount || tender.estimatedValue || 0,
+          status: 'pending_signature',
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          createdBy: userId,
+          awardDate: new Date(),
+          standstillStartDate: tender.standstillStartDate,
+          standstillEndDate: tender.standstillEndDate,
+        });
+      } else if (contract) {
+        contract.vendorId = data.vendorId;
+        contract.bidId = data.bidId;
+        contract.contractValue = data.amount || contract.contractValue;
+        contract.awardDate = new Date();
+        await contract.save();
+      }
+    } catch (contractErr) {
+      logger.warn('Failed to auto-create contract during tender award', { error: contractErr.message });
+    }
+
     // Send notification to vendor if user account exists
     try {
       const vendor = await Vendor.findById(data.vendorId);
