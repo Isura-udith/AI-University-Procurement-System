@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaCheck, FaPlus, FaShoppingCart, FaCheckCircle, FaArrowRight, FaCoins } from 'react-icons/fa';
+import { FaCheck, FaPlus, FaCheckCircle, FaCoins, FaFileAlt, FaMoneyBillWave, FaExclamationTriangle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, ALL_DEPARTMENTS } from '../../../constants/departments';
@@ -174,19 +174,82 @@ export default function BudgetDistribution() {
   const canCreate = ['vc', 'admin', 'super_admin', 'bursar', 'finance_committee', 'finance_officer'].includes(user?.role);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Budget Distribution</h1>
-          <p className="text-sm text-slate-500 mt-1">Phase 4 · VC → Finance Committee → Bursar → Dean → HOD</p>
+    <div className="space-y-6 animate-fade-in pb-16 font-sans">
+      {/* ── Hero Banner ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaFileAlt size={160} /> 
         </div>
-        {canCreate && (
-          <button onClick={() => setShowCreate(!showCreate)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all shadow-sm">
-            <FaPlus size={12} /> New Allocation
-          </button>
-        )}
+
+        <div className="relative z-10 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Budget Distribution</h1>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-2.5 flex-wrap">
+          {canCreate && (
+            <button
+              onClick={() => setShowCreate(!showCreate)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95"
+            >
+              <FaPlus size={11} />
+              <span>New Allocation</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── KPI Summary Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Allocations</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{allocations.length}</p>
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Budget Allocations</p>
+          </div>
+          <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
+            <FaCoins size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Allocated</p>
+            <p className="text-xl font-black text-emerald-700 mt-1">
+              LKR {(allocations.reduce((acc, a) => acc + (a.procurementBudget || a.totalAllocated || 0), 0) / 1000000).toFixed(1)}M
+            </p>
+            <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Procurement Funds</p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <FaMoneyBillWave size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Consumed</p>
+            <p className="text-xl font-black text-amber-600 mt-1">
+              LKR {(allocations.reduce((acc, a) => acc + (a.totalConsumed || 0), 0) / 1000000).toFixed(1)}M
+            </p>
+            <p className="text-[10px] text-amber-600 font-semibold mt-0.5">Commitments / Purchases</p>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <FaExclamationTriangle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Remaining</p>
+            <p className="text-xl font-black text-blue-700 mt-1">
+              LKR {(allocations.reduce((acc, a) => acc + (a.totalRemaining || a.procurementBudget || 0), 0) / 1000000).toFixed(1)}M
+            </p>
+            <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Available Balance</p>
+          </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <FaCheckCircle size={18} />
+          </div>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -198,7 +261,7 @@ export default function BudgetDistribution() {
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Annual Plan</label>
               <select value={createForm.annualPlanId} onChange={e => handleAnnualPlanChange(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="">— Select Plan —</option>
+                <option value="">Select Plan</option>
                 {annualPlans.map(p => <option key={p._id} value={p._id}>{p.referenceNumber || p.title} ({p.planYear})</option>)}
               </select>
             </div>
@@ -373,13 +436,13 @@ export default function BudgetDistribution() {
                     <FaCheckCircle className="text-white" size={16} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-emerald-800">Distribution Complete — Procurement Enabled</p>
+                    <p className="text-sm font-bold text-emerald-800">Distribution Complete - Procurement Enabled</p>
                     <p className="text-xs text-emerald-600">Departments can now raise procurement requests against their allocated budgets.</p>
                   </div>
                 </div>
                 <Link to="/procurements/new"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-500 transition-all shadow-sm hover:shadow-md">
-                  <FaShoppingCart size={12} /> Create Request <FaArrowRight size={10} />
+                  Create Request
                 </Link>
               </div>
             </div>
