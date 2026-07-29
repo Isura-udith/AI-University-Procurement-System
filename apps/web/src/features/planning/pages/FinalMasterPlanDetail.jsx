@@ -4,8 +4,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   FaSpinner, FaArrowLeft, FaCheckCircle, FaTimesCircle,
-  FaClock, FaMoneyBillWave, FaThumbsUp, FaThumbsDown,
-  FaPaperPlane, FaCartPlus, FaClipboardList, FaUserShield,
+  FaClock, FaThumbsUp, FaThumbsDown,
+  FaPaperPlane,  FaClipboardList, FaUserShield,
   FaEdit
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
   vc_approved: { label: 'VC Approved', color: 'bg-fuchsia-100 text-fuchsia-800', icon: FaCheckCircle },
   council_review: { label: 'Council Review', color: 'bg-rose-100 text-rose-800', icon: FaClock },
   council_approved: { label: 'Council Approved', color: 'bg-emerald-100 text-emerald-800', icon: FaCheckCircle },
-  active: { label: 'Active ✓', color: 'bg-emerald-100 text-emerald-900', icon: FaCheckCircle },
+  active: { label: 'Active', color: 'bg-emerald-100 text-emerald-900', icon: FaCheckCircle },
   rejected: { label: 'Rejected', color: 'bg-rose-100 text-rose-800', icon: FaTimesCircle },
   archived: { label: 'Archived', color: 'bg-gray-100 text-gray-700', icon: FaClipboardList },
 };
@@ -175,7 +175,7 @@ export default function FinalMasterPlanDetail() {
     return (
       <div className="text-center py-16">
         <h2 className="text-xl font-bold text-slate-700">Plan not found</h2>
-        <Link to="/planning/final-master-plans" className="text-emerald-600 font-semibold text-sm mt-2 block">← Back to list</Link>
+        <Link to="/planning/final-master-plans" className="text-emerald-600 font-semibold text-sm mt-2 block">Back to list</Link>
       </div>
     );
   }
@@ -209,7 +209,6 @@ export default function FinalMasterPlanDetail() {
                 <StatusIcon /> {statusCfg.label}
               </div>
               <div className="text-emerald-300 flex items-center gap-1.5 font-bold text-lg justify-end">
-                <FaMoneyBillWave />
                 <span>LKR {(plan.totalEstimatedBudget || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
@@ -235,7 +234,7 @@ export default function FinalMasterPlanDetail() {
                   }}
                   className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition-all border border-emerald-400/30"
                 >
-                  <FaClipboardList size={10} /> Yr {yrNum} ({Number(plan.planYear || new Date().getFullYear()) + (yrNum - 1)})
+                   Yr {yrNum} ({Number(plan.planYear || new Date().getFullYear()) + (yrNum - 1)})
                 </Link>
               ))}
             </div>
@@ -315,7 +314,7 @@ export default function FinalMasterPlanDetail() {
                               to={`/procurements/new?fmpItemId=${item._id}&planId=${plan._id}`}
                               className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg transition-all"
                             >
-                              <FaCartPlus /> Create
+                              Create
                             </Link>
                           )}
                         </td>
@@ -494,7 +493,7 @@ export default function FinalMasterPlanDetail() {
                 to="/procurements/new"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl shadow-md transition-all"
               >
-                <FaCartPlus /> Create Procurement Request
+                Create Procurement Request
               </Link>
             </div>
           )}

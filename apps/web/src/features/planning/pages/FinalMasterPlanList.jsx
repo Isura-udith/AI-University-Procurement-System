@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
-  FaPlus, FaSpinner, FaClipboardList, FaSearch, FaChevronRight, FaMoneyBillWave, FaFilter
+  FaPlus, FaSpinner, FaClipboardList, FaSearch, FaChevronRight, FaMoneyBillWave, FaFilter, FaFileAlt, FaCheckCircle, FaExclamationTriangle
 } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 
@@ -21,7 +21,7 @@ const STATUS_CONFIG = {
   vc_approved: { label: 'VC Approved', color: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
   council_review: { label: 'Council Review', color: 'bg-rose-100 text-rose-800 border-rose-300' },
   council_approved: { label: 'Council Approved', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  active: { label: 'Active ✓', color: 'bg-emerald-100 text-emerald-900 border-emerald-400' },
+  active: { label: 'Active', color: 'bg-emerald-100 text-emerald-900 border-emerald-400' },
   rejected: { label: 'Rejected', color: 'bg-rose-100 text-rose-800 border-rose-300' },
   archived: { label: 'Archived', color: 'bg-gray-100 text-gray-700 border-gray-300' },
 };
@@ -94,25 +94,74 @@ export default function FinalMasterPlanList() {
   return (
     <div className="space-y-6 animate-fade-in pb-16 font-sans">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl p-6 bg-linear-to-br from-slate-900 via-slate-800 to-emerald-900 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl p-6 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 text-white shadow-xl">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaFileAlt size={160} /> 
+        </div>
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-extrabold text-[11px] uppercase tracking-wider rounded-full">
-                Strategic Planning
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Final Master Plans</h1>
-            <p className="text-xs text-slate-300 mt-1 max-w-xl">
-              Final Master Plans are compiled from approved draft procurement items. Each plan goes through a 6-stage approval workflow before items can create procurement requests.
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Final Master Plans</h1>
           </div>
           <Link
             to="/planning/final-master-plans/new"
-            className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/40 active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95"
           >
-            <FaPlus /> <span>Create Final Master Plan</span>
+            <FaPlus size={11} /> <span>Create Final Master Plan</span>
           </Link>
+        </div>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Final Plans</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{plans.length}</p>
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Compiled Plans</p>
+          </div>
+          <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
+            <FaClipboardList size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Plans</p>
+            <p className="text-2xl font-black text-emerald-700 mt-1">
+              {plans.filter(p => p.status === 'active' || p.status === 'council_approved').length}
+            </p>
+            <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Approved & Published</p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <FaCheckCircle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Action</p>
+            <p className="text-2xl font-black text-amber-600 mt-1">
+              {plans.filter(p => p.status.includes('review') || p.status.includes('submitted')).length}
+            </p>
+            <p className="text-[10px] text-amber-600 font-semibold mt-0.5">In Approval Pipeline</p>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <FaExclamationTriangle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Value</p>
+            <p className="text-xl font-black text-blue-700 mt-1">
+              LKR {(plans.reduce((acc, p) => acc + (p.totalEstimatedBudget || p.bursarEstimatedBudget || 0), 0) / 1000000).toFixed(1)}M
+            </p>
+            <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Estimated Budget</p>
+          </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <FaMoneyBillWave size={18} />
+          </div>
         </div>
       </div>
 
@@ -195,7 +244,7 @@ export default function FinalMasterPlanList() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
                   <FaMoneyBillWave className="text-emerald-500" />
-                  <span>LKR {(plan.totalEstimatedBudget || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span>LKR {(plan.totalEstimatedBudget || plan.bursarEstimatedBudget || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <span className="text-slate-400">
                   {plan.faculty || 'All Faculties'}
