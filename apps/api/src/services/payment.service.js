@@ -7,7 +7,24 @@ const logger = require('../config/logger');
 
 class PaymentService {
   async create(data, userId, tenantId) {
-    const payment = await Payment.create({ ...data, createdBy: userId, tenantId });
+    let vendorId = data.vendorId;
+    if (!vendorId) {
+      const Vendor = require('../models/vendor.model');
+      const vendor = await Vendor.findOne({ userId, tenantId });
+      if (vendor) vendorId = vendor._id;
+    }
+    const payment = await Payment.create({
+      ...data,
+      vendorId: vendorId || data.vendorId,
+      createdBy: userId,
+      tenantId,
+      paymentNumber: data.paymentNumber || `PV-${Date.now().toString().slice(-6)}`,
+      invoice: data.invoice || {
+        invoiceNumber: data.invoiceNumber || `INV-${Date.now().toString().slice(-6)}`,
+        invoiceDate: data.billingDate || new Date(),
+        amount: data.netAmount || data.amount || 0
+      }
+    });
     logger.audit('PAYMENT_CREATED', userId, { paymentId: payment._id });
     return payment;
   }

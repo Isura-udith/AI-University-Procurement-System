@@ -30,9 +30,9 @@ router.get('/:id',
   getPayment
 );
 
-// Create payment voucher (write roles only)
+// Create payment voucher / invoice submission
 router.post('/',
-  authorize('finance_officer', 'procurement_officer', 'admin', 'super_admin'),
+  authorize('finance_officer', 'procurement_officer', 'supplier', 'admin', 'super_admin'),
   readOnlyGuard,
   createPayment
 );

@@ -11,7 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  registerVendor, getAllVendors, getVendor, getMe,
+  registerVendor, getAllVendors, getVendor, getMe, updateMe,
   verifyVendor, blacklistVendor, updatePerformance, rejectVendor,
   approveAndSendSetupLink, getSetupAccountInfo, completeSetupAccount
 } = require('../controllers/vendor.controller');
@@ -32,6 +32,10 @@ router.get('/',
 router.get('/me',
   authorize('supplier'),
   getMe
+);
+router.put('/me',
+  authorize('supplier'),
+  updateMe
 );
 router.get('/:id',
   authorize('supplies_division', 'procurement_officer', 'contract_manager', 'admin', 'vc', 'bursar', 'finance_officer', 'auditor', 'supplier', 'super_admin'),

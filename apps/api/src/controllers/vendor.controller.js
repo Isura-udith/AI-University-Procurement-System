@@ -16,6 +16,9 @@ const getVendor = async (req, res, next) => {
 const getMe = async (req, res, next) => {
   try { return success(res, await vendorService.getByUserId(req.user._id, req.tenantId)); } catch (err) { next(err); }
 };
+const updateMe = async (req, res, next) => {
+  try { return success(res, await vendorService.updateMe(req.user._id, req.body, req.tenantId), 'Vendor profile updated'); } catch (err) { next(err); }
+};
 const verifyVendor = async (req, res, next) => {
   try { return success(res, await vendorService.verify(req.params.id, req.user._id, req.tenantId), 'Verified'); } catch (err) { next(err); }
 };
@@ -43,6 +46,6 @@ const completeSetupAccount = async (req, res, next) => {
 };
 
 module.exports = {
-  registerVendor, getAllVendors, getVendor, getMe, verifyVendor, blacklistVendor,
+  registerVendor, getAllVendors, getVendor, getMe, updateMe, verifyVendor, blacklistVendor,
   updatePerformance, rejectVendor, approveAndSendSetupLink, getSetupAccountInfo, completeSetupAccount
 };

@@ -38,6 +38,18 @@ class VendorService {
     return vendor;
   }
 
+  async updateMe(userId, data, tenantId) {
+    const vendor = await Vendor.findOne({ userId, tenantId });
+    if (!vendor) throw Object.assign(new Error('Vendor profile not found for this user'), { statusCode: 404 });
+    const allowedFields = ['companyName', 'registrationNumber', 'cidaGrade', 'taxId', 'email', 'phone', 'address', 'contactPerson', 'bankAccountName', 'bankAccountNumber', 'bankName'];
+    allowedFields.forEach(field => {
+      if (data[field] !== undefined) vendor[field] = data[field];
+    });
+    await vendor.save();
+    logger.audit('VENDOR_PROFILE_UPDATED', userId, { vendorId: vendor._id });
+    return vendor;
+  }
+
   async verify(id, userId, tenantId) {
     const vendor = await Vendor.findOne({ _id: id, tenantId });
     if (!vendor) throw Object.assign(new Error('Not found'), { statusCode: 404 });
