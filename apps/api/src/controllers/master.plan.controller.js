@@ -50,9 +50,12 @@ const getMasterPlans = async (req, res, next) => {
     const filter = { tenantId: req.tenantId };
     if (status) filter.status = status;
     if (cycleStart) filter.cycleStart = Number(cycleStart);
-    // HOD only sees their own; others see all
+    // HOD/Department user sees their own plans OR active/approved plans
     if (req.user.role === 'department_head' || req.user.role === 'department_user') {
-      filter.createdBy = req.user._id;
+      filter.$or = [
+        { createdBy: req.user._id },
+        { status: { $in: ['active', 'council_approved', 'parliament_approved', 'distribution_complete'] } }
+      ];
     }
     const [data, total] = await Promise.all([
       MasterPlan.find(filter).populate('createdBy', 'name email').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),

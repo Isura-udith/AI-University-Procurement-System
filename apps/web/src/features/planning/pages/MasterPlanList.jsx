@@ -34,14 +34,29 @@ export default function MasterPlanList() {
   const canCreate = ['department_head', 'bursar', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   useEffect(() => {
-    planningService.getMasterPlans({ limit: 50 })
-      .then(res => {
-        const data = res.data?.data || res.data || [];
-        setPlans(data);
+    Promise.all([
+      planningService.getMasterPlans({ limit: 100 }).catch(() => ({ data: [] })),
+      planningService.getFinalMasterPlans({ limit: 100 }).catch(() => ({ data: [] })),
+    ])
+      .then(([mppsRes, finalRes]) => {
+        const mppsData = (mppsRes.data?.data || mppsRes.data || []).map(p => ({
+          ...p,
+          isFinal: false,
+          detailPath: `/planning/master-plans/${p._id}`
+        }));
+        const finalData = (finalRes.data?.data || finalRes.data || []).map(p => ({
+          ...p,
+          isFinal: true,
+          cycleStart: p.cycleStart || (p.planYear ? p.planYear : 2028),
+          cycleEnd: p.cycleEnd || (p.planYear ? p.planYear + 2 : 2030),
+          totalEstimatedBudget: p.totalEstimatedBudget || p.bursarEstimatedBudget || 0,
+          detailPath: `/planning/final-master-plans/${p._id}`
+        }));
+        setPlans([...mppsData, ...finalData].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
       })
       .catch(() => {
         setPlans([]);
-        toast.error('Failed to load 3-Year master plans');
+        toast.error('Failed to load master plans');
       })
       .finally(() => setLoading(false));
   }, []);
@@ -129,7 +144,7 @@ export default function MasterPlanList() {
                             <FaEdit size={11} /> Edit
                           </Link>
                         )}
-                        <Link to={`/planning/master-plans/${plan._id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
+                        <Link to={plan.detailPath || `/planning/master-plans/${plan._id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors">
                           <FaEye size={11} /> View
                         </Link>
                       </div>

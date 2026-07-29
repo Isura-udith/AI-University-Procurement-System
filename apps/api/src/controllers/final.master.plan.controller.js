@@ -61,9 +61,12 @@ const getFinalMasterPlans = async (req, res, next) => {
     if (status) filter.status = status;
     if (planYear) filter.planYear = Number(planYear);
 
-    // Department users only see their own plans
+    // Department users see their own plans OR active/approved plans
     if (req.user.role === 'department_head' || req.user.role === 'department_user') {
-      filter.createdBy = req.user._id;
+      filter.$or = [
+        { createdBy: req.user._id },
+        { status: { $in: ['active', 'council_approved', 'parliament_approved', 'distribution_complete'] } }
+      ];
     }
     // Deans see plans from their faculty
     if (req.user.role === 'dean' && req.user.faculty) {

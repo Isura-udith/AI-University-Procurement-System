@@ -73,21 +73,25 @@ export default function WorkflowDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [mpps, annual, pendingMPP, pendingAnnual, budget] = await Promise.all([
-          planningService.getMasterPlans({ limit: 1 }),
-          planningService.getAnnualPlans({ limit: 1 }),
-          planningService.getPendingMasterPlans(),
-          planningService.getPendingAnnualPlans(),
-          planningService.getMyBudget(),
+        const [mpps, finalMpps, annual, pendingMPP, pendingAnnual, pendingFinal, budget] = await Promise.all([
+          planningService.getMasterPlans({ limit: 1 }).catch(() => ({ data: [] })),
+          planningService.getFinalMasterPlans({ limit: 1 }).catch(() => ({ data: [] })),
+          planningService.getAnnualPlans({ limit: 1 }).catch(() => ({ data: [] })),
+          planningService.getPendingMasterPlans().catch(() => ({ data: [] })),
+          planningService.getPendingAnnualPlans().catch(() => ({ data: [] })),
+          planningService.getPendingFinalMasterPlans().catch(() => ({ data: [] })),
+          planningService.getMyBudget().catch(() => ({ data: {} })),
         ]);
-        const mppTotal = mpps.pagination?.total ?? mpps.data?.pagination?.total ?? mpps.data?.total ?? 0;
+        const mppTotal = (mpps.pagination?.total ?? mpps.data?.pagination?.total ?? mpps.data?.total ?? 0) +
+                         (finalMpps.pagination?.total ?? finalMpps.data?.pagination?.total ?? finalMpps.data?.total ?? 0);
         const annualTotal = annual.pagination?.total ?? annual.data?.pagination?.total ?? annual.data?.total ?? 0;
         const pendMPP = pendingMPP.data?.data || pendingMPP.data || [];
         const pendAnn = pendingAnnual.data?.data || pendingAnnual.data || [];
+        const pendFin = pendingFinal.data?.data || pendingFinal.data || [];
         setStats({
           masterPlans: mppTotal,
           annualPlans: annualTotal,
-          pendingApprovals: (Array.isArray(pendMPP) ? pendMPP.length : 0) + (Array.isArray(pendAnn) ? pendAnn.length : 0),
+          pendingApprovals: (Array.isArray(pendMPP) ? pendMPP.length : 0) + (Array.isArray(pendAnn) ? pendAnn.length : 0) + (Array.isArray(pendFin) ? pendFin.length : 0),
           budget: budget.data?.data || budget.data || {},
         });
       } catch {
@@ -113,16 +117,17 @@ export default function WorkflowDashboard() {
       {/* Top Banner & Header */}
       <div className="bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">
+          <FaFileAlt size={160} />
+        </div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center space-x-2">
-            </div>
-            <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
-                      <FaFileAlt size={160} /> 
-                    </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 flex items-center space-x-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center space-x-3">
               <span>Procurement Workflow Dashboard</span>
             </h1>
+            <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-3xl">
+              Complete 45-Step Procurement Lifecycle mapped across 8 core phases — from strategic planning to store issuance.
+            </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

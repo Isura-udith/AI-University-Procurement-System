@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaGlobeAsia, FaChevronRight, FaPlus, FaLayerGroup, FaSitemap, FaBolt, FaClipboardCheck, FaTable } from 'react-icons/fa';
+import { FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaGlobeAsia, FaChevronRight, FaPlus, FaLayerGroup, FaSitemap, FaClipboardCheck, FaTable, FaFileAlt, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import ProcurementWorkflowTracker from '../../../components/ProcurementWorkflowTracker';
 
@@ -19,12 +19,26 @@ const COLOR_MAP = {
   emerald:{ bg: 'bg-emerald-50',border: 'border-emerald-200',icon: 'bg-emerald-600',text: 'text-emerald-700',badge: 'bg-emerald-100 text-emerald-700' },
 };
 
-function StatCard({ label, value, sub, color = 'slate' }) {
+function StatCard({ label, value, sub, icon: Icon, color = 'emerald' }) {
+  const colorMap = {
+    violet: { text: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-100', icon: 'text-violet-600' },
+    emerald: { text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: 'text-emerald-600' },
+    blue: { text: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-100', icon: 'text-blue-600' },
+    amber: { text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-100', icon: 'text-amber-600' },
+  }[color] || { text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-100', icon: 'text-slate-600' };
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-1">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-      <p className={`text-3xl font-bold text-${color}-700`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400">{sub}</p>}
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center justify-between hover:shadow-md transition-all">
+      <div>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className={`text-2xl sm:text-3xl font-black mt-1 ${colorMap.text}`}>{value}</p>
+        {sub && <p className="text-[11px] text-slate-400 font-medium mt-0.5">{sub}</p>}
+      </div>
+      {Icon && (
+        <div className={`p-3 rounded-xl ${colorMap.bg} ${colorMap.icon}`}>
+          <Icon size={20} />
+        </div>
+      )}
     </div>
   );
 }
@@ -39,26 +53,47 @@ export default function StrategicPlanningHub() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [mpps, annual, pendingMPP, pendingAnnual] = await Promise.all([
+        const [mpps, finalMPPs, annual, pendingMPP, pendingAnnual, pendingFinal] = await Promise.all([
           planningService.getMasterPlans({ limit: 100 }),
+          planningService.getFinalMasterPlans({ limit: 100 }),
           planningService.getAnnualPlans({ limit: 100 }),
-          planningService.getPendingMasterPlans(),
-          planningService.getPendingAnnualPlans(),
+          planningService.getPendingMasterPlans().catch(() => ({ data: [] })),
+          planningService.getPendingAnnualPlans().catch(() => ({ data: [] })),
+          planningService.getPendingFinalMasterPlans().catch(() => ({ data: [] })),
         ]);
-        const mppData = mpps.data?.data || mpps.data || [];
+
+        const mppData = (mpps.data?.data || mpps.data || []).map(p => ({
+          ...p,
+          isFinal: false,
+          detailPath: `/planning/master-plans/${p._id}`
+        }));
+
+        const finalData = (finalMPPs.data?.data || finalMPPs.data || []).map(p => ({
+          ...p,
+          isFinal: true,
+          cycleStart: p.cycleStart || (p.planYear ? p.planYear : 2028),
+          cycleEnd: p.cycleEnd || (p.planYear ? p.planYear + 2 : 2030),
+          totalEstimatedBudget: p.totalEstimatedBudget || p.bursarEstimatedBudget || 0,
+          detailPath: `/planning/final-master-plans/${p._id}`
+        }));
+
+        const combinedMPPs = [...mppData, ...finalData].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
         const annualData = annual.data?.data || annual.data || [];
         const pendMPP = pendingMPP.data?.data || pendingMPP.data || [];
         const pendAnn = pendingAnnual.data?.data || pendingAnnual.data || [];
-        // Use pagination total if available
-        const mppTotal = mpps.pagination?.total ?? mpps.data?.pagination?.total ?? mpps.data?.total ?? mppData.length;
+        const pendFinal = pendingFinal.data?.data || pendingFinal.data || [];
+
+        const mppTotal = (mpps.pagination?.total ?? mppData.length) + (finalMPPs.pagination?.total ?? finalData.length);
         const annualTotal = annual.pagination?.total ?? annual.data?.pagination?.total ?? annual.data?.total ?? annualData.length;
-        setRecentMPPs(mppData.slice(0, 4));
-        setRecentAnnual(annualData.slice(0, 4));
+
+        setRecentMPPs(combinedMPPs.slice(0, 5));
+        setRecentAnnual(annualData.slice(0, 5));
         setStats({
           masterPlans: mppTotal,
           annualPlans: annualTotal,
-          activeMPPs: mppData.filter(p => p.status === 'active').length,
-          pendingApprovals: pendMPP.length + pendAnn.length,
+          activeMPPs: combinedMPPs.filter(p => p.status === 'active' || p.status === 'council_approved').length,
+          pendingApprovals: (Array.isArray(pendMPP) ? pendMPP.length : 0) + (Array.isArray(pendAnn) ? pendAnn.length : 0) + (Array.isArray(pendFinal) ? pendFinal.length : 0),
         });
       } catch {
         // fallback to empty
@@ -82,24 +117,32 @@ export default function StrategicPlanningHub() {
   const canCreate = ['department_head', 'bursar', 'procurement_officer', 'admin', 'super_admin'].includes(user?.role);
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Strategic Procurement Planning</h1>
-          <p className="text-sm text-slate-500 mt-1">Phases 1–4 · 3-Year MPP → Annual Plan → Budget Approval → Distribution</p>
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Hero Banner ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaFileAlt size={160} /> 
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Link to="/workflow" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-all shadow-sm">
-            <FaSitemap size={12} /> 45-Step Lifecycle
+
+        <div className="relative z-10 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Strategic Planning Hub</h1>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-2.5 flex-wrap">
+          <Link to="/workflow" className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-bold rounded-xl transition-all shadow-xs backdrop-blur-md">
+            <FaSitemap size={12} className="text-emerald-400" />
+            <span>45-Step Lifecycle</span>
           </Link>
           {canCreate && (
             <>
-              <Link to="/planning/master-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-500 transition-all shadow-sm">
-                <FaPlus size={12} /> New Master Plan
+              <Link to="/planning/master-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-all shadow-md">
+                <FaPlus size={11} />
+                <span>New Master Plan</span>
               </Link>
-              <Link to="/planning/annual-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all shadow-sm">
-                <FaPlus size={12} /> New Annual Plan
+              <Link to="/planning/annual-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md">
+                <FaPlus size={11} />
+                <span>New Annual Plan</span>
               </Link>
             </>
           )}
@@ -108,11 +151,12 @@ export default function StrategicPlanningHub() {
 
       {/* KPI Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Master Plans" value={loading ? '—' : stats.masterPlans} sub="Total created" color="violet" />
-        <StatCard label="Active MPPs" value={loading ? '—' : stats.activeMPPs} sub="Council approved" color="emerald" />
-        <StatCard label="Annual Plans" value={loading ? '—' : stats.annualPlans} sub="Across all years" color="blue" />
-        <StatCard label="Pending My Action" value={loading ? '—' : stats.pendingApprovals} sub="Requires approval" color="amber" />
+        <StatCard label="Master Plans" value={loading ? '—' : stats.masterPlans} sub="3-Year MPP Total" icon={FaLayerGroup} color="violet" />
+        <StatCard label="Active MPPs" value={loading ? '—' : stats.activeMPPs} sub="Council Approved" icon={FaCheckCircle} color="emerald" />
+        <StatCard label="Annual Plans" value={loading ? '—' : stats.annualPlans} sub="Across All Years" icon={FaCalendarAlt} color="blue" />
+        <StatCard label="Pending Action" value={loading ? '—' : stats.pendingApprovals} sub="Requires Approval" icon={FaExclamationTriangle} color="amber" />
       </div>
+
 
       {/* Workflow Progress Ring + Next Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -151,7 +195,7 @@ export default function StrategicPlanningHub() {
         {/* Next Required Actions */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <FaBolt className="text-amber-500" size={12} /> Next Required Actions
+             Next Required Actions
           </h2>
           <div className="space-y-2">
             {!loading && recentMPPs.filter(p => p.status !== 'active' && p.status !== 'rejected').length === 0 &&
@@ -272,10 +316,10 @@ export default function StrategicPlanningHub() {
                 {canCreate && <Link to="/planning/master-plans/new" className="block mt-2 text-violet-600 font-semibold hover:underline">Create one →</Link>}
               </div>
             ) : recentMPPs.map(plan => (
-              <Link key={plan._id} to={`/planning/master-plans/${plan._id}`} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+              <Link key={plan._id} to={plan.detailPath || `/planning/master-plans/${plan._id}`} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
                 <div>
                   <p className="text-sm font-semibold text-slate-800 line-clamp-1">{plan.title}</p>
-                  <p className="text-xs text-slate-500">{plan.referenceNumber} · {plan.cycleStart}–{plan.cycleEnd}</p>
+                  <p className="text-xs text-slate-500">{plan.referenceNumber} {plan.cycleStart && plan.cycleEnd ? `· ${plan.cycleStart}–${plan.cycleEnd}` : ''}</p>
                 </div>
                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(plan.status)}`}>{fmtStatus(plan.status)}</span>
               </Link>
