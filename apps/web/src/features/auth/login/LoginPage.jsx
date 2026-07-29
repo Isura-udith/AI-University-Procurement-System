@@ -253,7 +253,7 @@ export default function LoginPage() {
                     {loading ? (
                       <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
                     ) : (
-                      <><FaSignInAlt size={15} /><span>Sign In to Portal</span></>
+                      <><span>Sign In to Portal</span></>
                     )}
                   </button>
                 </form>
