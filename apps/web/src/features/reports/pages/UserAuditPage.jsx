@@ -10,6 +10,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import auditLogService from '../../../services/audit.log.service';
 import userService from '../../../services/user.service';
+import authService from '../../../services/auth.service';
 import useAuth from '../../../hooks/useAuth';
 import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
@@ -195,6 +196,17 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
   const [userRoleFilter, setUserRoleFilter] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState('');
 
+  // Password Reset Requests State
+  const [resetRequests, setResetRequests] = useState([]);
+  const [resetRequestsLoading, setResetRequestsLoading] = useState(false);
+  const [showApproveResetModal, setShowApproveResetModal] = useState(false);
+  const [showRejectResetModal, setShowRejectResetModal] = useState(false);
+  const [selectedResetReq, setSelectedResetReq] = useState(null);
+  const [approvePasswordInput, setApprovePasswordInput] = useState('');
+  const [rejectReasonInput, setRejectReasonInput] = useState('');
+  const [resetReqActionLoading, setResetReqActionLoading] = useState(false);
+  const [resetReqMsg, setResetReqMsg] = useState({ type: '', text: '' });
+
   // Modals state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -293,12 +305,80 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
     }
   }, []);
 
+  const fetchResetRequests = useCallback(async () => {
+    if (!isAdmin) return;
+    setResetRequestsLoading(true);
+    try {
+      const res = await authService.getResetRequests();
+      const requests = res?.data || res || [];
+      setResetRequests(Array.isArray(requests) ? requests : []);
+    } catch (err) {
+      console.error('Failed to fetch password reset requests', err);
+    } finally {
+      setResetRequestsLoading(false);
+    }
+  }, [isAdmin]);
+
+  const handleOpenApproveResetModal = useCallback((req) => {
+    setSelectedResetReq(req);
+    const autoPass = `TempPass#${Math.floor(1000 + Math.random() * 9000)}`;
+    setApprovePasswordInput(autoPass);
+    setResetReqMsg({ type: '', text: '' });
+    setShowApproveResetModal(true);
+  }, []);
+
+  const handleOpenRejectResetModal = (req) => {
+    setSelectedResetReq(req);
+    setRejectReasonInput('User identity unverified');
+    setResetReqMsg({ type: '', text: '' });
+    setShowRejectResetModal(true);
+  };
+
+  const handleApproveResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedResetReq?._id || !approvePasswordInput) return;
+    setResetReqActionLoading(true);
+    setResetReqMsg({ type: '', text: '' });
+    try {
+      await authService.approveResetRequest(selectedResetReq._id, approvePasswordInput);
+      setResetReqMsg({ type: 'success', text: `Approved! Temporary password issued: ${approvePasswordInput}` });
+      setTimeout(() => {
+        setShowApproveResetModal(false);
+        fetchResetRequests();
+      }, 1500);
+    } catch (err) {
+      setResetReqMsg({ type: 'error', text: err?.message || 'Failed to approve password reset' });
+    } finally {
+      setResetReqActionLoading(false);
+    }
+  };
+
+  const handleRejectResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedResetReq?._id) return;
+    setResetReqActionLoading(true);
+    setResetReqMsg({ type: '', text: '' });
+    try {
+      await authService.rejectResetRequest(selectedResetReq._id, rejectReasonInput);
+      setResetReqMsg({ type: 'success', text: 'Password reset request declined.' });
+      setTimeout(() => {
+        setShowRejectResetModal(false);
+        fetchResetRequests();
+      }, 1200);
+    } catch (err) {
+      setResetReqMsg({ type: 'error', text: err?.message || 'Failed to reject reset request' });
+    } finally {
+      setResetReqActionLoading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchLogs();
       fetchStats();
       fetchUsersList();
       fetchUserStatsData();
+      fetchResetRequests();
     }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -311,8 +391,13 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
         fetchUserStatsData();
       }, 0);
       return () => clearTimeout(timer);
+    } else if (activeTab === 'reset-requests') {
+      const timer = setTimeout(() => {
+        fetchResetRequests();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [activeTab, fetchUsersList, fetchUserStatsData]);
+  }, [activeTab, fetchUsersList, fetchUserStatsData, fetchResetRequests]);
 
   /* ── Filter Handlers ─────────────────────────────────────────── */
   const handleFilter = (e) => {
@@ -591,6 +676,24 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                 </span>
               )}
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('reset-requests')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  activeTab === 'reset-requests'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <FaKey size={11} />
+                <span>Reset Requests</span>
+                {resetRequests.filter((r) => r.status === 'pending').length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-rose-500 text-white rounded-full font-extrabold animate-pulse">
+                    {resetRequests.filter((r) => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           <button
@@ -852,6 +955,173 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                   </div>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PASSWORD RESET REQUESTS TAB ────────────────────────── */}
+      {activeTab === 'reset-requests' && isAdmin && (
+        <div className="space-y-6">
+          {/* Overview Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Requests</p>
+                <p className="text-3xl font-extrabold text-slate-900 mt-1">{resetRequests.length}</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-bold">
+                <FaKey />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Review</p>
+                <p className="text-3xl font-extrabold text-amber-600 mt-1">
+                  {resetRequests.filter((r) => r.status === 'pending').length}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+                <FaClock />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Approved & Updated</p>
+                <p className="text-3xl font-extrabold text-emerald-600 mt-1">
+                  {resetRequests.filter((r) => r.status === 'approved').length}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                <FaCheckCircle />
+              </div>
+            </div>
+          </div>
+
+          {/* Reset Requests Table Container */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">Password Reset Requests</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Submitted by users for top-level administrator review and approval.
+                </p>
+              </div>
+              <button
+                onClick={fetchResetRequests}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer"
+              >
+                <FaSync className={resetRequestsLoading ? 'animate-spin' : ''} size={11} />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            {resetRequestsLoading ? (
+              <div className="p-12 text-center">
+                <div className="inline-block w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-xs text-slate-500 font-bold">Loading password reset requests...</p>
+              </div>
+            ) : resetRequests.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 text-2xl">
+                  <FaCheckCircle />
+                </div>
+                <p className="text-sm font-bold text-slate-700">No Password Reset Requests</p>
+                <p className="text-xs text-slate-500">There are no password reset requests pending in the system.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-4">User Details</th>
+                      <th className="px-6 py-4">Role & Department</th>
+                      <th className="px-6 py-4">Request Details</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {resetRequests.map((req) => (
+                      <tr key={req._id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-6 py-4 font-medium">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 font-extrabold flex items-center justify-center text-xs">
+                              {(req.userName || req.email || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">{req.userName || 'User'}</p>
+                              <p className="text-xs text-slate-500 font-mono">{req.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-bold rounded-lg text-[10px] uppercase tracking-wider inline-block mb-1">
+                            {req.userRole?.replace('_', ' ') || 'User'}
+                          </span>
+                          <p className="text-xs text-slate-500 font-medium">{req.department || 'Supplies Division'}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-slate-800 font-semibold">{req.reason || 'Forgot Password'}</p>
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                            {new Date(req.createdAt || req.requestedAt).toLocaleString()}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          {req.status === 'pending' && (
+                            <span className="px-3 py-1 bg-amber-100 text-amber-800 font-extrabold rounded-full text-[11px] inline-flex items-center space-x-1">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                              <span>Pending Review</span>
+                            </span>
+                          )}
+                          {req.status === 'approved' && (
+                            <div>
+                              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-extrabold rounded-full text-[11px] inline-flex items-center space-x-1">
+                                <FaCheckCircle size={10} />
+                                <span>Approved</span>
+                              </span>
+                              {req.temporaryPassword && (
+                                <p className="text-[10px] text-slate-500 font-mono mt-1">
+                                  Temp: <span className="font-bold text-slate-800">{req.temporaryPassword}</span>
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {req.status === 'rejected' && (
+                            <span className="px-3 py-1 bg-rose-100 text-rose-800 font-extrabold rounded-full text-[11px] inline-flex items-center space-x-1">
+                              <FaBan size={10} />
+                              <span>Declined</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {req.status === 'pending' ? (
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleOpenApproveResetModal(req)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+                              >
+                                <FaKey size={11} />
+                                <span>Approve & Issue Password</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenRejectResetModal(req)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                              >
+                                <span>Decline</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">Processed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -1550,6 +1820,162 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                   className="px-5 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-amber-600/20 hover:bg-amber-500 disabled:opacity-50 transition-all"
                 >
                   {modalLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── APPROVE PASSWORD RESET REQUEST MODAL ───────────── */}
+      {showApproveResetModal && selectedResetReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2 text-emerald-600">
+                <FaKey size={18} />
+                <h3 className="font-extrabold text-slate-900 text-lg">Approve Password Reset</h3>
+              </div>
+              <button
+                onClick={() => setShowApproveResetModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            {resetReqMsg.text && (
+              <div
+                className={`p-3 rounded-xl text-xs font-bold ${
+                  resetReqMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+                }`}
+              >
+                {resetReqMsg.text}
+              </div>
+            )}
+
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
+              <p className="font-bold text-slate-900">{selectedResetReq.userName} ({selectedResetReq.email})</p>
+              <p className="text-slate-500">Department: {selectedResetReq.department || 'N/A'}</p>
+              <p className="text-slate-500">Reason: {selectedResetReq.reason || 'Forgot Password'}</p>
+            </div>
+
+            <form onSubmit={handleApproveResetSubmit} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">New Password *</label>
+                  <button
+                    type="button"
+                    onClick={() => setApprovePasswordInput(`TempPass#${Math.floor(1000 + Math.random() * 9000)}`)}
+                    className="text-[11px] font-bold text-emerald-600 hover:underline cursor-pointer"
+                  >
+                    Auto-Generate
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={approvePasswordInput}
+                    onChange={(e) => setApprovePasswordInput(e.target.value)}
+                    placeholder="Enter or generate password"
+                    className="w-full pr-10 pl-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                  />
+                  {approvePasswordInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(approvePasswordInput);
+                        setCopiedKey(true);
+                        setTimeout(() => setCopiedKey(false), 2000);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {copiedKey ? <FaCheck className="text-emerald-500" size={12} /> : <FaCopy size={12} />}
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  This password will be assigned to the user account and notified in system alerts.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowApproveResetModal(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetReqActionLoading}
+                  className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-50 transition-all flex items-center space-x-2 cursor-pointer"
+                >
+                  {resetReqActionLoading ? (
+                    <span>Updating...</span>
+                  ) : (
+                    <>
+                      <FaCheckCircle size={12} />
+                      <span>Approve & Update Password</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── REJECT PASSWORD RESET REQUEST MODAL ─────────────── */}
+      {showRejectResetModal && selectedResetReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2 text-rose-600">
+                <FaBan size={18} />
+                <h3 className="font-extrabold text-slate-900 text-lg">Decline Password Reset</h3>
+              </div>
+              <button
+                onClick={() => setShowRejectResetModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            {resetReqMsg.text && (
+              <div className="p-3 bg-rose-50 text-rose-800 rounded-xl text-xs font-bold">
+                {resetReqMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleRejectResetSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Reason for Rejection *</label>
+                <textarea
+                  required
+                  value={rejectReasonInput}
+                  onChange={(e) => setRejectReasonInput(e.target.value)}
+                  rows={3}
+                  className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectResetModal(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetReqActionLoading}
+                  className="px-5 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-rose-600/20 hover:bg-rose-500 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  {resetReqActionLoading ? 'Declining...' : 'Decline Request'}
                 </button>
               </div>
             </form>

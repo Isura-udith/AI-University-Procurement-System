@@ -49,16 +49,41 @@ const changePassword = async (req, res, next) => {
 
 const forgotPassword = async (req, res, next) => {
   try {
-    const result = await authService.forgotPassword(req.body.email, getReqContext(req));
-    return success(res, { message: 'Reset token sent' });
+    const result = await authService.forgotPassword(req.body.email, req.body.reason, getReqContext(req));
+    return success(res, result, 'Password reset request submitted');
   } catch (err) { next(err); }
 };
 
 const resetPassword = async (req, res, next) => {
   try {
     const { hashString } = require('../utils/hash');
-    const hashedToken = hashString(req.params.token);
+    const token = req.params.token || req.body.token;
+    if (!token) {
+      throw Object.assign(new Error('Reset token is required'), { statusCode: 400 });
+    }
+    const hashedToken = hashString(token);
     const result = await authService.resetPassword(hashedToken, req.body.password, getReqContext(req));
+    return success(res, result);
+  } catch (err) { next(err); }
+};
+
+const getResetRequests = async (req, res, next) => {
+  try {
+    const result = await authService.getResetRequests(req.user.tenantId);
+    return success(res, result);
+  } catch (err) { next(err); }
+};
+
+const approveResetRequest = async (req, res, next) => {
+  try {
+    const result = await authService.approveResetRequest(req.params.requestId, req.body.newPassword, req.user, getReqContext(req));
+    return success(res, result);
+  } catch (err) { next(err); }
+};
+
+const rejectResetRequest = async (req, res, next) => {
+  try {
+    const result = await authService.rejectResetRequest(req.params.requestId, req.body.reason, req.user, getReqContext(req));
     return success(res, result);
   } catch (err) { next(err); }
 };
@@ -75,5 +100,17 @@ const logout = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, updateProfile, changePassword, forgotPassword, resetPassword, logout };
+module.exports = {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  getResetRequests,
+  approveResetRequest,
+  rejectResetRequest,
+  logout,
+};
 

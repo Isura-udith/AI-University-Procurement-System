@@ -6,8 +6,11 @@ export const authService = {
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data) => api.put('/auth/profile', data),
   changePassword: (data) => api.put('/auth/change-password', data),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+  forgotPassword: (email, reason) => api.post('/auth/forgot-password', { email, reason }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+  getResetRequests: () => api.get('/auth/reset-requests'),
+  approveResetRequest: (requestId, newPassword) => api.post(`/auth/reset-requests/${requestId}/approve`, { newPassword }),
+  rejectResetRequest: (requestId, reason) => api.post(`/auth/reset-requests/${requestId}/reject`, { reason }),
   logout: () => api.post('/auth/logout'),
 };
 

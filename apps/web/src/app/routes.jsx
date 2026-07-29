@@ -143,6 +143,7 @@ export default function RoutesConfig() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/vendor-register" element={<VendorRegister />} />
       <Route path="/supplier/setup-account" element={<SetupSupplierAccount />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />

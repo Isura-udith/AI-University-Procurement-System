@@ -190,25 +190,170 @@ class AuthService {
     return { message: 'Password changed successfully' };
   }
 
-  async forgotPassword(email, reqContext = {}) {
+  async forgotPassword(email, reason = 'Forgot Password', reqContext = {}) {
     const user = await User.findOne({ email });
-    if (!user) throw Object.assign(new Error('No user found with this email'), { statusCode: 404 });
-    const { token, hashedToken } = generateResetToken();
-    user.passwordResetToken = hashedToken;
-    user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
-    await user.save();
-    logger.audit('PASSWORD_RESET_REQUESTED', user._id, { email });
+    if (!user) throw Object.assign(new Error('No user found with this email address'), { statusCode: 404 });
 
-    // Audit: Password reset requested
+    const PasswordResetRequest = require('../models/passwordResetRequest.model');
+    const Notification = require('../models/notification.model');
+
+    // Create or update pending password reset request
+    let resetReq = await PasswordResetRequest.findOne({ user: user._id, status: 'pending' });
+    if (resetReq) {
+      resetReq.requestedAt = new Date();
+      resetReq.reason = reason || 'Forgot Password Request';
+      await resetReq.save();
+    } else {
+      resetReq = await PasswordResetRequest.create({
+        tenantId: user.tenantId || 'uwu-main',
+        user: user._id,
+        email: user.email,
+        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        userRole: user.role,
+        department: user.department || 'N/A',
+        reason: reason || 'Forgot Password Request',
+        status: 'pending',
+      });
+    }
+
+    // Find all top-level system administrators
+    const adminUsers = await User.find({ role: 'admin', isActive: true });
+    
+    // Dispatch in-app notification to all top-level admins
+    for (const admin of adminUsers) {
+      try {
+        await Notification.create({
+          tenantId: user.tenantId || 'uwu-main',
+          recipient: admin._id,
+          recipientRole: admin.role,
+          recipientEmail: admin.email,
+          type: 'system',
+          title: '🔑 Password Reset Request',
+          message: `User ${user.firstName || ''} ${user.lastName || ''} (${user.email}) requested a password reset. Please review and approve in User Management.`,
+          priority: 'high',
+          severity: 'warning',
+          category: 'system',
+          referenceType: 'user',
+          referenceId: user._id,
+          link: '/users?tab=reset-requests',
+        });
+      } catch (notifErr) {
+        logger.warn('Notification to admin failed', { adminId: admin._id, error: notifErr.message });
+      }
+    }
+
+    logger.audit('PASSWORD_RESET_REQUESTED_TO_ADMIN', user._id, { email: user.email });
+
     await auditLogService.log({
-      action: 'PASSWORD_RESET_REQUESTED',
+      action: 'PASSWORD_RESET_REQUESTED_TO_ADMIN',
       user,
       tenantId: user.tenantId,
       ipAddress: reqContext.ip,
       userAgent: reqContext.userAgent,
+      metadata: { requestId: resetReq._id, adminCount: adminUsers.length },
     });
 
-    return { resetToken: token, message: 'Password reset token generated' };
+    return {
+      success: true,
+      requestId: resetReq._id,
+      message: 'Your password reset request has been submitted to top-level system administrators. An administrator will review and approve your request.',
+    };
+  }
+
+  async getResetRequests(tenantId = 'uwu-main') {
+    const PasswordResetRequest = require('../models/passwordResetRequest.model');
+    return PasswordResetRequest.find({ tenantId }).sort('-createdAt').populate('user', 'firstName lastName email role department');
+  }
+
+  async approveResetRequest(requestId, newPassword, adminUser, reqContext = {}) {
+    const PasswordResetRequest = require('../models/passwordResetRequest.model');
+    const Notification = require('../models/notification.model');
+
+    const resetReq = await PasswordResetRequest.findById(requestId);
+    if (!resetReq) throw Object.assign(new Error('Password reset request not found'), { statusCode: 404 });
+    if (resetReq.status !== 'pending') throw Object.assign(new Error(`Request has already been ${resetReq.status}`), { statusCode: 400 });
+
+    const targetUser = await User.findById(resetReq.user);
+    if (!targetUser) throw Object.assign(new Error('Target user account not found'), { statusCode: 404 });
+
+    // Update target user password (pre-save hook hashes with bcrypt)
+    targetUser.password = newPassword;
+    targetUser.passwordResetToken = undefined;
+    targetUser.passwordResetExpires = undefined;
+    await targetUser.save();
+
+    // Mark request as approved
+    resetReq.status = 'approved';
+    resetReq.approvedBy = adminUser._id;
+    resetReq.approvedByName = `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim();
+    resetReq.approvedAt = new Date();
+    resetReq.temporaryPassword = newPassword;
+    await resetReq.save();
+
+    // Notify user of password approval
+    try {
+      await Notification.create({
+        tenantId: targetUser.tenantId || 'uwu-main',
+        recipient: targetUser._id,
+        type: 'system',
+        title: '✅ Password Reset Approved',
+        message: `Your password reset request has been approved by Administrator ${adminUser.firstName} ${adminUser.lastName}. Temporary Password: ${newPassword}`,
+        priority: 'high',
+        severity: 'success',
+        category: 'system',
+        referenceType: 'user',
+        referenceId: targetUser._id,
+      });
+    } catch (err) {
+      logger.warn('Failed to send approval notification to user', { userId: targetUser._id });
+    }
+
+    logger.audit('PASSWORD_RESET_APPROVED_BY_ADMIN', targetUser._id, { approvedBy: adminUser._id });
+
+    await auditLogService.log({
+      action: 'PASSWORD_RESET_APPROVED_BY_ADMIN',
+      user: adminUser,
+      tenantId: adminUser.tenantId,
+      ipAddress: reqContext.ip,
+      userAgent: reqContext.userAgent,
+      metadata: { targetUserId: targetUser._id, targetEmail: targetUser.email, requestId },
+    });
+
+    return { message: 'Password reset approved and user password updated successfully', requestId, temporaryPassword: newPassword };
+  }
+
+  async rejectResetRequest(requestId, rejectionReason, adminUser, reqContext = {}) {
+    const PasswordResetRequest = require('../models/passwordResetRequest.model');
+    const Notification = require('../models/notification.model');
+
+    const resetReq = await PasswordResetRequest.findById(requestId);
+    if (!resetReq) throw Object.assign(new Error('Password reset request not found'), { statusCode: 404 });
+    if (resetReq.status !== 'pending') throw Object.assign(new Error(`Request has already been ${resetReq.status}`), { statusCode: 400 });
+
+    resetReq.status = 'rejected';
+    resetReq.rejectedBy = adminUser._id;
+    resetReq.rejectedByName = `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim();
+    resetReq.rejectedAt = new Date();
+    resetReq.rejectionReason = rejectionReason || 'Rejected by Administrator';
+    await resetReq.save();
+
+    // Notify user
+    try {
+      await Notification.create({
+        tenantId: resetReq.tenantId || 'uwu-main',
+        recipient: resetReq.user,
+        type: 'system',
+        title: '❌ Password Reset Request Declined',
+        message: `Your password reset request was declined by Administrator. Reason: ${rejectionReason || 'Contact system admin'}`,
+        priority: 'normal',
+        severity: 'error',
+        category: 'system',
+      });
+    } catch (err) {
+      logger.warn('Failed to send rejection notification', { userId: resetReq.user });
+    }
+
+    return { message: 'Password reset request rejected' };
   }
 
   async resetPassword(hashedToken, newPassword, reqContext = {}) {
