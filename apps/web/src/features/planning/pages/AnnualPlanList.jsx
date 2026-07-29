@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { FaPlus, FaSearch, FaEye, FaCalendarAlt, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEye, FaCalendarAlt, FaEdit, FaFileAlt, FaCheckCircle, FaExclamationTriangle, FaMoneyBillWave } from 'react-icons/fa';
 import planningService from '../../../services/planning.service';
 import { DEPARTMENTS_AND_FACULTIES } from '../../../constants/departments';
 
@@ -21,8 +21,6 @@ const STATUS_FILTERS = [
   { value: 'budget_received', label: 'Budget Received' },
   { value: 'distribution_complete', label: 'Distributed' },
 ];
-
-
 
 function statusStyle(s) {
   if (['active', 'distribution_complete', 'budget_received', 'parliament_approved'].includes(s)) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -43,6 +41,7 @@ export default function AnnualPlanList() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
+  const [cycleYearFilter, setCycleYearFilter] = useState('all');
 
   const canCreate = ['procurement_officer', 'admin', 'super_admin', 'department_head'].includes(user?.role);
 
@@ -59,8 +58,6 @@ export default function AnnualPlanList() {
       .finally(() => setLoading(false));
   }, []);
 
-  const [cycleYearFilter, setCycleYearFilter] = useState('all');
-
   const uniqueYears = [...new Set(plans.map(p => p.planYear))].sort((a, b) => b - a);
 
   const filtered = plans.filter(p => {
@@ -73,45 +70,107 @@ export default function AnnualPlanList() {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Annual Procurement Plans</h1>
-          <p className="text-sm text-slate-500 mt-1">Phases 2 & 3 · Yearly plans derived from 3-Year Master Plans & Final Master Plans</p>
+    <div className="space-y-6 animate-fade-in pb-16 font-sans">
+      {/* ── Hero Banner ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaFileAlt size={160} /> 
         </div>
-        {canCreate && (
-          <Link to="/planning/annual-plans/new" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 transition-all shadow-sm">
-            <FaPlus size={12} /> New Annual Plan
-          </Link>
-        )}
+
+        <div className="relative z-10 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Annual Procurement Plans</h1>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-2.5 flex-wrap">
+          {canCreate && (
+            <Link to="/planning/annual-plans/new" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95">
+              <FaPlus size={11} />
+              <span>New Annual Plan</span>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* ── KPI Summary Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Annual Plans</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{plans.length}</p>
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Across All Years</p>
+          </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <FaCalendarAlt size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active / Approved</p>
+            <p className="text-2xl font-black text-emerald-700 mt-1">
+              {plans.filter(p => ['active', 'distribution_complete', 'budget_received', 'parliament_approved'].includes(p.status)).length}
+            </p>
+            <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Budget Approved</p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <FaCheckCircle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Action</p>
+            <p className="text-2xl font-black text-amber-600 mt-1">
+              {plans.filter(p => p.status !== 'active' && p.status !== 'distribution_complete' && p.status !== 'rejected').length}
+            </p>
+            <p className="text-[10px] text-amber-600 font-semibold mt-0.5">In Review Pipeline</p>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <FaExclamationTriangle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Requested</p>
+            <p className="text-xl font-black text-violet-700 mt-1">
+              LKR {(plans.reduce((acc, p) => acc + (p.totalBudgetRequest || 0), 0) / 1000000).toFixed(1)}M
+            </p>
+            <p className="text-[10px] text-violet-600 font-semibold mt-0.5">Estimated Budget</p>
+          </div>
+          <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
+            <FaMoneyBillWave size={18} />
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-52">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <select value={cycleYearFilter} onChange={e => setCycleYearFilter(e.target.value)}
-          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-blue-800">
+          className="px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-blue-800">
           <option value="all">All 3-Year Cycle Years</option>
           <option value="1">Year 1 (Cycle Yr 1)</option>
           <option value="2">Year 2 (Cycle Yr 2)</option>
           <option value="3">Year 3 (Cycle Yr 3)</option>
         </select>
         <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
-          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="all">All Calendar Years</option>
           {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="all">All Departments / Faculties</option>
           {DEPARTMENTS_AND_FACULTIES.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           {STATUS_FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
         </select>
       </div>
@@ -192,3 +251,4 @@ export default function AnnualPlanList() {
     </div>
   );
 }
+
