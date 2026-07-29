@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { FaLock, FaLockOpen, FaExclamationTriangle, FaCheckCircle, FaChartLine, FaSpinner, FaShieldAlt } from 'react-icons/fa';
+import { FaLock, FaLockOpen, FaExclamationTriangle, FaCheckCircle, FaSpinner, FaShieldAlt } from 'react-icons/fa';
 import procurementService from '../../../services/procurement.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 
@@ -33,7 +33,7 @@ export default function BudgetLockPage() {
     try {
       await procurementService.lockBudget(lockTarget._id || lockTarget.id);
       const tceVal = lockTarget.totalEstimatedCost || lockTarget.tce || 0;
-      toast.success(`🔒 Budget locked for "${lockTarget.title}" — LKR ${tceVal.toLocaleString()} reserved.`);
+      toast.success(`Budget locked for "${lockTarget.title}" — LKR ${tceVal.toLocaleString()} reserved.`);
       const res = await procurementService.getBudgetStatus();
       setItems(res.data || []);
     } catch (err) {
@@ -48,7 +48,7 @@ export default function BudgetLockPage() {
     if (!unlockTarget) return;
     try {
       await procurementService.unlockBudget(unlockTarget._id || unlockTarget.id);
-      toast.info(`🔓 Budget unlocked for "${unlockTarget.title}" — Funds released back to DAPP pool.`);
+      toast.info(`Budget unlocked for "${unlockTarget.title}" — Funds released back to DAPP pool.`);
       const res = await procurementService.getBudgetStatus();
       setItems(res.data || []);
     } catch (err) {
@@ -64,48 +64,62 @@ export default function BudgetLockPage() {
   const totalPending = pendingItems.reduce((s, i) => s + (i.totalEstimatedCost || i.tce || 0), 0);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Financial Validation & Budget Lock</h1>
-        <p className="text-sm text-slate-500 mt-1">Stage 4: Real-time Budget Guard — Lock estimated funds against DAPP balance to prevent double-commitment.</p>
-      </div>
+    <div className="space-y-6 animate-fade-in pb-16 font-sans">
+      {/* ── Hero Banner ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+          <FaLock size={160} /> 
+        </div>
 
-      {/* AI Forecast Alert */}
-      <div className="flex items-start space-x-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
-        <FaChartLine className="text-amber-600 mt-0.5 shrink-0" size={16} />
-        <div>
-          <p className="text-sm font-semibold text-amber-800">AI Predictive Forecast</p>
-          <p className="text-xs text-amber-700 mt-0.5">Faculty of Applied Sciences projected spend for Q2 FY2026 is trending 18% above allocation. Consider reallocating supplementary funds from Vote Item 2103.</p>
+        <div className="relative z-10 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Financial Validation & Budget Lock</h1>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-lg"><FaLock size={16} /></div>
-            <div>
-              <p className="text-xl font-bold text-slate-900">LKR {totalLocked.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Total Locked ({items.filter(i => ['locked', 'budget_locked'].includes(i.status)).length} items)</p>
-            </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Funds Locked</p>
+            <p className="text-xl font-black text-emerald-700 mt-1">LKR {(totalLocked / 1000000).toFixed(1)}M</p>
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{items.filter(i => ['locked', 'budget_locked'].includes(i.status)).length} Procurements Reserved</p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <FaLock size={18} />
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
-            <div>
-              <p className="text-xl font-bold text-slate-900">LKR {totalPending.toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Pending Lock ({pendingItems.length} items)</p>
-            </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Lock</p>
+            <p className="text-xl font-black text-amber-600 mt-1">LKR {(totalPending / 1000000).toFixed(1)}M</p>
+            <p className="text-[10px] text-amber-600 font-semibold mt-0.5">{pendingItems.length} Awaiting Lock</p>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <FaExclamationTriangle size={18} />
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-red-100 text-red-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
-            <div>
-              <p className="text-xl font-bold text-slate-900">{items.filter(i => i.status === 'rejected').length}</p>
-              <p className="text-xs text-slate-500">Insufficient Budget</p>
-            </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Insufficient Budget</p>
+            <p className="text-2xl font-black text-red-600 mt-1">{items.filter(i => i.status === 'rejected').length}</p>
+            <p className="text-[10px] text-red-500 font-semibold mt-0.5">Budget Exceeded</p>
+          </div>
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+            <FaExclamationTriangle size={18} />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Tracked</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{items.length}</p>
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">DAPP Items Checked</p>
+          </div>
+          <div className="p-3 bg-slate-100 text-slate-700 rounded-xl">
+            <FaShieldAlt size={18} />
           </div>
         </div>
       </div>
@@ -125,34 +139,34 @@ export default function BudgetLockPage() {
         const facultyBudgets = Object.values(facultyMap);
         if (facultyBudgets.length === 0) return null;
         return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200">
-          <h3 className="text-sm font-bold text-slate-800">Faculty Budget Utilization (FY{new Date().getFullYear()})</h3>
-        </div>
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {facultyBudgets.map((fb, i) => {
-            const pct = fb.allocated > 0 ? (fb.utilized / fb.allocated * 100) : 0;
-            const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
-            return (
-              <div key={i} className="p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-700">{fb.name}</p>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${pct > 90 ? 'bg-red-100 text-red-700' : pct > 70 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                    {pct.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-2 mb-1">
-                  <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                </div>
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>LKR {(fb.utilized / 1000000).toFixed(1)}M used</span>
-                  <span>LKR {(fb.allocated / 1000000).toFixed(1)}M allocated</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-800">Faculty Budget Utilization (FY{new Date().getFullYear()})</h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {facultyBudgets.map((fb, i) => {
+                const pct = fb.allocated > 0 ? (fb.utilized / fb.allocated * 100) : 0;
+                const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+                return (
+                  <div key={i} className="p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-slate-800">{fb.name}</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pct > 90 ? 'bg-red-100 text-red-700' : pct > 70 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {pct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+                      <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                      <span>LKR {(fb.utilized / 1000000).toFixed(1)}M used</span>
+                      <span>LKR {(fb.allocated / 1000000).toFixed(1)}M allocated</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         );
       })()}
 
@@ -187,55 +201,57 @@ export default function BudgetLockPage() {
 
                   return (
                     <tr key={item._id || item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-3 font-mono text-xs text-slate-550">{item.referenceNumber || item.id}</td>
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-slate-800">{item.title}</p>
-                        <p className="text-xs text-slate-400">{item.faculty}</p>
+                      <td className="px-5 py-3.5 font-mono text-xs font-semibold text-blue-700">
+                        <span className="bg-blue-50 px-2 py-0.5 rounded-md">{item.referenceNumber || item.id}</span>
                       </td>
-                      <td className="px-5 py-3 font-medium text-slate-800 text-right">{tceVal.toLocaleString()}</td>
-                      <td className={`px-5 py-3 font-medium text-right ${sufficient ? 'text-emerald-700' : 'text-red-600'}`}>
+                      <td className="px-5 py-3.5">
+                        <p className="font-bold text-slate-800">{item.title}</p>
+                        <p className="text-xs text-slate-400 font-medium">{item.faculty}</p>
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-slate-800 text-right">{tceVal.toLocaleString()}</td>
+                      <td className={`px-5 py-3.5 font-bold text-right ${sufficient ? 'text-emerald-700' : 'text-red-600'}`}>
                         {balanceVal.toLocaleString()}
                         {!sufficient && <p className="text-[10px] text-red-500 mt-0.5">Shortfall: {(tceVal - balanceVal).toLocaleString()}</p>}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
                         {isLocked && (
                           <div>
-                            <span className="inline-flex items-center space-x-1 text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                            <span className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-full">
                               <FaLock size={9} /> <span>Funds Locked</span>
                             </span>
-                            {(item.lockedAt || item.budgetLockedAt) && <p className="text-[10px] text-slate-400 mt-0.5">{item.lockedAt || new Date(item.budgetLockedAt).toISOString().split('T')[0]}</p>}
+                            {(item.lockedAt || item.budgetLockedAt) && <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{item.lockedAt || new Date(item.budgetLockedAt).toISOString().split('T')[0]}</p>}
                           </div>
                         )}
                         {isPending && (
-                          <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">Pending Validation</span>
+                          <span className="text-xs font-bold text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-full">Pending Validation</span>
                         )}
                         {isRejected && (
-                          <span className="inline-flex items-center space-x-1 text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center space-x-1 text-xs font-bold text-red-700 bg-red-100/80 px-2.5 py-1 rounded-full">
                             <FaExclamationTriangle size={9} /> <span>Insufficient Budget</span>
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-5 py-3.5 text-center">
                         {isPending && sufficient && (
                           <button
                             onClick={() => setLockTarget(item)}
-                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-500 transition-colors flex items-center space-x-1 mx-auto"
+                            className="px-3.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-500 shadow-xs transition-colors flex items-center space-x-1.5 mx-auto"
                           >
                             <FaLock size={9} /> <span>Lock Funds</span>
                           </button>
                         )}
                         {isPending && !sufficient && (
-                          <span className="text-xs text-red-550 font-medium">Insufficient Budget</span>
+                          <span className="text-xs text-red-600 font-semibold">Insufficient Budget</span>
                         )}
                         {isRejected && (
-                          <span className="text-xs text-red-500 font-medium">Cannot proceed</span>
+                          <span className="text-xs text-red-500 font-semibold">Cannot proceed</span>
                         )}
                         {isLocked && (
                           <div className="flex items-center justify-center space-x-3">
-                            <span className="text-xs text-emerald-600 flex items-center space-x-1"><FaCheckCircle size={10} /> <span>Validated</span></span>
+                            <span className="text-xs text-emerald-600 font-bold flex items-center space-x-1"><FaCheckCircle size={10} /> <span>Validated</span></span>
                             <button
                               onClick={() => setUnlockTarget(item)}
-                              className="text-xs text-slate-400 hover:text-amber-600 font-medium flex items-center space-x-1 transition-colors"
+                              className="text-xs text-slate-400 hover:text-amber-600 font-semibold flex items-center space-x-1 transition-colors"
                             >
                               <FaLockOpen size={9} /> <span>Unlock</span>
                             </button>
