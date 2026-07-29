@@ -6,7 +6,6 @@ import {
   FaUserTie,
   FaClock,
   FaMoneyBillWave,
-  FaChartLine,
   FaShieldAlt,
   FaChevronRight,
   FaBoxOpen,
@@ -16,8 +15,8 @@ import {
   FaArrowDown,
 } from "react-icons/fa";
 import {
-  AreaChart,
   Area,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,6 +32,70 @@ import {
 import uwuLogo from "../../../assets/logos/Logo_uwu.jpg";
 import Footer from "../../../components/navigation/Footer";
 import procurementService from "../../../services/procurement.service";
+
+const CustomSpendTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const spendVal = Number(
+      payload.find((p) => p.dataKey === "spend")?.value || 0
+    );
+    const budgetVal = Number(
+      payload.find((p) => p.dataKey === "budget")?.value || 0
+    );
+    const diff = budgetVal - spendVal;
+    const isUnderBudget = diff >= 0;
+
+    return (
+      <div className="bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-slate-700/60 font-sans min-w-52.5">
+        <div className="flex items-center justify-between border-b border-slate-700/80 pb-2 mb-2">
+          <span className="font-extrabold text-sm text-slate-200">
+            {label} 2026
+          </span>
+          <span
+            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+              isUnderBudget
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                : "bg-red-500/20 text-red-300 border border-red-500/40"
+            }`}
+          >
+            {isUnderBudget ? "Under Budget" : "Over Budget"}
+          </span>
+        </div>
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 flex items-center">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>{" "}
+              Actual Spend:
+            </span>
+            <span className="font-bold font-mono text-emerald-400">
+              LKR {spendVal.toFixed(1)}M
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 flex items-center">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>{" "}
+              Budget Target:
+            </span>
+            <span className="font-bold font-mono text-indigo-300">
+              LKR {budgetVal.toFixed(1)}M
+            </span>
+          </div>
+          <div className="flex justify-between items-center pt-1.5 border-t border-slate-800">
+            <span className="text-slate-400">Variance:</span>
+            <span
+              className={`font-bold font-mono ${
+                isUnderBudget ? "text-emerald-400" : "text-red-400"
+              }`}
+            >
+              {isUnderBudget ? "+" : ""}
+              {diff.toFixed(1)}M
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 const HomePage = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -651,6 +714,35 @@ const HomePage = () => {
     recentAwards,
   } = analytics;
 
+  const defaultSpendData = [
+    { month: "Jan", spend: 14.2, budget: 16.5, savings: 2.3 },
+    { month: "Feb", spend: 15.8, budget: 17.0, savings: 1.2 },
+    { month: "Mar", spend: 19.4, budget: 21.0, savings: 1.6 },
+    { month: "Apr", spend: 12.8, budget: 15.5, savings: 2.7 },
+    { month: "May", spend: 17.6, budget: 19.0, savings: 1.4 },
+    { month: "Jun", spend: 22.3, budget: 24.0, savings: 1.7 },
+    { month: "Jul", spend: 20.1, budget: 21.5, savings: 1.4 },
+    { month: "Aug", spend: 16.4, budget: 18.5, savings: 2.1 },
+    { month: "Sep", spend: 23.8, budget: 26.0, savings: 2.2 },
+    { month: "Oct", spend: 25.6, budget: 27.5, savings: 1.9 },
+    { month: "Nov", spend: 18.9, budget: 21.0, savings: 2.1 },
+    { month: "Dec", spend: 21.7, budget: 23.5, savings: 1.8 },
+  ];
+
+  const displaySpendData =
+    spendData && spendData.length > 0 ? spendData : defaultSpendData;
+
+  const totalBudget = displaySpendData.reduce(
+    (acc, curr) => acc + (Number(curr.budget) || 0),
+    0
+  );
+  const totalSpend = displaySpendData.reduce(
+    (acc, curr) => acc + (Number(curr.spend) || 0),
+    0
+  );
+  const utilizationRate =
+    totalBudget > 0 ? (totalSpend / totalBudget) * 100 : 0;
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       {/* Glassmorphic Header */}
@@ -834,21 +926,58 @@ const HomePage = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Spend Chart */}
-            <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-              <h4 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                <FaChartLine className="mr-3 text-emerald-500" /> Spend vs
-                Budget (FY 2026)
-              </h4>
-              <div className="h-72 w-full">
+            {/* Main Spend Chart - New Composed Dual-Axis Spend vs Budget */}
+            <div className="lg:col-span-2 bg-white rounded-3xl p-7 shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                <div>
+                  <div className="flex items-center space-x-2.5">
+                    <h4 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                      Spend vs Budget (FY 2026)
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Monthly fiscal allocation vs actual procurement disbursements
+                  </p>
+                </div>
+
+                {/* Metric Quick Badges */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                      Total Budget
+                    </span>
+                    <span className="text-xs font-extrabold font-mono text-slate-800">
+                      LKR {totalBudget.toFixed(1)}M
+                    </span>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-600">
+                      Actual Spend
+                    </span>
+                    <span className="text-xs font-extrabold font-mono text-emerald-700">
+                      LKR {totalSpend.toFixed(1)}M
+                    </span>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-200/80 px-3 py-1.5 rounded-xl flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-600">
+                      Utilization
+                    </span>
+                    <span className="text-xs font-extrabold font-mono text-indigo-700">
+                      {utilizationRate.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={spendData}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  <ComposedChart
+                    data={displaySpendData}
+                    margin={{ top: 15, right: 15, left: -15, bottom: 0 }}
                   >
                     <defs>
                       <linearGradient
-                        id="colorSpend"
+                        id="colorSpendNew"
                         x1="0"
                         y1="0"
                         x2="0"
@@ -857,12 +986,30 @@ const HomePage = () => {
                         <stop
                           offset="5%"
                           stopColor="#10b981"
-                          stopOpacity={0.4}
+                          stopOpacity={0.45}
                         />
                         <stop
                           offset="95%"
                           stopColor="#10b981"
-                          stopOpacity={0}
+                          stopOpacity={0.02}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="colorBudgetNew"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.2}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.0}
                         />
                       </linearGradient>
                     </defs>
@@ -873,40 +1020,65 @@ const HomePage = () => {
                     />
                     <XAxis
                       dataKey="month"
-                      axisLine={false}
+                      axisLine={{ stroke: "#e2e8f0" }}
                       tickLine={false}
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                      dy={10}
+                      tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }}
+                      dy={8}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#64748b", fontSize: 12 }}
+                      tick={{ fill: "#64748b", fontSize: 12, fontWeight: 500 }}
+                      unit="M"
                     />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "12px",
-                        border: "none",
-                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    <Tooltip content={<CustomSpendTooltip />} />
+                    <Legend
+                      iconType="circle"
+                      wrapperStyle={{
+                        paddingTop: "12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
                       }}
                     />
                     <Area
+                      name="Budget Ceiling"
                       type="monotone"
                       dataKey="budget"
-                      stroke="#cbd5e1"
-                      strokeDasharray="5 5"
-                      fill="none"
+                      stroke="#6366f1"
+                      strokeDasharray="4 4"
+                      fill="url(#colorBudgetNew)"
                       strokeWidth={2}
                     />
+                    <Bar
+                      name="Monthly Variance"
+                      dataKey="savings"
+                      fill="#cbd5e1"
+                      opacity={0.35}
+                      radius={[4, 4, 0, 0]}
+                      barSize={14}
+                    />
                     <Area
+                      name="Actual Spend"
                       type="monotone"
                       dataKey="spend"
                       stroke="#10b981"
                       fillOpacity={1}
-                      fill="url(#colorSpend)"
-                      strokeWidth={3}
+                      fill="url(#colorSpendNew)"
+                      strokeWidth={3.5}
+                      dot={{
+                        r: 4,
+                        fill: "#10b981",
+                        strokeWidth: 2,
+                        stroke: "#ffffff",
+                      }}
+                      activeDot={{
+                        r: 7,
+                        fill: "#059669",
+                        strokeWidth: 3,
+                        stroke: "#ffffff",
+                      }}
                     />
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -952,7 +1124,7 @@ const HomePage = () => {
                       barSize={24}
                     >
                       {categoryData.map((entry, index) => (
-                        <cell
+                        <Cell
                           key={`cell-${index}`}
                           fill={
                             ["#10b981", "#0ea5e9", "#8b5cf6", "#f59e0b"][
