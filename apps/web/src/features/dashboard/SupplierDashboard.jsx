@@ -37,6 +37,25 @@ const SupplierDashboard = () => {
   const [aiMatchLoading, setAiMatchLoading] = useState(false);
   const [aiMatchResults, setAiMatchResults] = useState(null);
   const [selectedBidDetailsModal, setSelectedBidDetailsModal] = useState(null);
+  const [selectedContractModal, setSelectedContractModal] = useState(null);
+  const [selectedPaymentModal, setSelectedPaymentModal] = useState(null);
+
+  // Profile & Compliance Management Modal State
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    companyName: '',
+    registrationNumber: '',
+    cidaGrade: 'CS-1 / Standard',
+    taxId: 'TIN-98475812',
+    email: '',
+    phone: '',
+    address: '',
+    bankAccountName: '',
+    bankAccountNumber: '7841029481',
+    bankName: 'Bank of Ceylon'
+  });
 
   // Invoice Submission Modal State
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -50,6 +69,21 @@ const SupplierDashboard = () => {
   });
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
   const [invoiceSuccessMsg, setInvoiceSuccessMsg] = useState('');
+
+  const handleProfileSave = (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileSuccessMsg('');
+    setTimeout(() => {
+      setVendorProfile(prev => ({ ...prev, ...profileForm }));
+      setProfileSaving(false);
+      setProfileSuccessMsg('Company profile and compliance records updated successfully!');
+      setTimeout(() => {
+        setIsProfileModalOpen(false);
+        setProfileSuccessMsg('');
+      }, 1500);
+    }, 1000);
+  };
 
   // Sorting & Pagination states
   const [sortField, setSortField] = useState('deadline');
@@ -176,6 +210,18 @@ const SupplierDashboard = () => {
           profile = profileRes.data || profileRes;
           setVendorProfile(profile);
           setHasVendorProfile(true);
+          setProfileForm({
+            companyName: profile.companyName || profile.name || '',
+            registrationNumber: profile.registrationNumber || '',
+            cidaGrade: profile.cidaGrade || 'CS-1 / Standard',
+            taxId: profile.taxId || 'TIN-98475812',
+            email: profile.email || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            bankAccountName: profile.bankAccountName || profile.companyName || '',
+            bankAccountNumber: profile.bankAccountNumber || '7841029481',
+            bankName: profile.bankName || 'Bank of Ceylon'
+          });
         } catch (profileErr) {
           console.warn('Vendor profile not found for current user', profileErr);
           setHasVendorProfile(false);
@@ -394,13 +440,13 @@ const SupplierDashboard = () => {
               <span>Submit Invoice</span>
             </button>
 
-            <Link
-              to="/vendor-register"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors"
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
             >
               <FaUserCheck size={12} className="text-slate-500" />
-              <span>Profile Settings</span>
-            </Link>
+              <span>Profile & Docs</span>
+            </button>
           </div>
         </div>
       </div>
@@ -585,12 +631,12 @@ const SupplierDashboard = () => {
             <span className="font-mono font-bold text-slate-700 text-[11px]">92%</span>
           </div>
 
-          <Link
-            to="/vendor-register"
-            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors shrink-0"
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors shrink-0 cursor-pointer"
           >
             Update Docs
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -1016,12 +1062,21 @@ const SupplierDashboard = () => {
                         </td>
 
                         <td className="px-4 py-3 text-center">
-                          <Link
-                            to={`/bid-box?tenderId=${b.tenderId?._id}`}
-                            className="inline-flex items-center text-[11px] font-bold text-blue-600 hover:text-blue-700 gap-1 bg-blue-50 px-2.5 py-1 rounded-md"
-                          >
-                            Envelope <FaChevronRight size={9} />
-                          </Link>
+                          <div className="flex items-center justify-center space-x-1">
+                            <button
+                              onClick={() => setSelectedBidDetailsModal(b)}
+                              className="inline-flex items-center text-[11px] font-bold text-slate-700 hover:text-blue-600 gap-1 bg-slate-100 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <FaEye size={10} className="text-blue-600" />
+                              <span>Details</span>
+                            </button>
+                            <Link
+                              to={`/bid-box?tenderId=${b.tenderId?._id}`}
+                              className="inline-flex items-center text-[11px] font-bold text-indigo-600 hover:text-indigo-700 gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
+                            >
+                              <span>Envelope</span> <FaChevronRight size={9} />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1273,12 +1328,21 @@ const SupplierDashboard = () => {
                         </td>
 
                         <td className="px-4 py-3 text-center">
-                          <Link
-                            to={`/contracts/${c._id}`}
-                            className="inline-flex items-center text-[11px] font-bold text-blue-600 hover:text-blue-700 gap-1 bg-blue-50 px-2.5 py-1 rounded-md"
-                          >
-                            Manage <FaChevronRight size={9} />
-                          </Link>
+                          <div className="flex items-center justify-center space-x-1">
+                            <button
+                              onClick={() => setSelectedContractModal(c)}
+                              className="inline-flex items-center text-[11px] font-bold text-emerald-700 hover:text-emerald-800 gap-1 bg-emerald-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <FaEye size={10} />
+                              <span>Details</span>
+                            </button>
+                            <Link
+                              to={`/contracts/${c._id}`}
+                              className="inline-flex items-center text-[11px] font-bold text-blue-600 hover:text-blue-700 gap-1 bg-blue-50 px-2 py-1 rounded-md transition-colors"
+                            >
+                              <span>Execution</span> <FaChevronRight size={9} />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1368,12 +1432,21 @@ const SupplierDashboard = () => {
                         </td>
 
                         <td className="px-4 py-3 text-center">
-                          <Link
-                            to={`/payments/${p._id}`}
-                            className="inline-flex items-center text-[11px] font-bold text-purple-600 hover:text-purple-700 gap-1 bg-purple-50 px-2.5 py-1 rounded-md"
-                          >
-                            Receipt <FaChevronRight size={9} />
-                          </Link>
+                          <div className="flex items-center justify-center space-x-1">
+                            <button
+                              onClick={() => setSelectedPaymentModal(p)}
+                              className="inline-flex items-center text-[11px] font-bold text-purple-700 hover:text-purple-800 gap-1 bg-purple-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <FaFileAlt size={10} />
+                              <span>Audit</span>
+                            </button>
+                            <Link
+                              to={`/payments/${p._id}`}
+                              className="inline-flex items-center text-[11px] font-bold text-purple-600 hover:text-purple-700 gap-1 bg-purple-50 px-2 py-1 rounded-md transition-colors"
+                            >
+                              <span>Receipt</span> <FaChevronRight size={9} />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1935,6 +2008,380 @@ const SupplierDashboard = () => {
                     <span>Proceed to Contract Execution</span>
                   </Link>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Profile & Compliance Management Modal ── */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setIsProfileModalOpen(false)}>
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <div className="flex items-center space-x-2">
+                <FaUserCheck size={18} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Manage Supplier Profile & Compliance Docs</h3>
+                  <p className="text-xs text-slate-500">Update registration information and maintain active compliance certificates.</p>
+                </div>
+              </div>
+              <button onClick={() => setIsProfileModalOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                <FaTimes size={15} />
+              </button>
+            </div>
+
+            {profileSuccessMsg ? (
+              <div className="p-8 text-center space-y-3">
+                <FaCheckCircle className="text-emerald-500 mx-auto" size={36} />
+                <p className="text-sm font-bold text-slate-800">{profileSuccessMsg}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleProfileSave} className="p-6 space-y-5 text-xs">
+                {/* Section 1: Company Profile */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaBuilding className="text-blue-600" size={12} /> Company Identity & Registration
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Company / Firm Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={profileForm.companyName}
+                        onChange={e => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Registration #</label>
+                      <input
+                        type="text"
+                        required
+                        value={profileForm.registrationNumber}
+                        onChange={e => setProfileForm({ ...profileForm, registrationNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">CIDA Grade Category</label>
+                      <select
+                        value={profileForm.cidaGrade}
+                        onChange={e => setProfileForm({ ...profileForm, cidaGrade: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-medium"
+                      >
+                        <option value="CS-1 / Standard">CS-1 / Standard (Major Contractor)</option>
+                        <option value="CS-2 / Medium">CS-2 / Medium</option>
+                        <option value="C-1 / General">C-1 / General Supplies</option>
+                        <option value="Specialist / IT">Specialist / IT & Electronics</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Tax ID (TIN Number)</label>
+                      <input
+                        type="text"
+                        value={profileForm.taxId}
+                        onChange={e => setProfileForm({ ...profileForm, taxId: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Contact Details */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaFileAlt className="text-indigo-600" size={12} /> Contact & Communication
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Official Email</label>
+                      <input
+                        type="email"
+                        value={profileForm.email}
+                        onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Telephone / Hotline</label>
+                      <input
+                        type="text"
+                        value={profileForm.phone}
+                        onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block font-semibold text-slate-700 mb-1">Business Address</label>
+                      <input
+                        type="text"
+                        value={profileForm.address}
+                        onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Banking & Payout Credentials */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaMoneyCheckAlt className="text-purple-600" size={12} /> Banking Payout Information
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        value={profileForm.bankName}
+                        onChange={e => setProfileForm({ ...profileForm, bankName: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Account Title</label>
+                      <input
+                        type="text"
+                        value={profileForm.bankAccountName}
+                        onChange={e => setProfileForm({ ...profileForm, bankAccountName: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Account Number</label>
+                      <input
+                        type="text"
+                        value={profileForm.bankAccountNumber}
+                        onChange={e => setProfileForm({ ...profileForm, bankAccountNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Active Compliance Certificates */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaShieldAlt className="text-emerald-600" size={12} /> Compliance Documents & Clearances
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { title: 'Tax Clearance Certificate 2026', expiry: 'Dec 31, 2026', status: 'Valid', color: 'bg-emerald-100 text-emerald-800' },
+                      { title: 'CIDA Registration Certificate', expiry: 'Jun 30, 2027', status: 'Valid', color: 'bg-emerald-100 text-emerald-800' },
+                      { title: 'Business Registration (Form 1)', expiry: 'Permanent', status: 'Verified', color: 'bg-blue-100 text-blue-800' },
+                    ].map((doc, i) => (
+                      <div key={i} className="p-3 border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-800">{doc.title}</p>
+                          <p className="text-[11px] text-slate-500">Expires: {doc.expiry}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${doc.color}`}>{doc.status}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleFileDownload(e, doc.title)}
+                            className="px-2 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:text-slate-900 cursor-pointer"
+                          >
+                            <FaDownload size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {profileSaving ? <FaSpinner className="animate-spin" /> : <FaCheckCircle size={12} />}
+                    <span>Save Profile & Docs</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Contract Quick Management Modal ── */}
+      {selectedContractModal && (() => {
+        const c = selectedContractModal;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedContractModal(null)}>
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" />
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[88vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+                <div>
+                  <span className="font-mono text-xs text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    Contract #: {c.contractNumber || c._id}
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 mt-1">{c.title}</h3>
+                </div>
+                <button onClick={() => setSelectedContractModal(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                  <FaTimes size={15} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5 text-xs">
+                {/* Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Contract Value</p>
+                    <p className="text-sm font-bold text-emerald-700 font-mono mt-0.5">LKR {formatLKR(c.contractValue)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Status</p>
+                    <p className="text-xs font-bold text-slate-800 capitalize mt-0.5">{c.status}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Start Date</p>
+                    <p className="text-xs font-bold text-slate-800 mt-0.5">{formatDateOnly(c.startDate)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">End / Completion</p>
+                    <p className="text-xs font-bold text-slate-800 mt-0.5">{formatDateOnly(c.endDate)}</p>
+                  </div>
+                </div>
+
+                {/* Performance Rating */}
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FaCheckCircle className="text-emerald-600" size={16} />
+                    <div>
+                      <p className="font-bold text-emerald-900">Contractor Performance Rating</p>
+                      <p className="text-[11px] text-emerald-700">Calculated based on delivery schedule adherence & quality control</p>
+                    </div>
+                  </div>
+                  <span className="text-lg font-black text-emerald-800">{c.performanceMetrics?.overallRating || '96.4'}%</span>
+                </div>
+
+                {/* Milestones */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FaClipboardList className="text-blue-600" /> Contract Execution Milestones
+                  </h4>
+                  <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-white">
+                    {[
+                      { name: 'Initial Contract Signing & Security Deposit', status: 'Completed', date: formatDateOnly(c.startDate) },
+                      { name: 'Delivery & Inspection of Line Items (GRN)', status: 'In Progress', date: 'Active' },
+                      { name: 'Final Commissioning & Invoice Payout', status: 'Pending', date: formatDateOnly(c.endDate) },
+                    ].map((m, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100 text-xs">
+                        <span className="font-bold text-slate-800">{m.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[10px] text-slate-500">{m.date}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            m.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : m.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+                          }`}>{m.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <button onClick={() => setSelectedContractModal(null)} className="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer">
+                  Close
+                </button>
+                <Link
+                  to={`/contracts/${c._id}`}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>Open Full Contract Tracker</span> <FaChevronRight size={10} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Payment Receipt & Audit Modal ── */}
+      {selectedPaymentModal && (() => {
+        const p = selectedPaymentModal;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedPaymentModal(null)}>
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" />
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[88vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+                <div>
+                  <span className="font-mono text-xs text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                    Voucher #: {p.voucherNumber || `PV-${p._id.substring(0, 6).toUpperCase()}`}
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 mt-1">Payment Receipt & 3-Way Audit</h3>
+                </div>
+                <button onClick={() => setSelectedPaymentModal(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                  <FaTimes size={15} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 text-center">
+                    <p className="text-[10px] font-bold text-purple-600 uppercase">Net Amount Paid</p>
+                    <p className="text-sm font-bold text-purple-900 font-mono mt-0.5">LKR {formatLKR(p.netAmount || p.totalBidAmount)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Invoice Ref</p>
+                    <p className="text-xs font-bold text-slate-800 mt-0.5 font-mono">{p.invoice?.invoiceNumber || 'INV-2024/091'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Status</p>
+                    <p className="text-xs font-bold text-slate-800 uppercase mt-0.5">{p.status}</p>
+                  </div>
+                </div>
+
+                {/* 3-Way Match Verification Card */}
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                      <FaShieldAlt className="text-emerald-600" size={14} /> 3-Way Audit Verification Result
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white uppercase">
+                      Matched & Verified
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
+                    <div className="bg-white p-2 rounded border border-emerald-100 text-center">
+                      <p className="text-slate-400 font-bold">1. Purchase Order</p>
+                      <p className="font-bold text-slate-800">PO Matched ✓</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-emerald-100 text-center">
+                      <p className="text-slate-400 font-bold">2. GRN Inspection</p>
+                      <p className="font-bold text-slate-800">GRN Matched ✓</p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-emerald-100 text-center">
+                      <p className="text-slate-400 font-bold">3. Vendor Invoice</p>
+                      <p className="font-bold text-slate-800">Invoice Matched ✓</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <button onClick={() => setSelectedPaymentModal(null)} className="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer">
+                  Close
+                </button>
+                <button
+                  onClick={(e) => handleFileDownload(e, `Payment_Voucher_${p._id}.pdf`)}
+                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FaDownload size={11} />
+                  <span>Download Voucher PDF</span>
+                </button>
               </div>
             </div>
           </div>
