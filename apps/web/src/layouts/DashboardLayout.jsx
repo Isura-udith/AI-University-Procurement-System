@@ -58,7 +58,6 @@ const navSections = [
       { path: '/planning', label: 'Planning Hub', icon: FaLayerGroup },
       { path: '/planning/draft-sheet', label: 'Draft Plan Sheet', icon: FaTable },
       { path: '/planning/final-master-plans', label: 'Final Master Plans', icon: FaClipboardList },
-      { path: '/planning/master-plans', label: 'Master Plans (3-Yr)', icon: FaLayerGroup },
       { path: '/planning/annual-plans', label: 'Annual Plans', icon: FaCalendarAlt },
       { path: '/planning/budget-distribution', label: 'Budget Distribution', icon: FaMoneyBillWave },
     ]
