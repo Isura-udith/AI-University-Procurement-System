@@ -3,9 +3,9 @@ import {
   FaShieldAlt, FaSignInAlt, FaSignOutAlt, FaExclamationTriangle,
   FaUserLock, FaKey, FaUserEdit, FaSearch, FaFilter, FaDownload,
   FaChevronLeft, FaChevronRight, FaClock, FaGlobe, FaDesktop,
-  FaCheckCircle, FaTimesCircle, FaBan, FaUsers, FaChartLine,
-  FaSync, FaEye, FaUserPlus, FaUserCheck, FaUserTimes,
-  FaPlus, FaTimes, FaCopy, FaCheck, FaUserCog
+  FaCheckCircle, FaTimesCircle, FaBan, FaUsers,
+  FaSync, FaUserPlus, FaUserCheck, FaUserTimes,
+  FaTimes, FaCopy, FaCheck, FaUserCog
 } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import auditLogService from '../../../services/audit.log.service';
@@ -541,69 +541,82 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* ── Header ───────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-linear-to-bl from-indigo-100/40 via-purple-50/30 to-transparent rounded-bl-full pointer-events-none" />
-        <div className="relative z-8">
-          <div className="flex items-center space-x-2 mb-1">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-              <FaShieldAlt size={18} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">User Audit & Directory</h1>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">System user management, security monitoring, and activity audit trails</p>
-            </div>
+      {/* ── Header Section ─────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden border border-slate-800">
+        <div>
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-2xl pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none text-indigo-400">
+            <FaShieldAlt size={160} />
           </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center space-x-3 text-white">
+            <span>User Audit & Directory</span>
+          </h1>
         </div>
+
         <div className="flex flex-wrap items-center gap-3 relative z-10">
           {/* Tab switcher */}
-          <div className="flex bg-slate-100 rounded-xl p-1">
+          <div className="flex bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/10">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'dashboard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <FaChartLine className="inline mr-1.5" size={12} />Dashboard
+              Dashboard
             </button>
             <button
               onClick={() => setActiveTab('logs')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'logs'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <FaEye className="inline mr-1.5" size={12} />Activity Log
+              Activity Log
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'users'
+                  ? 'bg-white text-indigo-950 shadow-sm'
+                  : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <FaUsers className="inline mr-1.5" size={12} />
               Current Users
               {userStats?.total > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full font-bold">
+                <span className="ml-1.5 px-1.5 py-0.5 text-[10px] bg-indigo-100 text-indigo-800 rounded-full font-bold">
                   {userStats.total}
                 </span>
               )}
             </button>
           </div>
+
           <button
             onClick={() => { fetchLogs(); fetchStats(); fetchUsersList(); fetchUserStatsData(); }}
-            className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all"
+            className="p-2 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors shadow-sm cursor-pointer"
             title="Refresh Data"
           >
-            <FaSync size={14} />
+            <FaSync className={loading ? "animate-spin text-indigo-300" : ""} size={14} />
           </button>
+
           {activeTab === 'logs' && (
             <button
               onClick={handleExportCSV}
-              className="px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all flex items-center transform hover:-translate-y-0.5"
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-md hover:bg-indigo-500 transition-colors flex items-center space-x-1.5 cursor-pointer"
             >
-              <FaDownload className="mr-2" size={12} />Export CSV
+              <FaDownload size={12} />
+              <span>Export CSV</span> 
             </button>
           )}
+
           {activeTab === 'users' && isAdmin && (
             <button
               onClick={handleOpenAddUser}
-              className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition-all flex items-center transform hover:-translate-y-0.5"
+              className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-md hover:bg-emerald-500 transition-colors flex items-center space-x-1.5 cursor-pointer"
             >
-              <FaPlus className="mr-2" size={12} />Add New User
+              <span>Add User</span>
             </button>
           )}
         </div>
