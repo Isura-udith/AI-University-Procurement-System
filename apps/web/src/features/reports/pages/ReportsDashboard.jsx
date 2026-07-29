@@ -18,7 +18,6 @@ const reportTypesConfig = [
   { type: 'spend_analysis', title: 'Financial Analytics', desc: 'Comprehensive budget utilization and spend tracking.', icon: FaMoneyBillWave, color: 'blue', link: '/reports/spend' },
   { type: 'vendor_performance', title: 'Supplier Intelligence', desc: 'AI-driven vendor performance & risk scorecards.', icon: FaUsers, color: 'purple', link: '/reports/vendor-performance' },
   { type: 'procurement_performance', title: 'Procurement KPI Metrics', desc: 'Cycle times, savings tracking, and efficiency.', icon: FaChartBar, color: 'emerald', link: '/reports/spend' },
-  { type: 'compliance', title: 'GOSL Compliance Audit', desc: 'Regulatory compliance for the Auditor-General.', icon: FaFileAlt, color: 'amber', link: '/archive' },
   { type: 'audit_trail', title: 'User Audit Trail', desc: 'Login, logout, profile changes, and security events.', icon: FaShieldAlt, color: 'indigo', link: '/reports/user-audit' },
 ];
 
@@ -229,7 +228,7 @@ export default function ReportsDashboard() {
       </div>
 
       {/* ── Quick Categories Grid ────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {reportTypesConfig.map((r, i) => {
           const Icon = r.icon;
           return (
@@ -284,7 +283,6 @@ export default function ReportsDashboard() {
               <h3 className="text-lg font-bold text-slate-900">GOSL Compliance Status</h3>
               <p className="text-xs font-medium text-slate-500 mt-1">Audit compliance score across active tenders</p>
             </div>
-            <Link to="/archive" className="text-xs font-bold text-purple-600 hover:underline">View Audit Archive &rarr;</Link>
           </div>
           <div className="grow flex flex-col justify-center items-center relative">
             <div className="w-full h-85">
