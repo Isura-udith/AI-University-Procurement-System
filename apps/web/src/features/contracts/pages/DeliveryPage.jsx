@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { FaCheckCircle, FaBoxOpen, FaExclamationTriangle, FaSpinner, FaClipboardCheck, FaFileInvoiceDollar, FaTimes, FaSearch, FaClipboardList } from 'react-icons/fa';
+import { FaCheckCircle, FaBoxOpen, FaExclamationTriangle, FaSpinner, FaClipboardCheck, FaFileInvoiceDollar, FaTimes, FaSearch, FaClipboardList, FaTruck } from 'react-icons/fa';
 import ConfirmModal from '../../../components/ConfirmModal';
 import StatusBadge from '../../../components/StatusBadge';
 import contractService from '../../../services/contract.service';
 import usePermissions from '../../../hooks/usePermissions';
 import { PERMISSIONS } from '../../../constants/permissions';
-
-
 
 export default function DeliveryPage() {
   const { hasPermission, role } = usePermissions();
@@ -50,6 +48,33 @@ export default function DeliveryPage() {
       active = false;
     };
   }, []);
+
+  const handleExportCSV = () => {
+    if (!deliveries || deliveries.length === 0) {
+      toast.info('No delivery records to export.');
+      return;
+    }
+    const headers = ['PO Number', 'Contract', 'Vendor', 'Items', 'Ordered Qty', 'Received Qty', 'GRN Ref', 'Match Status'];
+    const rows = deliveries.map(d => [
+      d.po || '',
+      `"${(d.contract || '').replace(/"/g, '""')}"`,
+      `"${(d.vendor || '').replace(/"/g, '""')}"`,
+      `"${(d.items || '').replace(/"/g, '""')}"`,
+      d.orderedQty || 0,
+      d.receivedQty || 0,
+      d.grn || '',
+      d.matchStatus || ''
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `deliveries_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Deliveries exported to CSV');
+  };
 
   const openGrnModal = (d) => {
     setGrnModal(d);
@@ -105,34 +130,59 @@ export default function DeliveryPage() {
     discrepancy: deliveries.filter(d => d.matchStatus === 'discrepancy').length,
   };
 
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Delivery & 3-Way Matching</h1>
-        <p className="text-sm text-slate-500 mt-1">Stage 13–14: Record GRN, verify goods receipt, and perform PO–GRN–Invoice three-way matching</p>
+      {/* Page Title & Top Actions */}
+      <div className="relative overflow-hidden bg-[#0d1527] rounded-2xl p-5 sm:p-6 text-white shadow-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none text-emerald-500"> 
+          <FaTruck size={160} /> 
+        </div>
+
+        <div className="relative z-10">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Delivery & 3-Way Matching
+          </h1>
+        </div>
+
+        <div className="relative z-10 flex items-center space-x-3 self-end sm:self-auto">
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/60 shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <span>Export CSV</span>
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center space-x-3">
-          <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-lg"><FaCheckCircle size={16} /></div>
-          <div><p className="text-2xl font-bold text-slate-900">{stats.matched}</p><p className="text-xs text-slate-500">Fully Matched</p></div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center space-x-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><FaCheckCircle size={20} /></div>
+          <div>
+            <p className="text-2xl font-black text-slate-900">{stats.matched}</p>
+            <p className="text-xs font-semibold text-slate-500">Fully Matched</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center space-x-3">
-          <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaBoxOpen size={16} /></div>
-          <div><p className="text-2xl font-bold text-slate-900">{stats.pending}</p><p className="text-xs text-slate-500">Awaiting Delivery / GRN</p></div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center space-x-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><FaBoxOpen size={20} /></div>
+          <div>
+            <p className="text-2xl font-black text-slate-900">{stats.pending}</p>
+            <p className="text-xs font-semibold text-slate-500">Awaiting Delivery / GRN</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex items-center space-x-3">
-          <div className="p-2.5 bg-red-100 text-red-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
-          <div><p className="text-2xl font-bold text-slate-900">{stats.discrepancy}</p><p className="text-xs text-slate-500">Discrepancies</p></div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center space-x-4 hover:shadow-md transition-all">
+          <div className="p-3 bg-red-100 text-red-600 rounded-xl"><FaExclamationTriangle size={20} /></div>
+          <div>
+            <p className="text-2xl font-black text-slate-900">{stats.discrepancy}</p>
+            <p className="text-xs font-semibold text-slate-500">Discrepancies</p>
+          </div>
         </div>
       </div>
 
       {/* Search */}
       <div className="relative max-w-md">
-        <FaSearch className="absolute left-3.5 top-3 text-slate-400" size={13} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by PO, vendor, or item..." className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500" />
+        <FaSearch className="absolute left-3.5 top-3.5 text-slate-400" size={13} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by PO, vendor, or item..." className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 shadow-xs" />
       </div>
 
       {/* Table */}

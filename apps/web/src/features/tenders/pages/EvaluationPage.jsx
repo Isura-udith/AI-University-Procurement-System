@@ -271,7 +271,7 @@ export default function EvaluationPage() {
           "Estimated savings calculated based on Total Cost of Equity (TCE) comparison.",
       });
       toast.success(
-        "🤖 AI Anomaly scan complete. Risk flags and recommendations updated.",
+        "AI Anomaly scan complete. Risk flags and recommendations updated.",
       );
     } catch (err) {
       console.error("AI analysis failed:", err);
@@ -367,7 +367,7 @@ export default function EvaluationPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                   <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none"> 
           <FaFileAlt size={160} /> 
-        </div>
+         </div>
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Bid Evaluation & Technical Scoring

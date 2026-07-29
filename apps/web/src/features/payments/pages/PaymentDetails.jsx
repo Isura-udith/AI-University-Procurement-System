@@ -9,6 +9,13 @@ import paymentService from '../../../services/payment.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import PaymentStatus from '../components/PaymentStatus';
 import InvoiceView from '../components/InvoiceView';
+import useAuth from '../../../hooks/useAuth';
+import { ROLES } from '../../../constants/roles';
+
+const CAN_MATCH_ROLES = [ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN];
+const CAN_RESOLVE_ROLES = [ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN];
+const CAN_APPROVE_ROLES = [ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN];
+const CAN_PAY_ROLES = [ROLES.FINANCE_OFFICER, ROLES.BURSAR, ROLES.ADMIN, ROLES.SUPER_ADMIN];
 
 const MatchCard = ({ icon: Icon, title, number, date, amount, color }) => (
   <div className={`bg-white rounded-xl border-2 ${color} p-5 text-center transition-all hover:shadow-md`}>
@@ -24,6 +31,7 @@ const MatchCard = ({ icon: Icon, title, number, date, amount, color }) => (
 
 export default function PaymentDetails() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -37,6 +45,11 @@ export default function PaymentDetails() {
   const [transactionRef, setTransactionRef] = useState('');
   const [resolveModal, setResolveModal] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
+
+  const canMatch = CAN_MATCH_ROLES.includes(user?.role);
+  const canResolve = CAN_RESOLVE_ROLES.includes(user?.role);
+  const canApprove = CAN_APPROVE_ROLES.includes(user?.role);
+  const canPay = CAN_PAY_ROLES.includes(user?.role);
 
   useEffect(() => {
     let active = true;
@@ -193,7 +206,7 @@ export default function PaymentDetails() {
             </button>
           </div>
 
-          {payment.status === 'pending_match' && (
+          {payment.status === 'pending_match' && canMatch && (
             <button
               onClick={handleThreeWayMatch}
               disabled={actionLoading}
@@ -204,7 +217,7 @@ export default function PaymentDetails() {
             </button>
           )}
 
-          {payment.threeWayMatchStatus === 'discrepancy' && (
+          {payment.threeWayMatchStatus === 'discrepancy' && canResolve && (
             <button
               onClick={() => setResolveModal(true)}
               className="flex items-center space-x-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
@@ -214,7 +227,7 @@ export default function PaymentDetails() {
             </button>
           )}
 
-          {payment.status === 'pending_approval' && (
+          {payment.status === 'pending_approval' && canApprove && (
             <button
               onClick={() => setApproveModal(true)}
               className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
@@ -224,7 +237,7 @@ export default function PaymentDetails() {
             </button>
           )}
 
-          {(payment.status === 'approved' || payment.status === 'processing') && (
+          {(payment.status === 'approved' || payment.status === 'processing') && canPay && (
             <button
               onClick={() => setPayModal(true)}
               className="flex items-center space-x-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
@@ -280,7 +293,7 @@ export default function PaymentDetails() {
               <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center space-x-2">
                 <FaCheckCircle className="text-emerald-600" size={14} />
                 <span className="text-sm font-semibold text-emerald-800">
-                  All three documents match & reconciled — Voucher ready for Bursar authorization.
+                  All three documents match & reconciled - Voucher ready for Bursar authorization.
                 </span>
               </div>
             )}
