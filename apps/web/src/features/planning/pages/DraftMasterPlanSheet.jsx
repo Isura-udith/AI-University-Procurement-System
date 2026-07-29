@@ -838,9 +838,6 @@ export default function DraftMasterPlanSheet() {
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-extrabold text-[11px] uppercase tracking-wider rounded-full">
-                University Procurement Draft Portal
-              </span>
               <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 font-bold text-[11px] uppercase rounded-full">
                 Role: {userRole.replace('_', ' ')}
               </span>
@@ -848,14 +845,10 @@ export default function DraftMasterPlanSheet() {
             <h1 className="text-2xl sm:text-3xl font-bold text-white mt-1">
               Draft Master Procurement Plan Sheet
             </h1>
-            <p className="text-xs text-slate-300 mt-1 max-w-3xl">
-              Any university staff member can create and save Draft Master Plan items (DAPP items). Items can be assigned to any year within the 3-year Master Procurement Plan.
-            </p>
 
             {/* 3-Year Master Procurement Plan Cycle Config */}
             <div className="mt-3 flex flex-wrap items-center gap-3 bg-slate-800/80 border border-slate-700/80 rounded-2xl p-2.5">
               <div className="flex items-center gap-2">
-                <FaLayerGroup className="text-amber-400 text-sm" />
                 <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Master Plan 3-Year Cycle:</span>
               </div>
               <select
@@ -934,7 +927,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaUserTie /> <span>1. HOD ({hodPendingItems.length})</span>
+              <span>HOD ({hodPendingItems.length})</span>
             </button>
           )}
 
@@ -947,7 +940,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaUserCheck /> <span>2. Dean ({deanPendingItems.length})</span>
+              <span>Dean ({deanPendingItems.length})</span>
             </button>
           )}
 
@@ -961,7 +954,7 @@ export default function DraftMasterPlanSheet() {
               }`}
               title="Displays ALL pending approval items across the entire university"
             >
-              <FaLandmark /> <span>3. Bursar (ALL) ({bursarPendingItems.length})</span>
+              <span>Bursar (ALL) ({bursarPendingItems.length})</span>
             </button>
           )}
 
@@ -974,7 +967,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaLayerGroup /> <span>4. FC ({fcPendingItems.length})</span>
+              <span>FC ({fcPendingItems.length})</span>
             </button>
           )}
 
@@ -987,7 +980,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaUniversity /> <span>5. VC ({vcPendingItems.length})</span>
+              <span>VC ({vcPendingItems.length})</span>
             </button>
           )}
 
@@ -1000,7 +993,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              <FaGavel /> <span>6. Council ({councilPendingItems.length})</span>
+              <span>Council ({councilPendingItems.length})</span>
             </button>
           )}
 
@@ -1013,7 +1006,7 @@ export default function DraftMasterPlanSheet() {
                   : 'bg-emerald-950/80 text-emerald-300 border border-emerald-700 hover:bg-emerald-900'
               }`}
             >
-              <FaCheckDouble /> <span>Compile Final Plan ({approvedItems.length})</span>
+              <span>Compile Final Plan ({approvedItems.length})</span>
             </button>
           )}
         </div>
