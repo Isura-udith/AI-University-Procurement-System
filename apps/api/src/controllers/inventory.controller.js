@@ -35,7 +35,7 @@ const getInventoryItem = async (req, res, next) => {
 
 const getInventoryStats = async (req, res, next) => {
   try {
-    const [totalItems, lowStock, outOfStock, totalValue] = await Promise.all([
+    const [totalItems, lowStock, outOfStock, totalValue, grnTotal, inspectedTotal, stockedTotal, issuedTotal, completedTotal] = await Promise.all([
       InventoryItem.countDocuments({ tenantId: req.tenantId }),
       InventoryItem.countDocuments({ tenantId: req.tenantId, status: 'low_stock' }),
       InventoryItem.countDocuments({ tenantId: req.tenantId, status: 'out_of_stock' }),
@@ -43,12 +43,22 @@ const getInventoryStats = async (req, res, next) => {
         { $match: { tenantId: req.tenantId } },
         { $group: { _id: null, total: { $sum: '$totalValue' } } },
       ]),
+      GRN.countDocuments({ tenantId: req.tenantId }),
+      GRN.countDocuments({ tenantId: req.tenantId, status: { $in: ['accepted', 'inventory_updated', 'rejected'] } }),
+      InventoryItem.countDocuments({ tenantId: req.tenantId, quantityOnHand: { $gt: 0 } }),
+      Issuance.countDocuments({ tenantId: req.tenantId, status: { $in: ['issued', 'received_by_department'] } }),
+      Issuance.countDocuments({ tenantId: req.tenantId, status: 'received_by_department' }),
     ]);
     return success(res, {
       totalItems,
       lowStock,
       outOfStock,
       totalValue: totalValue[0]?.total || 0,
+      grnTotal,
+      inspectedTotal,
+      stockedTotal,
+      issuedTotal,
+      completedTotal,
     });
   } catch (err) { next(err); }
 };
@@ -145,8 +155,19 @@ const createGRN = async (req, res, next) => {
               supplierId: grn.supplierId,
             });
           }
+          const prevQty = invItem.quantityOnHand || 0;
           invItem.quantityOnHand += acceptedQty;
           invItem.lastReceivedAt = new Date();
+          invItem.transactions.push({
+            type: 'receipt',
+            quantity: acceptedQty,
+            previousQty: prevQty,
+            newQty: invItem.quantityOnHand,
+            referenceNumber: grn.grnNumber,
+            reason: `Goods Receipt Note (${grn.grnNumber})`,
+            performedBy: req.user._id,
+            timestamp: new Date(),
+          });
           await invItem.save();
           item.inventoryItemId = invItem._id;
         }
@@ -251,8 +272,19 @@ const inspectGRN = async (req, res, next) => {
               supplierId: grn.supplierId,
             });
           }
+          const prevQty = invItem.quantityOnHand || 0;
           invItem.quantityOnHand += acceptedQty;
           invItem.lastReceivedAt = new Date();
+          invItem.transactions.push({
+            type: 'receipt',
+            quantity: acceptedQty,
+            previousQty: prevQty,
+            newQty: invItem.quantityOnHand,
+            referenceNumber: grn.grnNumber,
+            reason: `Goods Receipt Note (${grn.grnNumber})`,
+            performedBy: req.user._id,
+            timestamp: new Date(),
+          });
           await invItem.save();
           item.inventoryItemId = invItem._id;
         }
@@ -324,8 +356,19 @@ const issueItems = async (req, res, next) => {
           if (invItem.quantityOnHand < item.issuedQuantity) {
             return res.status(400).json({ message: `Insufficient stock for: ${invItem.description}` });
           }
+          const prevQty = invItem.quantityOnHand || 0;
           invItem.quantityOnHand -= item.issuedQuantity;
           invItem.lastIssuedAt = new Date();
+          invItem.transactions.push({
+            type: 'issuance',
+            quantity: -item.issuedQuantity,
+            previousQty: prevQty,
+            newQty: invItem.quantityOnHand,
+            referenceNumber: issuance.issuanceNumber,
+            reason: `Department Issuance to ${issuance.requestingDepartment || 'Department'}`,
+            performedBy: req.user._id,
+            timestamp: new Date(),
+          });
           await invItem.save();
         }
       }

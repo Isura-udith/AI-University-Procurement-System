@@ -365,15 +365,15 @@ export default function StoreHub() {
             <h3 className="text-xs font-bold text-teal-400 uppercase tracking-wider mb-3">Phase 7–8 Workflow Lifecycle</h3>
             <div className="space-y-2">
               {[
-                { step: 'Supplier Delivers Goods', done: true },
-                { step: 'Supplies Division Receives', done: true },
-                { step: 'Store GRN Created', done: true },
-                { step: 'Goods Inspection Conducted', done: grns.some(g => g.status === 'accepted' || g.status === 'inventory_updated') },
-                { step: 'Store Inventory Updated', done: grns.some(g => g.status === 'inventory_updated') },
-                { step: 'Department Requests Issuance', done: true },
-                { step: 'Store Issues Items to Dept.', done: true },
-                { step: 'Department Confirms Receipt', done: true },
-                { step: 'Procurement Completed', done: true },
+                { step: 'Supplier Delivers Goods', done: (stats.grnTotal || 0) > 0 },
+                { step: 'Supplies Division Receives', done: (stats.grnTotal || 0) > 0 },
+                { step: 'Store GRN Created', done: (stats.grnTotal || 0) > 0 },
+                { step: 'Goods Inspection Conducted', done: (stats.inspectedTotal || 0) > 0 },
+                { step: 'Store Inventory Updated', done: (stats.stockedTotal || 0) > 0 },
+                { step: 'Department Requests Issuance', done: (stats.issuedTotal || 0) > 0 || (stats.completedTotal || 0) > 0 },
+                { step: 'Store Issues Items to Dept.', done: (stats.issuedTotal || 0) > 0 },
+                { step: 'Department Confirms Receipt', done: (stats.completedTotal || 0) > 0 },
+                { step: 'Procurement Completed', done: (stats.completedTotal || 0) > 0 },
               ].map((s, i) => (
                 <div key={i} className={`flex items-center gap-2.5 text-xs ${s.done ? 'text-teal-300 font-semibold' : 'text-slate-500'}`}>
                   <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[10px] ${s.done ? 'bg-teal-400 text-slate-900 font-bold' : 'bg-slate-800 text-slate-400'}`}>
@@ -393,27 +393,24 @@ export default function StoreHub() {
             <p className="text-xs text-slate-500 mb-3">Steps 37–45 completion milestones</p>
             <div className="space-y-2">
               {[
-                { label: 'Delivered', step: 37, key: 'delivered' },
-                { label: 'GRN Created', step: 38, key: 'grn_created' },
-                { label: 'Inspected', step: 40, key: 'inspected' },
-                { label: 'Stocked', step: 41, key: 'stocked' },
-                { label: 'Issued', step: 43, key: 'issued' },
-                { label: 'Received by Dept.', step: 44, key: 'received' },
-                { label: 'Completed', step: 45, key: 'completed' },
-              ].map((milestone) => {
-                const count = grns.length;
-                return (
-                  <div key={milestone.key} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-slate-400 w-6">#{milestone.step}</span>
-                      <span className="font-medium text-slate-700">{milestone.label}</span>
-                    </div>
-                    <span className={`font-bold px-2 py-0.5 rounded-full ${count > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                      {count}
-                    </span>
+                { label: 'Delivered', step: 37, count: stats.grnTotal || 0 },
+                { label: 'GRN Created', step: 38, count: stats.grnTotal || 0 },
+                { label: 'Inspected', step: 40, count: stats.inspectedTotal || 0 },
+                { label: 'Stocked', step: 41, count: stats.stockedTotal || 0 },
+                { label: 'Issued', step: 43, count: stats.issuedTotal || 0 },
+                { label: 'Received by Dept.', step: 44, count: stats.completedTotal || 0 },
+                { label: 'Completed', step: 45, count: stats.completedTotal || 0 },
+              ].map((milestone) => (
+                <div key={milestone.label} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-slate-400 w-6">#{milestone.step}</span>
+                    <span className="font-medium text-slate-700">{milestone.label}</span>
                   </div>
-                );
-              })}
+                  <span className={`font-bold px-2 py-0.5 rounded-full ${milestone.count > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                    {milestone.count}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
