@@ -379,6 +379,34 @@ class ProcurementService {
     
     await procurement.save();
 
+    // ── Phase 4 Budget Sync: Update BudgetAllocation consumedAmount ──
+    try {
+      const BudgetAllocation = require('../models/budget.allocation.model');
+      let targetAlloc = null;
+      if (complianceResult?.allocationId) {
+        targetAlloc = await BudgetAllocation.findById(complianceResult.allocationId);
+      }
+      if (!targetAlloc) {
+        targetAlloc = await BudgetAllocation.findOne({ tenantId }).sort({ budgetYear: -1 });
+      }
+      if (targetAlloc) {
+        const cleanDept = (procurement.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+        const cleanFac = (procurement.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+        const deptEntry = targetAlloc.departmentAllocations?.find(d => {
+          const dDept = (d.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+          const dFac = (d.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+          return (cleanDept && (dDept.includes(cleanDept) || cleanDept.includes(dDept) || dFac.includes(cleanDept))) ||
+                 (cleanFac && (dFac.includes(cleanFac) || cleanFac.includes(dFac) || dDept.includes(cleanFac)));
+        });
+        if (deptEntry) {
+          deptEntry.consumedAmount = (deptEntry.consumedAmount || 0) + (procurement.totalEstimatedCost || 0);
+          await targetAlloc.save();
+        }
+      }
+    } catch (allocErr) {
+      logger.warn('Failed to sync BudgetAllocation consumed amount on submit', { error: allocErr.message });
+    }
+
     const chainNames = newApprovalChain.map(s => {
       if (s.stage === 'hod') return 'HOD';
       if (s.stage === 'dean') return 'Dean';

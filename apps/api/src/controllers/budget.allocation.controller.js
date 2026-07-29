@@ -30,6 +30,60 @@ const createBudgetAllocation = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const syncBudgetAllocationConsumed = async (tenantId, allocations) => {
+  try {
+    const Procurement = require('../models/procurement.model');
+    const procs = await Procurement.find({
+      tenantId,
+      status: { $nin: ['rejected', 'cancelled'] },
+    }).lean();
+
+    if (!procs || procs.length === 0) return allocations.map(a => (a.toJSON ? a.toJSON() : a));
+
+    return allocations.map(allocDoc => {
+      const alloc = allocDoc.toJSON ? allocDoc.toJSON() : JSON.parse(JSON.stringify(allocDoc));
+      if (Array.isArray(alloc.departmentAllocations)) {
+        alloc.departmentAllocations = alloc.departmentAllocations.map(d => {
+          const cleanDDept = (d.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+          const cleanDFac = (d.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+
+          const matchingProcs = procs.filter(p => {
+            const pDept = (p.department || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+            const pFac = (p.faculty || '').toLowerCase().replace(/^faculty of\s+/i, '').trim();
+
+            const nameMatch = (cleanDDept && pDept && (cleanDDept.includes(pDept) || pDept.includes(cleanDDept) || cleanDFac.includes(pDept))) ||
+                              (cleanDFac && pFac && (cleanDFac.includes(pFac) || pFac.includes(cleanDFac) || cleanDDept.includes(pFac))) ||
+                              (cleanDDept && pFac && (cleanDDept.includes(pFac) || pFac.includes(cleanDDept))) ||
+                              (cleanDFac && pDept && (cleanDFac.includes(pDept) || pDept.includes(cleanDFac)));
+
+            return nameMatch;
+          });
+
+          const sumProcCost = matchingProcs.reduce((sum, p) => {
+            const cost = p.totalEstimatedCost || (p.items?.reduce((isum, item) => isum + (item.estimatedTotalPrice || (item.quantity * item.estimatedUnitPrice) || 0), 0)) || 0;
+            return sum + cost;
+          }, 0);
+
+          const consumedAmount = Math.max(d.consumedAmount || 0, sumProcCost);
+          const remainingAmount = Math.max(0, (d.allocatedAmount || 0) - consumedAmount);
+          return {
+            ...d,
+            consumedAmount,
+            remainingAmount,
+          };
+        });
+
+        alloc.totalConsumed = alloc.departmentAllocations.reduce((sum, d) => sum + (d.consumedAmount || 0), 0);
+        alloc.totalRemaining = Math.max(0, (alloc.procurementBudget || alloc.totalAllocated || 0) - alloc.totalConsumed);
+      }
+      return alloc;
+    });
+  } catch (err) {
+    console.error('Error syncing budget allocation consumed amounts:', err);
+    return allocations.map(a => (a.toJSON ? a.toJSON() : a));
+  }
+};
+
 /** GET /api/budget-allocations — List allocations */
 const getBudgetAllocations = async (req, res, next) => {
   try {
@@ -37,14 +91,16 @@ const getBudgetAllocations = async (req, res, next) => {
     const filter = { tenantId: req.tenantId };
     if (budgetYear) filter.budgetYear = Number(budgetYear);
 
-    const allocations = await BudgetAllocation.find(filter)
+    const rawAllocations = await BudgetAllocation.find(filter)
       .populate('distributedBy', 'name email')
       .populate('verifiedByBursar', 'name email')
       .populate('annualPlanId', 'title planYear referenceNumber totalBudgetRequest status')
       .sort({ budgetYear: -1 });
 
+    const allocations = await syncBudgetAllocationConsumed(req.tenantId, rawAllocations);
+
     // Filter by faculty/dept if scoped role
-    let result = allocations.map(a => a.toJSON());
+    let result = allocations;
     if (faculty) {
       result = result.map(a => ({
         ...a,
@@ -64,11 +120,12 @@ const getBudgetAllocations = async (req, res, next) => {
 /** GET /api/budget-allocations/:id — Get single allocation */
 const getBudgetAllocation = async (req, res, next) => {
   try {
-    const allocation = await BudgetAllocation.findOne({ _id: req.params.id, tenantId: req.tenantId })
+    const rawAllocation = await BudgetAllocation.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate('distributedBy', 'name email')
       .populate('annualPlanId', 'title planYear referenceNumber totalBudgetRequest status');
-    if (!allocation) return res.status(404).json({ message: 'Budget Allocation not found' });
-    return success(res, allocation);
+    if (!rawAllocation) return res.status(404).json({ message: 'Budget Allocation not found' });
+    const synced = await syncBudgetAllocationConsumed(req.tenantId, [rawAllocation]);
+    return success(res, synced[0] || rawAllocation);
   } catch (err) { next(err); }
 };
 
@@ -111,10 +168,12 @@ const getMyBudget = async (req, res, next) => {
     const userFaculty = req.query.faculty || req.user?.faculty;
     const currentYear = new Date().getFullYear();
 
-    let allocations = await BudgetAllocation.find({ tenantId: req.tenantId, budgetYear: currentYear });
-    if (!allocations || allocations.length === 0) {
-      allocations = await BudgetAllocation.find({ tenantId: req.tenantId }).sort({ budgetYear: -1 });
+    let rawAllocations = await BudgetAllocation.find({ tenantId: req.tenantId, budgetYear: currentYear });
+    if (!rawAllocations || rawAllocations.length === 0) {
+      rawAllocations = await BudgetAllocation.find({ tenantId: req.tenantId }).sort({ budgetYear: -1 });
     }
+
+    const allocations = await syncBudgetAllocationConsumed(req.tenantId, rawAllocations);
 
     const FACULTY_MAP = {
       fom: 'Faculty of Medicine',
@@ -163,7 +222,7 @@ const getMyBudget = async (req, res, next) => {
       if (deptEntry) {
         const remaining = (deptEntry.allocatedAmount || 0) - (deptEntry.consumedAmount || 0);
         myAlloc = {
-          ...deptEntry.toJSON(),
+          ...deptEntry,
           remainingAmount: deptEntry.remainingAmount !== undefined && deptEntry.remainingAmount !== null ? deptEntry.remainingAmount : remaining,
           allocationId: alloc._id
         };
