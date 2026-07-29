@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
   FaBoxOpen, FaPlus, FaSearch, FaWarehouse, FaExclamationTriangle, FaCheckCircle,
-  FaTruck, FaArrowRight, FaClipboardCheck, FaHistory, FaSlidersH, FaTimes
+  FaTruck, FaClipboardCheck, FaHistory, FaSlidersH, FaTimes
 } from 'react-icons/fa';
 import inventoryService from '../../../services/inventory.service';
 
@@ -161,30 +161,80 @@ export default function StoreHub() {
     return matchCat && matchSearch;
   });
 
+  const handleExportCSV = () => {
+    if (!items || items.length === 0) {
+      toast.info('No inventory items to export.');
+      return;
+    }
+    const headers = ['Item Code', 'Description', 'Category', 'Quantity On Hand', 'Min Stock Level', 'Unit Cost (LKR)', 'Location', 'Status'];
+    const rows = items.map(item => [
+      item.itemCode || item._id,
+      `"${(item.description || '').replace(/"/g, '""')}"`,
+      item.category || '',
+      item.quantityOnHand || 0,
+      item.minimumStockLevel || 0,
+      item.unitCost || 0,
+      `"${(item.location || '').replace(/"/g, '""')}"`,
+      item.status || ''
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `inventory_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Inventory catalog exported to CSV');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Store & Inventory Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Phases 7 & 8 · Goods Receipt · Technical Inspection · Department Distribution</p>
+      {/* Page Title & Top Actions */}
+      <div className="relative overflow-hidden bg-[#0d1527] rounded-2xl p-5 sm:p-6 text-white shadow-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none text-emerald-500"> 
+          <FaWarehouse size={160} /> 
         </div>
-        <div className="flex gap-2">
+
+        <div className="relative z-10">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Store & Inventory Management
+          </h1>
+        </div>
+
+        <div className="relative z-10 flex flex-wrap items-center gap-3 self-end sm:self-auto">
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/60 shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <span>Export CSV</span>
+          </button>
+
           {isStoreManager && (
             <button
               onClick={() => setAddItemModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-all shadow-xs"
+              className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/60 shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
             >
-              <FaPlus size={12} /> Add Item
+              <FaPlus size={12} />
+              <span>Add Item</span>
             </button>
           )}
+
           {isStoreManager && (
-            <Link to="/store/grn/new" className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-500 transition-all shadow-xs">
-              <FaPlus size={12} /> New GRN
+            <Link
+              to="/store/grn/new"
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1.5"
+            >
+              <FaPlus size={12} />
+              <span>New GRN</span>
             </Link>
           )}
-          <Link to="/store/issue" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 text-white text-sm font-semibold rounded-xl hover:bg-slate-600 transition-all shadow-xs">
-            <FaArrowRight size={12} /> Issue Items
+
+          <Link
+            to="/store/issue"
+            className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700/60 shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <span>Issue Items</span>
           </Link>
         </div>
       </div>
@@ -323,7 +373,7 @@ export default function StoreHub() {
                 { step: 'Department Requests Issuance', done: true },
                 { step: 'Store Issues Items to Dept.', done: true },
                 { step: 'Department Confirms Receipt', done: true },
-                { step: '✅ Procurement Completed (Step 45)', done: true },
+                { step: 'Procurement Completed', done: true },
               ].map((s, i) => (
                 <div key={i} className={`flex items-center gap-2.5 text-xs ${s.done ? 'text-teal-300 font-semibold' : 'text-slate-500'}`}>
                   <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[10px] ${s.done ? 'bg-teal-400 text-slate-900 font-bold' : 'bg-slate-800 text-slate-400'}`}>
