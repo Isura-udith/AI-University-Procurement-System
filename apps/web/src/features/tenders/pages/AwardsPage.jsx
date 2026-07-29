@@ -399,7 +399,7 @@ export default function AwardsPage() {
   });
 
   return (
-    <div className="max-w-8xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       {/* Top Banner & Header */}
       <div className="bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-6 shadow-xl relative z-20">
         <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">

@@ -1,17 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaPlus, FaSearch, FaFilter, FaEye, FaSpinner, FaTrash, FaFileContract, FaExclamationTriangle, FaStar, FaStarHalfAlt } from 'react-icons/fa';
 import contractService from '../../../services/contract.service';
 import ConfirmModal from '../../../components/ConfirmModal';
-import Pagination from '../../../components/Pagination';
-import ExportButton from '../../../components/ExportButton';
 import StatusBadge from '../../../components/StatusBadge';
-
-
+import { FaFileAlt } from 'react-icons/fa';
 
 const STATUS_FILTERS = [
-  { value: 'all', label: 'All Status' },
+  { value: 'all', label: 'All Statuses' },
   { value: 'draft', label: 'Draft' },
   { value: 'active', label: 'Active' },
   { value: 'expiring', label: 'Expiring Soon' },
@@ -25,19 +21,6 @@ const TYPE_FILTERS = [
   { value: 'works', label: 'Works' },
   { value: 'services', label: 'Services' },
 ];
-
-function PerformanceStars({ rating }) {
-  if (!rating) return <span className="text-xs text-slate-400">N/A</span>;
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.5;
-  return (
-    <div className="flex items-center space-x-0.5">
-      {Array.from({ length: full }, (_, i) => <FaStar key={i} className="text-amber-400" size={10} />)}
-      {half && <FaStarHalfAlt className="text-amber-400" size={10} />}
-      <span className="text-xs text-slate-500 ml-1">{rating.toFixed(1)}</span>
-    </div>
-  );
-}
 
 export default function ContractList() {
   const [data, setData] = useState([]);
@@ -54,11 +37,11 @@ export default function ContractList() {
     try {
       const res = await contractService.getAll();
       const rawData = res.data || res || [];
-      const mapped = rawData.map(c => {
+      const mapped = rawData.map((c) => {
         const totalDeliv = c.deliverables?.length || 0;
-        const acceptedDeliv = c.deliverables?.filter(d => d.status === 'accepted').length || 0;
+        const acceptedDeliv = c.deliverables?.filter((d) => d.status === 'accepted').length || 0;
         const progressPct = totalDeliv > 0 ? Math.round((acceptedDeliv / totalDeliv) * 100) : 0;
-        
+
         return {
           _id: c._id,
           contractNumber: c.contractNumber,
@@ -70,7 +53,9 @@ export default function ContractList() {
           startDate: c.startDate ? c.startDate.split('T')[0] : '—',
           endDate: c.endDate ? c.endDate.split('T')[0] : '—',
           progress: progressPct,
-          performanceRating: c.performanceRating || (c.slaMetrics?.[0]?.actual ? parseFloat(c.slaMetrics[0].actual) : null),
+          performanceRating:
+            c.performanceRating ||
+            (c.slaMetrics?.[0]?.actual ? parseFloat(c.slaMetrics[0].actual) : null),
         };
       });
       setData(mapped);
@@ -88,164 +73,422 @@ export default function ContractList() {
   }, [fetchData]);
 
   const handleDelete = async () => {
-    try { await contractService.delete(deleteTarget._id); } catch { toast.error('Failed to delete contract'); }
-    setData(prev => prev.filter(d => d._id !== deleteTarget._id));
-    toast.success(`Contract ${deleteTarget.contractNumber} deleted.`);
+    try {
+      await contractService.delete(deleteTarget._id);
+      setData((prev) => prev.filter((d) => d._id !== deleteTarget._id));
+      toast.success(`Contract ${deleteTarget.contractNumber} deleted successfully.`);
+    } catch {
+      toast.error('Failed to delete contract');
+    }
     setDeleteTarget(null);
   };
 
-  const filtered = data.filter(item => {
-    const s = !search || item.title?.toLowerCase().includes(search.toLowerCase()) || item.contractNumber?.toLowerCase().includes(search.toLowerCase()) || item.vendor?.toLowerCase().includes(search.toLowerCase());
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      toast.info('No contract records available to export.');
+      return;
+    }
+    const columns = [
+      { key: 'contractNumber', label: 'Contract #' },
+      { key: 'title', label: 'Title' },
+      { key: 'vendor', label: 'Vendor' },
+      { key: 'value', label: 'Value (LKR)' },
+      { key: 'type', label: 'Type' },
+      { key: 'status', label: 'Status' },
+      { key: 'startDate', label: 'Start Date' },
+      { key: 'endDate', label: 'End Date' },
+    ];
+    const header = columns.map((c) => c.label).join(',');
+    const rows = filtered.map((row) =>
+      columns
+        .map((c) => {
+          const val = row[c.key];
+          const str = String(val ?? '').replace(/"/g, '""');
+          return `"${str}"`;
+        })
+        .join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contracts_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV Export downloaded successfully.');
+  };
+
+  const filtered = data.filter((item) => {
+    const s =
+      !search ||
+      item.title?.toLowerCase().includes(search.toLowerCase()) ||
+      item.contractNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      item.vendor?.toLowerCase().includes(search.toLowerCase());
     const st = statusFilter === 'all' || item.status === statusFilter;
     const tp = typeFilter === 'all' || item.type === typeFilter;
     return s && st && tp;
   });
 
   const totalItems = filtered.length;
-  const totalPages = Math.ceil(totalItems / perPage);
+  const totalPages = Math.ceil(totalItems / perPage) || 1;
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
   const stats = {
-    active: data.filter(d => d.status === 'active').length,
-    expiring: data.filter(d => d.status === 'expiring').length,
-    totalValue: data.filter(d => d.status === 'active' || d.status === 'expiring').reduce((s, d) => s + (d.value || 0), 0),
+    total: data.length,
+    active: data.filter((d) => d.status === 'active').length,
+    expiring: data.filter((d) => d.status === 'expiring').length,
+    completed: data.filter((d) => d.status === 'completed').length,
+    totalValue: data
+      .filter((d) => d.status === 'active' || d.status === 'expiring')
+      .reduce((s, d) => s + (d.value || 0), 0),
   };
 
+  const startItem = totalItems > 0 ? (page - 1) * perPage + 1 : 0;
+  const endItem = Math.min(page * perPage, totalItems);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contract Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Stages 11–12: Draft, sign, manage, and track contract lifecycle with performance monitoring</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <ExportButton data={filtered} columns={[
-            { key: 'contractNumber', label: 'Contract #' }, { key: 'title', label: 'Title' }, { key: 'vendor', label: 'Vendor' },
-            { key: 'value', label: 'Value' }, { key: 'type', label: 'Type' }, { key: 'status', label: 'Status' },
-          ]} filename="contracts" />
-          <Link to="/contracts/new" className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-500 transition-colors shadow-sm">
-            <FaPlus size={11} /> <span>New Contract</span>
-          </Link>
+    <div className="w-full space-y-6">
+      {/* Header Banner */}
+      <div className="bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-6 shadow-xl relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none"> 
+                    <FaFileAlt size={160} /> 
+                  </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2">
+              Contract Management
+            </h1>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleExportCSV}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors shadow-sm"
+            >
+              Export CSV
+            </button>
+            <Link
+              to="/contracts/new"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl transition-colors shadow-md"
+            >
+              + Create Contract
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center space-x-3 shadow-sm">
-          <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-lg"><FaFileContract size={16} /></div>
-          <div><p className="text-lg font-bold text-slate-900">{stats.active}</p><p className="text-xs text-slate-500">Active Contracts</p></div>
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Contracts</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">{stats.active}</p>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Currently under execution</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center space-x-3 shadow-sm">
-          <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg"><FaExclamationTriangle size={16} /></div>
-          <div><p className="text-lg font-bold text-slate-900">{stats.expiring}</p><p className="text-xs text-slate-500">Expiring Soon</p></div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Expiring Soon</p>
+          <p className="text-2xl font-black text-amber-600 mt-1">{stats.expiring}</p>
+          <p className="text-[11px] text-amber-700 font-semibold mt-0.5">Within 30 days deadline</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg p-4 flex items-center space-x-3 shadow-sm">
-          <div className="p-2.5 bg-blue-100 text-blue-600 rounded-lg"><FaFileContract size={16} /></div>
-          <div><p className="text-lg font-bold text-slate-900">LKR {(stats.totalValue / 1000000).toFixed(1)}M</p><p className="text-xs text-slate-500">Active Value</p></div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Value</p>
+          <p className="text-2xl font-black text-slate-900 mt-1">
+            LKR {(stats.totalValue / 1000000).toFixed(2)}M
+          </p>
+          <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Committed budget value</p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Completed</p>
+          <p className="text-2xl font-black text-purple-600 mt-1">{stats.completed}</p>
+          <p className="text-[11px] text-purple-700 font-semibold mt-0.5">Fully fulfilled contracts</p>
         </div>
       </div>
 
-      {/* Expiry Alerts */}
+      {/* Expiry Alerts Banner */}
       {stats.expiring > 0 && (
-        <div className="flex items-start space-x-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
-          <FaExclamationTriangle className="text-amber-600 mt-0.5 shrink-0" size={14} />
-          <p className="text-sm text-amber-700"><strong>{stats.expiring} contract(s)</strong> expiring within 30 days. Review and initiate renewal or re-tendering process.</p>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
+          <div>
+            <span className="font-extrabold uppercase tracking-wide bg-amber-200/80 px-2 py-0.5 rounded text-[10px] mr-2">
+              Contract Renewal Notice
+            </span>
+            <span>
+              <strong>{stats.expiring} contract(s)</strong> are expiring within 30 days. Review performance and initiate renewal or re-tendering process.
+            </span>
+          </div>
+          <button
+            onClick={() => setStatusFilter('expiring')}
+            className="text-xs font-bold text-amber-800 hover:text-amber-950 underline whitespace-nowrap self-end sm:self-auto"
+          >
+            View Expiring Contracts
+          </button>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="relative flex-1">
-          <FaSearch className="absolute left-3.5 top-3 text-slate-400" size={13} />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search contracts, vendors..." className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500" />
+      {/* Filter and Search Toolbar */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="w-full sm:w-80">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search contract #, title, or vendor..."
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
+          />
         </div>
-        <div className="flex items-center space-x-2">
-          <FaFilter className="text-slate-400" size={12} />
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
-            {STATUS_FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+
+        <div className="flex flex-wrap items-center justify-end gap-2.5 w-full sm:w-auto text-xs">
+          <span className="font-semibold text-slate-400">Filter by:</span>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 font-semibold"
+          >
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
           </select>
-          <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }} className="px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
-            {TYPE_FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 font-semibold"
+          >
+            {TYPE_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
           </select>
+
+          {(search || statusFilter !== 'all' || typeFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+                setTypeFilter('all');
+                setPage(1);
+              }}
+              className="text-xs font-bold text-emerald-600 hover:underline px-2 py-1"
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Table Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <FaSpinner className="animate-spin text-emerald-600 mr-2" size={18} />
-            <span className="text-sm text-slate-500">Loading contracts...</span>
+          <div className="py-16 text-center text-xs font-semibold text-slate-500">
+            Loading contract records...
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-left">
-                    <th className="px-5 py-3 font-semibold text-slate-600">Contract #</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600">Title / Vendor</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600 text-right">Value (LKR)</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600">Type</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600">Status</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600">Progress</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600">Rating</th>
-                    <th className="px-5 py-3 font-semibold text-slate-600 text-center">Actions</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                    <th className="p-3.5">Contract #</th>
+                    <th className="p-3.5">Title & Vendor</th>
+                    <th className="p-3.5 text-right">Contract Value (LKR)</th>
+                    <th className="p-3.5 text-center">Type</th>
+                    <th className="p-3.5 text-center">Status</th>
+                    <th className="p-3.5">Execution Progress</th>
+                    <th className="p-3.5 text-center">Rating</th>
+                    <th className="p-3.5 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {paged.map(c => (
-                    <tr key={c._id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${c.status === 'expiring' ? 'bg-amber-50/30' : ''}`}>
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{c.contractNumber}</td>
-                      <td className="px-5 py-3.5 max-w-xs">
-                        <Link to={`/contracts/${c._id}`} className="font-medium text-slate-800 truncate block hover:text-emerald-600 transition-colors">{c.title}</Link>
-                        <p className="text-xs text-slate-400">{c.vendor}</p>
+                <tbody className="divide-y divide-slate-100">
+                  {paged.map((c) => (
+                    <tr
+                      key={c._id}
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        c.status === 'expiring' ? 'bg-amber-50/30' : ''
+                      }`}
+                    >
+                      <td className="p-3.5">
+                        <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                          {c.contractNumber}
+                        </span>
                       </td>
-                      <td className="px-5 py-3.5 font-medium text-slate-800 text-right">{(c.value || 0).toLocaleString()}</td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.type === 'works' ? 'bg-orange-100 text-orange-700' : c.type === 'services' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{c.type}</span>
+
+                      <td className="p-3.5 max-w-xs">
+                        <Link
+                          to={`/contracts/${c._id}`}
+                          className="font-bold text-slate-900 hover:text-emerald-600 transition-colors truncate block"
+                        >
+                          {c.title}
+                        </Link>
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{c.vendor}</p>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-16 bg-slate-100 rounded-full h-1.5">
-                            <div className={`h-1.5 rounded-full ${c.progress >= 80 ? 'bg-emerald-500' : c.progress >= 40 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${c.progress}%` }} />
+
+                      <td className="p-3.5 text-right font-extrabold text-slate-900">
+                        {(c.value || 0).toLocaleString()}
+                      </td>
+
+                      <td className="p-3.5 text-center">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                            c.type === 'works'
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : c.type === 'services'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}
+                        >
+                          {c.type}
+                        </span>
+                      </td>
+
+                      <td className="p-3.5 text-center">
+                        <StatusBadge status={c.status} />
+                      </td>
+
+                      <td className="p-3.5">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <span>{c.progress}%</span>
                           </div>
-                          <span className="text-xs text-slate-500">{c.progress}%</span>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                c.progress >= 80
+                                  ? 'bg-emerald-500'
+                                  : c.progress >= 40
+                                  ? 'bg-blue-500'
+                                  : 'bg-amber-500'
+                              }`}
+                              style={{ width: `${c.progress}%` }}
+                            />
+                          </div>
+                          {c.startDate && c.endDate && (
+                            <p className="text-[10px] text-slate-400">
+                              {c.startDate} → {c.endDate}
+                            </p>
+                          )}
                         </div>
-                        {c.startDate && c.endDate && (
-                          <p className="text-[10px] text-slate-400 mt-0.5">{c.startDate} → {c.endDate}</p>
+                      </td>
+
+                      <td className="p-3.5 text-center font-bold">
+                        {c.performanceRating ? (
+                          <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[11px]">
+                            {c.performanceRating.toFixed(1)} / 5.0
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">Not Rated</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5"><PerformanceStars rating={c.performanceRating} /></td>
-                      <td className="px-5 py-3.5 text-center">
-                        <div className="flex items-center justify-center space-x-1">
-                          <Link to={`/contracts/${c._id}`} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View">
-                            <FaEye size={12} />
+
+                      <td className="p-3.5 text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Link
+                            to={`/contracts/${c._id}`}
+                            className="px-2.5 py-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
+                          >
+                            View
                           </Link>
                           {c.status === 'draft' && (
-                            <button onClick={() => setDeleteTarget(c)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                              <FaTrash size={10} />
+                            <button
+                              onClick={() => setDeleteTarget(c)}
+                              className="px-2.5 py-1 text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                            >
+                              Delete
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
                   ))}
+
                   {paged.length === 0 && (
-                    <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-slate-400">No contracts found.</td></tr>
+                    <tr>
+                      <td colSpan={8} className="p-12 text-center text-xs text-slate-400">
+                        No matching contracts found.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
-            <div className="px-5 py-2 border-t border-slate-100">
-              <Pagination currentPage={page} totalPages={totalPages} totalItems={totalItems} itemsPerPage={perPage} onPageChange={setPage} onItemsPerPageChange={n => { setPerPage(n); setPage(1); }} />
-            </div>
+
+            {/* Icon-free Pagination Footer */}
+            {totalItems > 0 && (
+              <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                <div>
+                  Showing <strong className="text-slate-900">{startItem}</strong> to{' '}
+                  <strong className="text-slate-900">{endItem}</strong> of{' '}
+                  <strong className="text-slate-900">{totalItems}</strong> contracts
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-500 font-medium">Per Page:</span>
+                  <select
+                    value={perPage}
+                    onChange={(e) => {
+                      setPerPage(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none"
+                  >
+                    {[5, 10, 20, 50].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex items-center space-x-1 ml-4">
+                    <button
+                      onClick={() => setPage(page - 1)}
+                      disabled={page <= 1}
+                      className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+
+                    <span className="px-2 font-bold text-slate-700">
+                      Page {page} of {totalPages}
+                    </span>
+
+                    <button
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages}
+                      className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      <ConfirmModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Contract" message={`Delete draft contract "${deleteTarget?.title}"? This cannot be undone.`} confirmText="Delete" variant="danger" />
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Draft Contract"
+        message={`Are you sure you want to delete draft contract "${deleteTarget?.contractNumber} - ${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmText="Delete Contract"
+        variant="danger"
+      />
     </div>
   );
 }

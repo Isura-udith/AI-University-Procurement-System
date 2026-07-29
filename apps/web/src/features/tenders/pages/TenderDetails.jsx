@@ -84,7 +84,7 @@ export default function TenderDetails() {
   const handlePublish = async () => {
     try {
       await tenderService.publish(tender._id || id);
-      toast.success('🚀 Tender published to e-GP portal and university website!');
+      toast.success('Tender published to e-GP portal and university website!');
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to publish tender.');
@@ -96,7 +96,7 @@ export default function TenderDetails() {
   const handleCloseBidding = async () => {
     try {
       await tenderService.closeBidding(tender._id || id);
-      toast.success('🔒 Bidding closed. Bid box is sealed. Proceed to bid opening ceremony.');
+      toast.success('Bidding closed. Bid box is sealed. Proceed to bid opening ceremony.');
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to close bidding.');
@@ -108,7 +108,7 @@ export default function TenderDetails() {
   const handleOpenBidBox = async () => {
     try {
       await tenderService.openBidBox(tender._id || id);
-      toast.success('📂 Bid box opened. Proceed to bid opening ceremony to unseal bids.');
+      toast.success('Bid box opened. Proceed to bid opening ceremony to unseal bids.');
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to open bid box.');
@@ -167,7 +167,7 @@ export default function TenderDetails() {
     if (!addendum.description.trim()) { toast.error('Description is required.'); return; }
     try {
       await tenderService.addAddendum(tender._id || id, { description: addendum.description });
-      toast.success('📋 Addendum issued successfully.');
+      toast.success('Addendum issued successfully.');
       setAddendumModal(false);
       setAddendum({ description: '' });
       load();

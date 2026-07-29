@@ -13,6 +13,7 @@ import {
   FaCheckCircle,
   FaChevronDown,
   FaTimes,
+  FaFileAlt
 } from "react-icons/fa";
 import tenderService from "../../../services/tender.service";
 import aiService from "../../../services/ai.service";
@@ -364,6 +365,9 @@ export default function EvaluationPage() {
       {/* Header Banner */}
       <div className="bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg border border-slate-800">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none"> 
+          <FaFileAlt size={160} /> 
+        </div>
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Bid Evaluation & Technical Scoring
