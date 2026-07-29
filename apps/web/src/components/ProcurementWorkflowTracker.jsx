@@ -239,13 +239,13 @@ export default function ProcurementWorkflowTracker({ currentStep = 1, compact = 
                       return (
                         <div key={step.step} className={`relative py-2.5 ${status === 'active' ? 'animate-fade-in' : ''}`}>
                           {/* Connector dot */}
-                          <div className={`absolute left-7.75 w-4 h-4 rounded-full border-2 ${
-                            status === 'completed' ? 'bg-emerald-500 border-emerald-500' :
-                            status === 'active' ? `${c.bg} border-white ring-2 ring-${phase.color}-300` :
+                          <div className={`absolute -left-7.75 top-3.5 w-3.5 h-3.5 rounded-full border-2 transition-all ${
+                            status === 'completed' ? 'bg-emerald-500 border-emerald-500 shadow-xs' :
+                            status === 'active' ? `${c.bg} border-white ring-2 ring-emerald-400 shadow-sm animate-pulse` :
                             'bg-white border-slate-300'
                           }`}>
-                            {status === 'completed' && <FaCheck className="text-white" style={{ fontSize: 8, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}
-                            {status === 'active' && <FaSpinner className="text-white animate-spin" style={{ fontSize: 8, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}
+                            {status === 'completed' && <FaCheck className="text-white" style={{ fontSize: 7, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}
+                            {status === 'active' && <FaSpinner className="text-white animate-spin" style={{ fontSize: 7, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}
                           </div>
                           {/* Step content */}
                           <div className="flex items-center justify-between">

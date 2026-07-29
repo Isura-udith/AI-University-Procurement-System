@@ -1,14 +1,46 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaShoppingCart, FaFileContract, FaTruck, FaBoxes, FaChevronRight, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
+import {
+  FaLayerGroup,
+  FaCalendarAlt,
+  FaMoneyBillWave,
+  FaShoppingCart,
+  FaFileContract,
+  FaTruck,
+  FaBoxes,
+  FaChevronRight,
+  FaArrowRight,
+  FaExclamationTriangle,
+  FaFileAlt
+} from 'react-icons/fa';
 import ProcurementWorkflowTracker from '../../../components/ProcurementWorkflowTracker';
 import planningService from '../../../services/planning.service';
 
 const APPROVAL_TABLE = [
-  { range: 'Up to Rs. 200,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Finance Committee → PMD (Publish)', color: 'blue' },
-  { range: 'Rs. 200,001 – 500,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Bursar → Finance Committee → PMD (Publish)', color: 'indigo' },
-  { range: 'Rs. 500,001 – 1,000,000', authority: 'Finance Committee', chain: 'Dept User → HOD → Dean → Bursar → VC → Finance Committee → PMD (Publish)', color: 'violet' },
-  { range: 'Above Rs. 1,000,000', authority: 'University Council', chain: 'Dept User → HOD → Dean → Bursar → VC → Council → Finance Committee → PMD (Publish)', color: 'rose' },
+  {
+    range: 'Up to Rs. 200,000',
+    authority: 'Finance Committee',
+    chain: 'Dept User → HOD → Dean → Finance Committee → PMD (Publish)',
+    badgeBg: 'bg-blue-100 text-blue-800 border-blue-200',
+  },
+  {
+    range: 'Rs. 200,001 – 500,000',
+    authority: 'Finance Committee',
+    chain: 'Dept User → HOD → Dean → Bursar → Finance Committee → PMD (Publish)',
+    badgeBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  },
+  {
+    range: 'Rs. 500,001 – 1,000,000',
+    authority: 'Finance Committee',
+    chain: 'Dept User → HOD → Dean → Bursar → VC → Finance Committee → PMD (Publish)',
+    badgeBg: 'bg-violet-100 text-violet-800 border-violet-200',
+  },
+  {
+    range: 'Above Rs. 1,000,000',
+    authority: 'University Council',
+    chain: 'Dept User → HOD → Dean → Bursar → VC → Council → Finance Committee → PMD (Publish)',
+    badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
+  },
 ];
 
 const PHASE_CARDS = [
@@ -36,6 +68,7 @@ const COLOR_MAP = {
 export default function WorkflowDashboard() {
   const [stats, setStats] = useState({ masterPlans: 0, annualPlans: 0, pendingApprovals: 0, budgetAllocations: 0 });
   const [loading, setLoading] = useState(true);
+  const [simulatedStep, setSimulatedStep] = useState(1);
 
   useEffect(() => {
     const load = async () => {
@@ -58,7 +91,7 @@ export default function WorkflowDashboard() {
           budget: budget.data?.data || budget.data || {},
         });
       } catch {
-        // silent
+        // silent fallback
       } finally {
         setLoading(false);
       }
@@ -68,50 +101,114 @@ export default function WorkflowDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+      <div className="flex flex-col items-center justify-center h-64 space-y-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <span className="text-xs text-slate-500 font-medium">Loading 45-Step Lifecycle Workflow...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Procurement Workflow</h1>
-          <p className="text-sm text-slate-500 mt-1">Complete 45-Step Lifecycle · 8 Phases · From Planning to Distribution</p>
-        </div>
-        {stats.pendingApprovals > 0 && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
-            <FaExclamationTriangle className="text-amber-500" />
-            <span className="text-sm font-semibold text-amber-700">{stats.pendingApprovals} pending your approval</span>
-            <Link to="/approvals" className="text-xs font-bold text-amber-600 hover:underline ml-2">View →</Link>
+    <div className="w-full space-y-6">
+      {/* Top Banner & Header */}
+      <div className="bg-linear-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+            </div>
+            <div className="absolute right-0 top-0 bottom-0 opacity-10 flex items-center pr-8 pointer-events-none">  
+                      <FaFileAlt size={160} /> 
+                    </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 flex items-center space-x-3">
+              <span>Procurement Workflow Dashboard</span>
+            </h1>
           </div>
-        )}
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {stats.pendingApprovals > 0 && (
+              <div className="flex items-center space-x-2 bg-amber-500/20 border border-amber-400/30 rounded-xl px-4 py-2 text-xs">
+                <FaExclamationTriangle className="text-amber-400" size={12} />
+                <span className="font-bold text-amber-200">{stats.pendingApprovals} Approvals Pending</span>
+                <Link to="/approvals" className="font-bold text-amber-400 hover:underline ml-1">
+                  View →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Step Simulator Controls */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center space-x-3 w-full md:w-auto">
+          <div>
+            <p className="text-xs font-bold text-slate-900">Simulate Active Lifecycle Step</p>
+            <p className="text-[11px] text-slate-500">Drag or select to test step progress across all 8 phases</p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4 w-full md:w-auto justify-end">
+          <input
+            type="range"
+            min={1}
+            max={45}
+            value={simulatedStep}
+            onChange={(e) => setSimulatedStep(Number(e.target.value))}
+            className="w-48 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+          />
+          <div className="bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl text-xs font-black text-emerald-800 min-w-24 text-center">
+            Step {simulatedStep} / 45
+          </div>
+          <button
+            onClick={() => setSimulatedStep(1)}
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 underline"
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {/* 8-Phase Navigation Grid */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Workflow Phases</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            8 Workflow Phases Navigation
+          </h2>
+          <span className="text-xs font-semibold text-slate-500">
+            Click any phase to navigate to its module
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {PHASE_CARDS.map((phase) => {
             const c = COLOR_MAP[phase.color];
             const Icon = phase.icon;
             return (
-              <Link key={phase.id} to={phase.path} className={`group flex flex-col gap-3 p-4 rounded-2xl border ${c.border} ${c.bg} hover:shadow-md transition-all`}>
+              <Link
+                key={phase.id}
+                to={phase.path}
+                className={`group flex flex-col justify-between p-4 rounded-2xl border ${c.border} ${c.bg} hover:shadow-md transition-all space-y-3`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className={`w-9 h-9 rounded-xl ${c.icon} flex items-center justify-center`}>
-                    <Icon className="text-white" size={16} />
+                  <div className={`w-9 h-9 rounded-xl ${c.icon} flex items-center justify-center shadow-sm`}>
+                    <Icon className="text-white" size={15} />
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.badge}`}>Steps {phase.steps}</span>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${c.badge}`}>
+                    Steps {phase.steps}
+                  </span>
                 </div>
+
                 <div>
-                  <p className={`text-sm font-bold ${c.text}`}>Phase {phase.id}: {phase.title}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{phase.desc}</p>
+                  <p className={`text-xs font-extrabold ${c.text}`}>
+                    Phase {phase.id}: {phase.title}
+                  </p>
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{phase.desc}</p>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 group-hover:text-slate-600 transition-colors mt-auto">
-                  Open <FaChevronRight size={8} />
+
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 group-hover:text-slate-800 transition-colors pt-1 border-t border-slate-200/50">
+                  <span>Open Module</span>
+                  <FaChevronRight size={9} />
                 </div>
               </Link>
             );
@@ -119,31 +216,39 @@ export default function WorkflowDashboard() {
         </div>
       </div>
 
-      {/* Full 45-Step Tracker */}
-      <ProcurementWorkflowTracker currentStep={1} />
+      {/* Full 45-Step Lifecycle Tracker */}
+      <ProcurementWorkflowTracker currentStep={simulatedStep} />
 
-      {/* Approval Thresholds Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-          <h3 className="text-sm font-bold text-slate-800">Step 29: Value-Based Approval Authority Reference</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Procurement requests are routed based on their estimated total cost</p>
+      {/* Step 29 Value-Based Approval Thresholds Reference Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <span>Step 29: Value-Based Approval Authority Matrix</span>
+            </h3>
+          </div>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Procurement Value Range</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Full Approval Chain</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Approval Authority</th>
+              <tr className="border-b border-slate-200 bg-slate-50/50 text-slate-500 font-bold uppercase tracking-wider">
+                <th className="px-6 py-3">Procurement Value Range</th>
+                <th className="px-6 py-3">Full Approval Chain</th>
+                <th className="px-6 py-3 text-center">Approval Authority</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100">
               {APPROVAL_TABLE.map((row, i) => (
                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-3 text-sm font-medium text-slate-700">{row.range}</td>
-                  <td className="px-6 py-3 text-xs text-slate-500 font-mono tracking-tight">{row.chain}</td>
-                  <td className="px-6 py-3">
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full bg-${row.color}-100 text-${row.color}-700`}>{row.authority}</span>
+                  <td className="px-6 py-3.5 font-bold text-slate-900">{row.range}</td>
+                  <td className="px-6 py-3.5 text-xs text-slate-600 font-mono tracking-tight">
+                    {row.chain}
+                  </td>
+                  <td className="px-6 py-3.5 text-center">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${row.badgeBg}`}>
+                      {row.authority}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -152,25 +257,66 @@ export default function WorkflowDashboard() {
         </div>
       </div>
 
-      {/* End-to-End Flow Banner */}
-      <div className="bg-linear-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">End-to-End Workflow · 45 Steps</h2>
+      {/* End-to-End 45 Steps Flow Banner */}
+      <div className="bg-linear-to-br from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-6 text-white shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest">
+            End-to-End Workflow Flowchart · 45 Sequential Steps
+          </h2>
+          <span className="text-[11px] text-slate-400 font-semibold">
+            Section 1 to 45 Progression
+          </span>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {[
-            'HOD Identifies Needs', 'Dean Reviews', 'Bursar Estimates', 'Finance Committee', 'VC Approves', 'Council Approves',
-            '3-Year Master Plan', 'Annual Plans Created', 'Budget Prepared',
-            'Dean → Bursar → Finance → VC → Council', 'UGC', 'Treasury', 'Parliament',
-            'Budget Allocated', 'VC Distributes', 'Finance Verifies', 'Bursar Confirms', 'Dean Allocates', 'HOD Receives',
-            'Procurement Request', 'Value-Based Approval', 'Tender Published', 'Bids Submitted', 'TEC Evaluates', 'Supplier Selected', 'Contract Awarded',
-            'Goods Delivered', 'GRN Created', 'Inspection', 'Inventory Updated',
-            'Dept. Requests', 'Store Issues', 'Dept. Receives', 'COMPLETED ✓',
+            'HOD Identifies Needs',
+            'Dean Reviews',
+            'Bursar Estimates',
+            'Finance Committee',
+            'VC Approves',
+            'Council Approves',
+            '3-Year Master Plan',
+            'Annual Plans Created',
+            'Budget Prepared',
+            'Dean → Bursar → Finance → VC → Council',
+            'UGC Review',
+            'Treasury Review',
+            'Parliament Approval',
+            'Budget Allocated',
+            'VC Distributes',
+            'Finance Verifies',
+            'Bursar Confirms',
+            'Dean Allocates',
+            'HOD Receives Budget',
+            'Procurement Requisition',
+            'Value-Based Approval',
+            'Tender Published',
+            'Bids Submitted',
+            'TEC Evaluation',
+            'Supplier Selection',
+            'Contract Awarded',
+            'Goods Delivered',
+            'GRN Created',
+            'Quality Inspection',
+            'Inventory Updated',
+            'Dept Requisition',
+            'Store Issues Items',
+            'Dept Receives Items',
+            'Procurement Completed ✓',
           ].map((step, i, arr) => (
             <span key={i} className="flex items-center gap-2">
-              <span className={`px-2 py-1 rounded-lg font-medium ${
-                ['3-Year Master Plan', 'Annual Plans Created', 'Budget Allocated', 'Contract Awarded', 'COMPLETED ✓'].includes(step)
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-white/10 text-slate-300'
-              }`}>{step}</span>
+              <span
+                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-colors ${
+                  ['3-Year Master Plan', 'Annual Plans Created', 'Budget Allocated', 'Contract Awarded', 'Procurement Completed ✓'].includes(
+                    step
+                  )
+                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 shadow-sm'
+                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                }`}
+              >
+                {step}
+              </span>
               {i < arr.length - 1 && <FaArrowRight size={8} className="text-slate-500 shrink-0" />}
             </span>
           ))}
