@@ -300,14 +300,14 @@ export default function AIMarketMonitoringPage() {
           </div>
 
           {forecastLoading ? (
-            <div className="h-[200px] flex flex-col items-center justify-center space-y-2 text-slate-400">
+            <div className="h-50 flex flex-col items-center justify-center space-y-2 text-slate-400">
               <FaSpinner className="animate-spin text-purple-600" size={24} />
               <span className="text-xs font-semibold">Gemini is forecasting quarterly university demand...</span>
             </div>
           ) : (
             <>
               {forecastChart.length > 0 && (
-                <div className="h-[250px] w-full mb-4">
+                <div className="h-62.5 w-full mb-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={forecastChart} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
