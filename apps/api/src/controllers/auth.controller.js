@@ -100,6 +100,13 @@ const logout = async (req, res, next) => {
   }
 };
 
+const resetLock = async (req, res, next) => {
+  try {
+    const result = await authService.resetLock(req.body.email);
+    return success(res, result);
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   register,
   login,
@@ -112,5 +119,6 @@ module.exports = {
   approveResetRequest,
   rejectResetRequest,
   logout,
+  resetLock,
 };
 

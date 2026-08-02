@@ -134,8 +134,8 @@ class ContractService {
   async delete(id, userId, tenantId) {
     const contract = await Contract.findOne({ _id: id, tenantId });
     if (!contract) throw Object.assign(new Error('Contract not found'), { statusCode: 404 });
-    if (contract.status !== 'draft') {
-      throw Object.assign(new Error('Can only delete draft contracts'), { statusCode: 400 });
+    if (!['draft', 'pending_signature'].includes(contract.status)) {
+      throw Object.assign(new Error('Can only delete draft or pending signature contracts'), { statusCode: 400 });
     }
     await Contract.deleteOne({ _id: id });
     logger.audit('CONTRACT_DELETED', userId, { contractId: id });

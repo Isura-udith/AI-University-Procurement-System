@@ -13,6 +13,7 @@ const STATUS_COLORS = {
   bursar_approved: { label: 'Bursar Approved', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
   finance_committee_approved: { label: 'Finance Com. Approved', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
   vc_approved: { label: 'VC Approved', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
+  council_approved: { label: 'Council Approved', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
   procurement_committee_approved: { label: 'Proc. Committee Approved', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   pmd_review: { label: 'PMD Review', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-550' },
   'budget-locked': { label: 'Budget Locked', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },

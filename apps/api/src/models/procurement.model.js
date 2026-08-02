@@ -18,7 +18,7 @@ const procurementItemSchema = new mongoose.Schema({
 const approvalStageSchema = new mongoose.Schema({
   stage: {
     type: String,
-    enum: ['hod', 'dean', 'bursar', 'finance_committee', 'vice_chancellor', 'procurement_committee', 'pmd', 'registrar', 'dpc', 'mpc', 'rpc', 'cab_com'],
+    enum: ['hod', 'dean', 'bursar', 'fc', 'finance_committee', 'vc', 'vice_chancellor', 'council', 'procurement_committee', 'pmd', 'registrar', 'dpc', 'mpc', 'rpc', 'cab_com', 'office'],
   },
   approver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'escalated', 'delegated'], default: 'pending' },
@@ -151,7 +151,7 @@ const procurementSchema = new mongoose.Schema({
       'draft', 'submitted', 'under_review',
       'hod_approved', 'dean_approved', 'pmd_approved',
       'bursar_approved', 'finance_committee_approved',
-      'procurement_committee_approved', 'vc_approved', 'pmd_review',
+      'procurement_committee_approved', 'vc_approved', 'council_approved', 'pmd_review',
       'budget_locked', 'committee_assigned',
       'tender_preparation', 'published', 'bidding',
       'evaluation', 'award_pending', 'standstill',

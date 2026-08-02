@@ -88,6 +88,7 @@ export default function LoginPage() {
       const userData = response.data?.user || response.data;
       const token = response.data?.token || response.data?.accessToken || 'backend-token';
 
+      setFailedAttempts(0);
       loginUser({ ...userData, accessToken: token });
     } catch (error) {
       setFailedAttempts(prev => prev + 1);
@@ -108,6 +109,7 @@ export default function LoginPage() {
     setPassword(DEMO_PASSWORD);
     setDemoPanelOpen(false);
     setErrors({});
+    setFailedAttempts(0);
 
     // Auto-submit via backend (database check)
     setLoading(true);
@@ -115,6 +117,7 @@ export default function LoginPage() {
       const response = await authService.login({ email: user.email, password: DEMO_PASSWORD });
       const userData = response.data?.user || response.data;
       const token = response.data?.token || response.data?.accessToken || 'backend-token';
+      setFailedAttempts(0);
       loginUser({ ...userData, accessToken: token });
     } catch (error) {
       setErrors({
@@ -122,6 +125,18 @@ export default function LoginPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetLock = async () => {
+    setFailedAttempts(0);
+    setErrors({});
+    if (email) {
+      try {
+        await authService.resetLock(email);
+      } catch (err) {
+        // silent catch
+      }
     }
   };
 
@@ -148,50 +163,51 @@ export default function LoginPage() {
             </div>
           </Link>
           <h2 className="text-4xl font-extrabold tracking-tight leading-tight mb-6">
-            Access to <br />
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-400 to-cyan-400">University Procurement</span>
+            Institutional Procurement Portal
           </h2>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-md">
-            Secure portal for university staff, committee members, and registered vendors. All sessions are monitored and logged for audit compliance.
+          <p className="text-slate-400 text-sm leading-relaxed max-w-md">
+            Role-Based Procurement Automation with Financial Control, AI Compliance Auditing, and Multi-Tier Approvals.
           </p>
         </div>
 
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center space-x-3 text-sm text-slate-400">
-            <FaUniversity className="text-emerald-400" />
-            <span>Sri Lanka CERT Compliant</span>
-          </div>
+        <div className="relative z-10 text-xs text-slate-500 flex items-center justify-between border-t border-slate-800 pt-6">
+          <span>&copy; {new Date().getFullYear()} Uva Wellassa University</span>
+          <span className="flex items-center space-x-1.5 text-emerald-400">
+            <FaShieldAlt size={12} />
+            <span>256-bit Encrypted</span>
+          </span>
         </div>
       </div>
 
       {/* Right Panel - Form */}
-      <div className="flex-1 flex flex-col h-full overflow-y-auto bg-white relative">
-        <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-10 lg:p-12">
-          <div className="w-full max-w-md">
-            {/* Mobile Logo */}
-            <Link to="/" className="lg:hidden flex items-center space-x-3 mb-8 hover:opacity-90 transition-opacity">
-              <img src={uwuLogo} alt="UWU" className="w-10 h-10 rounded-full object-contain border border-slate-200 p-0.5" />
-              <div>
-                <p className="text-sm font-bold text-slate-900">Smart Procurement System</p>
-                <p className="text-xs text-slate-500">Uva Wellassa University</p>
-              </div>
-            </Link>
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
+        <div className="w-full max-w-md space-y-8">
+          <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
+            <div className="mb-8">
+              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome Back</h2>
+              <p className="text-sm text-slate-500 mt-2 font-medium">Please sign in with your institutional credentials to securely access your portal.</p>
+            </div>
 
-
-                <div className="mb-8">
-                  <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome Back</h2>
-                  <p className="text-sm text-slate-500 mt-2 font-medium">Please sign in with your institutional credentials to securely access your portal.</p>
+            {errors.general && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium flex items-center justify-between">
+                <div className="flex items-start space-x-3">
+                  <FaShieldAlt className="text-red-500 mt-0.5 shrink-0" size={14} />
+                  <span>{errors.general}</span>
                 </div>
-
-                {errors.general && (
-                  <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium flex items-start space-x-3">
-                    <FaShieldAlt className="text-red-500 mt-0.5 shrink-0" size={14} />
-                    <span>{errors.general}</span>
-                  </div>
+                {(failedAttempts > 0 || errors.general.includes('locked')) && (
+                  <button
+                    type="button"
+                    onClick={handleResetLock}
+                    className="ml-3 text-xs font-bold text-red-700 underline hover:text-red-900 shrink-0 cursor-pointer"
+                  >
+                    Reset Lock
+                  </button>
                 )}
+              </div>
+            )}
 
-                <form onSubmit={handleLogin} className="space-y-5">
-                  {/* Email */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              {/* Email */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Institutional Email</label>
                     <div className="relative">

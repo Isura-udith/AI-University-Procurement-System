@@ -60,7 +60,7 @@ const uploadDocument = async (req, res, next) => {
 
     if (relatedEntityType && relatedEntityId) {
       documentData.relatedEntity = {
-        entityType: relatedEntityType,
+        entityType: relatedEntityType.toLowerCase(),
         entityId: relatedEntityId,
       };
     }

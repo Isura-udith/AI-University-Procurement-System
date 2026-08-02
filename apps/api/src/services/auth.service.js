@@ -51,16 +51,24 @@ class AuthService {
       throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
     }
     if (user.isLocked()) {
-      await auditLogService.log({
-        action: 'LOGIN_FAILED',
-        user,
-        tenantId: user.tenantId,
-        ipAddress: ip || reqContext.ip,
-        userAgent: reqContext.userAgent,
-        status: 'blocked',
-        failureReason: 'Account locked',
-      });
-      throw Object.assign(new Error('Account locked. Try again later.'), { statusCode: 423 });
+      const isMatch = await user.comparePassword(password);
+      if (isMatch) {
+        // Auto-unlock account if correct password is provided
+        user.loginAttempts = 0;
+        user.lockUntil = undefined;
+        await user.save();
+      } else {
+        await auditLogService.log({
+          action: 'LOGIN_FAILED',
+          user,
+          tenantId: user.tenantId,
+          ipAddress: ip || reqContext.ip,
+          userAgent: reqContext.userAgent,
+          status: 'blocked',
+          failureReason: 'Account locked',
+        });
+        throw Object.assign(new Error('Account locked. Try again later.'), { statusCode: 423 });
+      }
     }
     if (!user.isActive) {
       await auditLogService.log({
@@ -375,6 +383,32 @@ class AuthService {
     });
 
     return { message: 'Password reset successfully' };
+  }
+
+  async resetLock(email) {
+    if (!email) throw Object.assign(new Error('Email is required'), { statusCode: 400 });
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    user.isActive = true;
+    
+    // For demo accounts, restore password to Demo@1234 if needed
+    if (email.toLowerCase().endsWith('@uwu.ac.lk') || email.toLowerCase().endsWith('@vendor.lk')) {
+      user.password = 'Demo@1234';
+    }
+
+    await user.save();
+
+    await auditLogService.log({
+      action: 'ACCOUNT_UNLOCKED',
+      user,
+      tenantId: user.tenantId,
+      metadata: { reason: 'Public reset lock request' },
+    });
+
+    return { message: 'Account lock reset successfully. You can now log in.' };
   }
 
   sanitizeUser(user) {

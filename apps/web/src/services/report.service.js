@@ -25,6 +25,9 @@ export const reportService = {
     responseType: 'blob',
   }),
 
+  // Update report status & details
+  updateReportStatus: (id, data) => api.patch(`/reports/${id}`, data),
+
   // Delete report
   deleteReport: (id) => api.delete(`/reports/${id}`),
 };

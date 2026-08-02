@@ -12,6 +12,7 @@ export const authService = {
   approveResetRequest: (requestId, newPassword) => api.post(`/auth/reset-requests/${requestId}/approve`, { newPassword }),
   rejectResetRequest: (requestId, reason) => api.post(`/auth/reset-requests/${requestId}/reject`, { reason }),
   logout: () => api.post('/auth/logout'),
+  resetLock: (email) => api.post('/auth/reset-lock', { email }),
 };
 
 export default authService;

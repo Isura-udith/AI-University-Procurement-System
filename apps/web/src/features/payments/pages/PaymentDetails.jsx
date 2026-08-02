@@ -74,9 +74,9 @@ export default function PaymentDetails() {
       const res = await paymentService.threeWayMatch(id);
       setPayment(res.data);
       if (res.data.threeWayMatchStatus === 'matched') {
-        toast.success('🎉 3-Way Match Successful! All document values and quantities align.');
+        toast.success('3-Way Match Successful! All document values and quantities align.');
       } else {
-        toast.warning('⚠ 3-Way Match Discrepancy detected! Please review the variances.');
+        toast.warning('3-Way Match Discrepancy detected! Please review the variances.');
       }
     } catch (err) {
       toast.error(err.message || 'Error executing three-way matching.');
@@ -90,7 +90,7 @@ export default function PaymentDetails() {
     try {
       const res = await paymentService.resolveDiscrepancy(id, { comments: resolutionNotes });
       setPayment(res.data);
-      toast.success('✅ Discrepancy resolved. Voucher moved to approval queue.');
+      toast.success('Discrepancy resolved. Voucher moved to approval queue.');
       setResolveModal(false);
       setResolutionNotes('');
     } catch (err) {
@@ -105,7 +105,7 @@ export default function PaymentDetails() {
     try {
       const res = await paymentService.approve(id, { comments });
       setPayment(res.data);
-      toast.success('✅ Payment voucher approved for disbursement.');
+      toast.success('Payment voucher approved for disbursement.');
       setApproveModal(false);
       setComments('');
     } catch (err) {
@@ -124,7 +124,7 @@ export default function PaymentDetails() {
     try {
       const res = await paymentService.markPaid(id, { transactionRef, paymentMethod });
       setPayment(res.data);
-      toast.success('💸 Payment disbursed and marked as PAID.');
+      toast.success('Payment disbursed and marked as PAID.');
       setPayModal(false);
       setTransactionRef('');
     } catch (err) {

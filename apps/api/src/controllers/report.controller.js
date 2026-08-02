@@ -38,6 +38,13 @@ const exportReport = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const updateReport = async (req, res, next) => {
+  try {
+    const updated = await reportService.updateReport(req.params.id, req.tenantId, req.body);
+    return success(res, updated, 'Report updated successfully');
+  } catch (err) { next(err); }
+};
+
 const deleteReport = async (req, res, next) => {
   try {
     await reportService.deleteReport(req.params.id, req.tenantId);
@@ -56,6 +63,7 @@ module.exports = {
   generateReport,
   getAllReports,
   getReport,
+  updateReport,
   getSpendAnalysis,
   getVendorPerformance,
   getComplianceAudit,

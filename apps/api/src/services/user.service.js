@@ -254,6 +254,35 @@ class UserService {
   }
 
   /**
+   * Unlock a locked user account and reset failed login attempts.
+   */
+  async unlock(id, adminId) {
+    const user = await User.findByIdAndUpdate(
+      id,
+      { loginAttempts: 0, lockUntil: undefined, isActive: true },
+      { new: true }
+    );
+    if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+    logger.audit('USER_UNLOCKED', adminId, { targetUserId: id });
+
+    if (adminId) {
+      try {
+        const admin = await User.findById(adminId);
+        await auditLogService.log({
+          action: 'ACCOUNT_UNLOCKED',
+          user: admin,
+          targetUser: user,
+          tenantId: user.tenantId,
+        });
+      } catch (err) {
+        logger.error('Failed to log ACCOUNT_UNLOCKED audit event', { error: err.message });
+      }
+    }
+
+    return user;
+  }
+
+  /**
    * Reset a user's password (admin action).
    */
   async resetUserPassword(id, newPassword, adminId) {

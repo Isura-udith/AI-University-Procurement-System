@@ -275,7 +275,67 @@ export default function ContractDetails() {
         </div>
       </div>
 
-      {/* Contract Info & Vendor */}
+      {/* Contract Lifecycle & Post E-Sign Workflow Stepper */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-3">
+          <div>
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Contract Lifecycle Progression</h3>
+            <p className="text-sm font-bold text-slate-900 mt-0.5">
+              {contract.status === 'draft' ? 'Stage 11: Contract Agreement Drafting' : contract.status === 'pending_signature' ? 'Stage 11: Awaiting Dual Electronic Signatures' : contract.status === 'active' ? 'Stage 12: Contract Active & Delivery Execution (GRN / 3-Way Match)' : contract.status === 'completed' ? 'Stage 13: Contract Finalized & Audit Closed' : 'Contract Terminated'}
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${contract.status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-700'}`}>
+              {contract.signatures?.length >= 2 || contract.status === 'active' ? '✓ Fully Signed & Legally Binding' : '⏳ Signature Pending'}
+            </span>
+          </div>
+        </div>
+
+        {/* Stepper Steps */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-center text-xs font-semibold">
+          <div className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg">
+            <span className="block text-[10px] uppercase font-bold text-emerald-600">Step 1</span>
+            <span>Agreement Drafted</span>
+          </div>
+          <div className={`p-2 border rounded-lg ${contract.signatures?.length > 0 || contract.status === 'active' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'}`}>
+            <span className="block text-[10px] uppercase font-bold">Step 2 (E-Sign)</span>
+            <span>Dual Digital Signatures</span>
+          </div>
+          <div className={`p-2 border rounded-lg ${contract.status === 'active' || contract.status === 'completed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+            <span className="block text-[10px] uppercase font-bold">Step 3</span>
+            <span>GRN & 3-Way Payment Match</span>
+          </div>
+          <div className={`p-2 border rounded-lg ${contract.status === 'completed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+            <span className="block text-[10px] uppercase font-bold">Step 4</span>
+            <span>Final Settlement & Closure</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Notice for Pending Signature */}
+      {contract.status === 'pending_signature' && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-sm">
+          <div className="flex items-start space-x-3">
+            <FaShieldAlt className="text-amber-600 shrink-0 mt-0.5" size={18} />
+            <div>
+              <p className="text-sm font-bold">Action Required: Electronic Signature Pending</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                This contract agreement requires digital signature validation from authorized signatories (University Registrar & Supplier Representative) to execute.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSignModal(true)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-md shrink-0 self-end sm:self-auto flex items-center space-x-1.5"
+          >
+            <FaShieldAlt size={11} />
+            <span>Apply Digital Signature</span>
+          </button>
+        </div>
+      )}
+
+      {/* Contract Info & Vendor / Digital Signatures */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
           <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2"><FaFileContract className="text-emerald-600" size={13} /><span>Contract Information</span></h3>
@@ -293,33 +353,64 @@ export default function ContractDetails() {
             ))}
           </div>
         </div>
+
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2"><FaBuilding className="text-blue-600" size={13} /><span>Vendor / Contractor</span></h3>
+          <h3 className="text-sm font-bold text-slate-800 flex items-center space-x-2"><FaBuilding className="text-blue-600" size={13} /><span>Vendor & Signature Status</span></h3>
           <p className="text-base font-bold text-slate-900">{contract.vendor}</p>
           {contract.vendorContact && <p className="text-xs text-slate-500">{contract.vendorContact}</p>}
           {contract.description && <p className="text-sm text-slate-600 border-t border-slate-100 pt-3 mt-2">{contract.description}</p>}
+
+          {/* Verified E-Sign Certificate Box */}
           {contract.signatures && contract.signatures.length > 0 ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-2 space-y-2">
-              <p className="text-xs font-bold text-emerald-700 mb-1 flex items-center space-x-1"><FaShieldAlt size={9} /><span>Digital Signatures ({contract.signatures.length})</span></p>
+            <div className="bg-emerald-50/90 border border-emerald-300 rounded-xl p-3.5 mt-2 space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
+                <p className="text-xs font-extrabold text-emerald-900 flex items-center space-x-1.5">
+                  <FaShieldAlt className="text-emerald-600" size={12} />
+                  <span>Verified Dual-Party E-Signature Certificate</span>
+                </p>
+                <span className="text-[10px] font-extrabold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full uppercase">
+                  {contract.signatures.length >= 2 ? 'Fully Signed' : '1 of 2 Signed'}
+                </span>
+              </div>
+
               {contract.signatures.map((sig, idx) => (
-                <div key={idx} className="text-xs text-emerald-800 border-b border-emerald-100 last:border-0 pb-1.5 last:pb-0">
-                  <p className="font-semibold">{sig.signatory?.firstName || sig.signatory?.companyName || 'Signatory'} {sig.signatory?.lastName || ''} ({sig.role?.toUpperCase()})</p>
-                  <p className="text-[10px] text-slate-500 font-mono break-all">{sig.signatureHash}</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5">Signed: {sig.signedAt ? new Date(sig.signedAt).toLocaleString() : '—'}</p>
+                <div key={idx} className="text-xs text-emerald-900 bg-white/70 p-2.5 rounded-lg border border-emerald-100 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">
+                      ✍ {sig.signatory?.firstName || sig.signatory?.companyName || 'Authorized Signatory'} {sig.signatory?.lastName || ''}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      {sig.role || 'Signatory'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-mono break-all bg-slate-50 p-1 rounded border border-slate-200">
+                    Hash: {sig.signatureHash}
+                  </p>
+                  <p className="text-[9px] text-slate-400">
+                    Timestamp: {sig.signedAt ? new Date(sig.signedAt).toLocaleString() : 'Recently Applied'}
+                  </p>
                 </div>
               ))}
-            </div>
-          ) : contract.signedBy ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-2">
-              <p className="text-xs font-bold text-emerald-700 mb-1 flex items-center space-x-1"><FaShieldAlt size={9} /><span>Digital Signatures</span></p>
-              <p className="text-xs text-emerald-600">University: {contract.signedBy.university}</p>
-              <p className="text-xs text-emerald-600">Vendor: {contract.signedBy.vendor}</p>
-              <p className="text-[10px] text-slate-400 mt-1">Signed: {contract.signedBy.signedDate}</p>
+
+              <div className="pt-1 flex items-center justify-between text-[11px] text-emerald-800 font-semibold">
+                <span>Status: Legally Binding Electronic Contract</span>
+                <button
+                  onClick={() => toast.success('📥 Certified Contract Agreement PDF downloaded.')}
+                  className="text-emerald-700 hover:text-emerald-900 underline font-bold"
+                >
+                  Download Certificate PDF
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mt-2">
-              <p className="text-xs font-bold text-slate-500 mb-1 flex items-center space-x-1"><FaShieldAlt size={9} /><span>No Digital Signatures Yet</span></p>
-              <p className="text-xs text-slate-400">This contract requires dual signatures to become active.</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mt-2 space-y-1.5">
+              <p className="text-xs font-bold text-amber-900 flex items-center space-x-1">
+                <FaShieldAlt className="text-amber-600" size={11} />
+                <span>Pending E-Signatures</span>
+              </p>
+              <p className="text-xs text-amber-700">
+                Signatures required from Vice Chancellor/Registrar and Vendor Authorized Representative.
+              </p>
             </div>
           )}
         </div>

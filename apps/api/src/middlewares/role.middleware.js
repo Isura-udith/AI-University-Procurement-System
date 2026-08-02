@@ -3,7 +3,7 @@
  * Aligned with the 2024 GOSL Procurement Guidelines and UWU multi-tenant SaaS architecture.
  *
  * All role constants, permissions, and access maps are imported from the shared
- * `packages/types/rbac.config.js` — the single source of truth.
+ * `packages/types/rbac.config.js` — the single source of truth for RBAC/PBAC rules.
  */
 const { forbidden } = require('../utils/response');
 const {

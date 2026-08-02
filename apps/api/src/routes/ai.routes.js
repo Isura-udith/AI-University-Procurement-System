@@ -11,6 +11,8 @@ const {
   // New chat session endpoints
   getChatSessions, getChatHistory, deleteChatSession, renameChatSession,
   togglePinSession, rateChatMessage,
+  // AI Technical Scoring
+  scoreBidderAI, scoreAllBiddersAI,
 } = require('../controllers/ai.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { readOnlyGuard } = require('../middlewares/role.middleware');
@@ -24,6 +26,18 @@ router.post('/prediction', proxyFlowisePrediction);
 router.post('/prediction/:chatflowId', proxyFlowisePrediction);
 
 router.use(protect);
+
+// Feature 10: AI Vendor Technical Scoring
+router.post('/score-bidder/:tenderId/:bidId',
+  authorize('procurement_officer', 'tec_member', 'admin', 'super_admin'),
+  scoreBidderAI
+);
+
+router.post('/score-all-bidders/:tenderId',
+  authorize('procurement_officer', 'tec_member', 'admin', 'super_admin'),
+  scoreAllBiddersAI
+);
+
 
 // Feature 1 & 4: NLP Parsing + Market Price Recommendation
 router.post('/market-price',

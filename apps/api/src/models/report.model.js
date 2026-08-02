@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
   tenantId: { type: String, required: true, default: 'uwu-main', index: true },
-  reportType: { type: String, enum: ['procurement_performance', 'compliance', 'spend_analysis', 'vendor_performance', 'budget_utilization', 'audit_trail', 'annual', 'quarterly', 'custom'], required: true },
+  reportType: { type: String, enum: ['procurement_performance', 'compliance', 'spend_analysis', 'vendor_performance', 'budget_utilization', 'audit_trail', 'annual', 'quarterly', 'full_audit', 'custom'], required: true },
   title: { type: String, required: true },
   description: String,
   period: { startDate: Date, endDate: Date, quarter: Number, year: Number },

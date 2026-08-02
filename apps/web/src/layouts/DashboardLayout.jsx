@@ -5,7 +5,7 @@ import {
   FaTachometerAlt, FaClipboardList, FaCheckDouble, FaLock,
   FaFileAlt, FaBoxOpen, FaGavel, FaBalanceScale,
   FaFileContract, FaTruck, FaMoneyCheckAlt, FaChartBar,
-  FaUsers, FaShieldAlt, FaEnvelope, FaFolder, FaUserShield, FaBrain, FaStore,
+  FaUsers, FaShieldAlt, FaEnvelope, FaUserShield, FaBrain, FaStore,
   FaLayerGroup, FaCalendarAlt, FaMoneyBillWave, FaWarehouse, FaSitemap, FaRobot, FaTable,
 } from 'react-icons/fa';
 import { logout } from '../app/store';
@@ -80,7 +80,6 @@ const navSections = [
     title: 'Hubs & Operations',
     items: [
       { path: '/communications', label: 'Communications', icon: FaEnvelope },
-      { path: '/documents', label: 'Documents', icon: FaFolder },
     ]
   },
   {

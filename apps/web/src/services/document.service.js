@@ -9,18 +9,10 @@ export const documentService = {
   getDocuments: (params = {}) => api.get('/documents', { params }),
 
   /** Upload a new document file and metadata */
-  uploadDocument: (formData) => api.post('/documents', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }),
+  uploadDocument: (formData) => api.post('/documents', formData),
 
   /** Upload a new version file for an existing document */
-  updateDocument: (id, formData) => api.put(`/documents/${id}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }),
+  updateDocument: (id, formData) => api.put(`/documents/${id}`, formData),
 
   /** Update document status (Draft, Approved, Signed, Locked, Active) */
   updateStatus: (id, status) => api.patch(`/documents/${id}/status`, { status }),

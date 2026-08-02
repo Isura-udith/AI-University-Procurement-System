@@ -112,6 +112,15 @@ const delegateAuthority = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+/**
+ * PATCH /users/:id/unlock — Unlock a user account and clear failed login lock
+ */
+const unlockUser = async (req, res, next) => {
+  try {
+    return success(res, await userService.unlock(req.params.id, req.user._id), 'User account unlocked successfully');
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   createUser,
   getAllUsers,
@@ -120,6 +129,7 @@ module.exports = {
   updateUser,
   deactivateUser,
   activateUser,
+  unlockUser,
   resetUserPassword,
   delegateAuthority,
 };

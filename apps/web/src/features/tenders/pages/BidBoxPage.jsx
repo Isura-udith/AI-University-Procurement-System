@@ -5,11 +5,27 @@ import {
   FaBoxOpen, FaLock, FaClock, FaUpload, FaFileAlt, FaTimes, FaCheckCircle,
   FaShieldAlt, FaSpinner, FaPlus, FaTrash, FaBan, FaChevronDown, FaChevronUp,
   FaHistory, FaTrophy, FaExclamationTriangle, FaSearch,
-  FaClipboardList, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaUnlock, FaEye
+  FaClipboardList, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaUnlock, FaEye, FaExternalLinkAlt
 } from 'react-icons/fa';
 import tenderService from '../../../services/tender.service';
+import documentService from '../../../services/document.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import { useSelector } from 'react-redux';
+
+const getDownloadUrl = (filePath) => {
+  if (!filePath) return '#';
+  let pathStr = typeof filePath === 'object' 
+    ? (filePath.url || filePath.path || filePath.filePath || filePath.fileUrl || filePath.name || filePath.title || filePath.originalName || '')
+    : String(filePath);
+  if (!pathStr || pathStr === '#') return '#';
+  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) return pathStr;
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
+  let cleanPath = pathStr.startsWith('/') ? pathStr.substring(1) : pathStr;
+  if (!cleanPath.startsWith('uploads/') && !cleanPath.startsWith('documents/')) {
+    cleanPath = `uploads/${cleanPath}`;
+  }
+  return `${base}/${cleanPath}`;
+};
 
 /* ─── Countdown Timer ─── */
 const calcTimeLeft = (deadline) => {
@@ -311,10 +327,17 @@ function DecryptedBidsModal({ tender, onClose }) {
                               <h5 className="font-bold text-slate-800 mb-1.5">Submitted Documents ({bid.documents.length})</h5>
                               <div className="flex flex-wrap gap-2">
                                 {bid.documents.map((doc, idx) => (
-                                  <span key={idx} className="flex items-center space-x-1 px-2.5 py-1 bg-slate-100 rounded text-slate-700 text-xs font-medium border border-slate-200">
-                                    <FaFileAlt size={10} className="text-slate-400" />
+                                  <a
+                                    key={idx}
+                                    href={getDownloadUrl(doc.url || doc.path || doc.name)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-medium border border-slate-200 rounded transition-colors"
+                                  >
+                                    <FaFileAlt size={10} className="text-slate-500" />
                                     <span>{doc.name}</span>
-                                  </span>
+                                    <FaExternalLinkAlt size={8} className="text-slate-400 ml-1" />
+                                  </a>
                                 ))}
                               </div>
                             </div>
@@ -677,10 +700,17 @@ function MyBidsSection({ refreshKey }) {
                         <h5 className="font-bold text-slate-900 text-xs mb-2">Submitted Bid Documents</h5>
                         <div className="flex flex-wrap gap-2">
                           {bid.documents.map((doc, idx) => (
-                            <span key={idx} className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-slate-200">
+                            <a
+                              key={idx}
+                              href={getDownloadUrl(doc)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-slate-200 cursor-pointer"
+                            >
                               <FaFileAlt className="text-slate-400" size={11} />
-                              <span>{doc.name}</span>
-                            </span>
+                              <span>{doc.name || doc.originalName || doc.title || `Document_${idx+1}.pdf`}</span>
+                              <FaExternalLinkAlt size={9} className="text-slate-400 ml-1" />
+                            </a>
                           ))}
                         </div>
                       </div>
@@ -881,6 +911,53 @@ export default function BidBoxPage() {
 
     setSubmitting(true);
     try {
+      // ── Upload actual attached file binaries to backend server disk ──
+      const uploadedDocs = [];
+      for (const f of bidFiles) {
+        if (f instanceof File) {
+          try {
+            const formData = new FormData();
+            formData.append('file', f);
+            formData.append('name', f.name);
+            formData.append('category', 'Bid Submission');
+            formData.append('relatedEntityType', 'tender');
+            formData.append('relatedEntityId', submitModal._id);
+            const res = await documentService.uploadDocument(formData);
+            const docData = res.data || res;
+            uploadedDocs.push({
+              name: f.name,
+              url: docData.filePath || ('uploads/' + f.name),
+              type: f.name.split('.').pop()
+            });
+          } catch (uploadErr) {
+            console.error('File upload failed:', f.name, uploadErr);
+            const detail = uploadErr.message ? `: ${uploadErr.message}` : '';
+            throw new Error(`Failed to upload document "${f.name}"${detail}. Please try again.`, { cause: uploadErr });
+          }
+        } else {
+          uploadedDocs.push({ name: f.name || 'Bid_Document.pdf', url: f.url || f.path || ('uploads/' + (f.name || 'Bid_Document.pdf')), type: (f.name || '').split('.').pop() || 'pdf' });
+        }
+      }
+
+      let secDocUrl = securityFile ? (securityFile.name || 'Bid_Security.pdf') : undefined;
+      if (securityFile && securityFile instanceof File) {
+        try {
+          const formData = new FormData();
+          formData.append('file', securityFile);
+          formData.append('name', securityFile.name);
+          formData.append('category', 'Bid Security');
+          formData.append('relatedEntityType', 'tender');
+          formData.append('relatedEntityId', submitModal._id);
+          const res = await documentService.uploadDocument(formData);
+          const docData = res.data || res;
+          secDocUrl = docData.filePath || ('uploads/' + securityFile.name);
+        } catch (secUploadErr) {
+          console.error('Security file upload failed:', secUploadErr);
+          const detail = secUploadErr.message ? `: ${secUploadErr.message}` : '';
+          throw new Error(`Failed to upload bid security document "${securityFile.name}"${detail}. Please try again.`, { cause: secUploadErr });
+        }
+      }
+
       const bidData = {
         totalBidAmount: computedTotal,
         vatAmount: parseFloat(vatAmount) || 0,
@@ -893,8 +970,8 @@ export default function BidBoxPage() {
           totalPrice: (parseFloat(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
         })) : [],
         technicalProposal: { methodology: methodology || '', timeline: timeline || '', experience: experience || '' },
-        documents: bidFiles.map(f => ({ name: f.name, url: 'uploads/' + f.name, type: f.name.split('.').pop() })),
-        bidSecurityDocument: securityFile ? securityFile.name : undefined,
+        documents: uploadedDocs,
+        bidSecurityDocument: secDocUrl,
         bidSecurityAmount: submitModal.bidSecurityAmount || 0,
         bidSecurityType: securityType,
         bidSecurityExpiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),

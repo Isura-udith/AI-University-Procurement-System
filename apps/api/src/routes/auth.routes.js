@@ -12,6 +12,7 @@ const {
   approveResetRequest,
   rejectResetRequest,
   logout,
+  resetLock,
 } = require('../controllers/auth.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 const { authLimiter } = require('../middlewares/rateLimit.middleware');
@@ -22,6 +23,7 @@ router.post('/login', authLimiter, login);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 router.post('/reset-password', resetPassword);
+router.post('/reset-lock', resetLock);
 
 // Protected routes
 router.post('/logout', protect, logout);

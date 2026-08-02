@@ -27,6 +27,9 @@ export const userService = {
   /** Activate a user */
   activateUser: (id) => api.patch(`/users/${id}/activate`),
 
+  /** Unlock a locked user account */
+  unlockUser: (id) => api.patch(`/users/${id}/unlock`),
+
   /** Reset user password (admin) */
   resetPassword: (id, newPassword) => api.patch(`/users/${id}/reset-password`, { newPassword }),
 };

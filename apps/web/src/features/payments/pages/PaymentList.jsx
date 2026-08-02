@@ -63,7 +63,6 @@ export default function PaymentList() {
     invoiceAmount: '',
     grnNumber: '',
     budgetCode: 'VOTE-UWU-2026-CAPEX',
-    retentionPercent: 10,
     whtTaxPercent: 0,
     remarks: ''
   });
@@ -114,9 +113,8 @@ export default function PaymentList() {
     }
   };
 
-  const calculatedRetention = (parseFloat(form.amount || 0) * (parseFloat(form.retentionPercent || 0) / 100));
   const calculatedTax = (parseFloat(form.amount || 0) * (parseFloat(form.whtTaxPercent || 0) / 100));
-  const calculatedNetPayable = Math.max(0, parseFloat(form.amount || 0) - calculatedRetention - calculatedTax);
+  const calculatedNetPayable = Math.max(0, parseFloat(form.amount || 0) - calculatedTax);
 
   const handleCreatePayment = async (e) => {
     e.preventDefault();
@@ -131,9 +129,6 @@ export default function PaymentList() {
       const grossAmt = parseFloat(form.amount);
 
       const deductions = [];
-      if (form.retentionPercent > 0) {
-        deductions.push({ description: `Retention (${form.retentionPercent}%)`, amount: calculatedRetention, type: 'retention' });
-      }
       if (form.whtTaxPercent > 0) {
         deductions.push({ description: `WHT Tax (${form.whtTaxPercent}%)`, amount: calculatedTax, type: 'tax' });
       }
@@ -167,7 +162,7 @@ export default function PaymentList() {
       };
 
       await paymentService.create(payload);
-      toast.success('✅ Payment voucher initiated successfully.');
+      toast.success('Payment voucher initiated successfully.');
       setIsModalOpen(false);
       setForm({
         contractId: '',
@@ -177,7 +172,6 @@ export default function PaymentList() {
         invoiceAmount: '',
         grnNumber: '',
         budgetCode: 'VOTE-UWU-2026-CAPEX',
-        retentionPercent: 10,
         whtTaxPercent: 0,
         remarks: ''
       });
@@ -372,8 +366,8 @@ export default function PaymentList() {
                           p.threeWayMatchStatus === 'discrepancy' ? 'bg-red-100 text-red-800 border border-red-200' :
                           'bg-amber-100 text-amber-800 border border-amber-200'
                         }`}>
-                          {['matched', 'resolved'].includes(p.threeWayMatchStatus) ? '✓ Matched' :
-                           p.threeWayMatchStatus === 'discrepancy' ? '⚠ Discrepancy' : '⏳ Pending'}
+                          {['matched', 'resolved'].includes(p.threeWayMatchStatus) ? 'Matched' :
+                           p.threeWayMatchStatus === 'discrepancy' ? 'Discrepancy' : 'Pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -508,26 +502,15 @@ export default function PaymentList() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">GRN Ref Number *</label>
-                    <input
-                      type="text"
-                      value={form.grnNumber}
-                      onChange={e => setForm(f => ({ ...f, grnNumber: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none font-mono"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Retention Rate (%)</label>
-                    <input
-                      type="number"
-                      value={form.retentionPercent}
-                      onChange={e => setForm(f => ({ ...f, retentionPercent: e.target.value }))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">GRN Ref Number *</label>
+                  <input
+                    type="text"
+                    value={form.grnNumber}
+                    onChange={e => setForm(f => ({ ...f, grnNumber: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none font-mono"
+                    required
+                  />
                 </div>
 
                 {/* Net Calculation Summary Box */}
@@ -536,12 +519,6 @@ export default function PaymentList() {
                     <span>Gross Amount:</span>
                     <span>LKR {(parseFloat(form.amount || 0)).toLocaleString()}</span>
                   </div>
-                  {calculatedRetention > 0 && (
-                    <div className="flex justify-between text-red-600 font-medium">
-                      <span>Retention Deduction ({form.retentionPercent}%):</span>
-                      <span>- LKR {calculatedRetention.toLocaleString()}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between font-bold text-sm pt-1 border-t border-emerald-300">
                     <span className="flex items-center space-x-1"><FaCalculator /><span>Calculated Net Payable:</span></span>
                     <span className="font-mono text-emerald-700">LKR {calculatedNetPayable.toLocaleString()}</span>

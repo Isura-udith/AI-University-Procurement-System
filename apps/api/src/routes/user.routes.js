@@ -25,6 +25,7 @@ const {
   updateUser,
   deactivateUser,
   activateUser,
+  unlockUser,
   resetUserPassword,
   delegateAuthority,
 } = require('../controllers/user.controller');
@@ -72,6 +73,12 @@ router.delete('/:id',
 router.patch('/:id/activate',
   authorize('super_admin', 'admin'),
   activateUser
+);
+
+// ─── Unlock user account (admin-level only) ────────────────────
+router.patch('/:id/unlock',
+  authorize('super_admin', 'admin'),
+  unlockUser
 );
 
 // ─── Reset user password (admin-level only) ────────────────────

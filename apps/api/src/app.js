@@ -2,6 +2,8 @@
  * Express Application Setup
  * UWU Smart Procurement System - API Server
  */
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -45,7 +47,8 @@ app.use(tenantScope);
 // API Routes
 app.use(`/api/${env.API_VERSION}`, routes);
 
-// Serve uploaded files
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads', express.static('uploads'));
 
 // Root route

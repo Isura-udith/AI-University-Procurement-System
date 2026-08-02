@@ -9,6 +9,7 @@ import planningService from '../../../services/planning.service';
 import FormSection from '../components/FormSection';
 import FormField, { TextInput, SelectInput, TextArea } from '../components/FormField';
 import BOQTable from '../components/BOQTable';
+import { DEPARTMENTS_AND_FACULTIES, DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from '../../../constants/departments';
 
 
 
@@ -28,68 +29,22 @@ const BRAND_KEYWORDS = [
 ];
 
 
-const FACULTY_MAP = {
-  fom: 'Faculty of Medicine',
-  fots: 'Faculty of Technological Studies',
-  foas: 'Faculty of Applied Sciences',
-  foahs: 'Faculty of Animal Science & Export Agriculture',
-  'fom-mgt': 'Faculty of Management',
-  supplies: 'Supplies Division',
-  works: 'Works Division',
-  'vc-office': "Vice Chancellor's Office",
-  'admin-building': 'Administration Building',
-  'exam-division': 'Examination Division',
-  'student-affairs': 'Student Affairs Division',
-  library: 'Library',
-  'main-canteen': 'Main Canteen (Samajaya)',
-  'gallery-canteen': 'Gallery Canteen',
-  'g-canteen': 'G Canteen',
-  'sports-unit': 'Sports & Physical Education Unit',
-  hostels: 'Hostels',
-  'security-unit': 'Security Unit',
-};
-
-// Map from faculty dropdown code → DAPP item department/faculty field names
-// Some DAPP data uses shorter names (e.g. "Medicine" not "Faculty of Medicine")
-const FACULTY_TO_DAPP_NAMES = {
-  fom: ['Medicine', 'Faculty of Medicine'],
-  fots: ['Technological Studies', 'Faculty of Technological Studies'],
-  foas: ['Applied Sciences', 'Faculty of Applied Sciences'],
-  foahs: ['Animal Science', 'Animal Science & Export Agriculture', 'Faculty of Animal Science & Export Agriculture'],
-  'fom-mgt': ['Management', 'Faculty of Management'],
-  supplies: ['Supplies Division'],
-  works: ['Works Division'],
-  'vc-office': ['Vice Chancellor Office', "Vice Chancellor's Office"],
-  'admin-building': ['Admin Building', 'Administration Building'],
-  'exam-division': ['Exam Division', 'Examination Division'],
-  'student-affairs': ['Student Affairs', 'Student Affairs Division'],
-  library: ['Library'],
-  'main-canteen': ['Main Canteen', 'Main Canteen (Samajaya)'],
-  'gallery-canteen': ['Gallery Canteen'],
-  'g-canteen': ['G Canteen'],
-  'sports-unit': ['Sports Unit', 'Sports & Physical Education Unit'],
-  hostels: ['Hostels'],
-  'security-unit': ['Security Unit'],
-};
-
-/** Resolve logged-in user's department/faculty to FACULTIES dropdown option key */
+/** Resolve logged-in user's department/faculty to FACULTIES dropdown option value */
 const getUserFacultyKey = (user) => {
   if (!user) return '';
-  const dept = user.faculty || user.department || '';
-  if (!dept) return '';
+  const dept = user.department || '';
+  const faculty = user.faculty || '';
 
-  const cleanDept = dept.toLowerCase().trim();
-
-  for (const [key, names] of Object.entries(FACULTY_TO_DAPP_NAMES)) {
-    if (names.some(n => n.toLowerCase() === cleanDept)) return key;
+  if (faculty && DEPARTMENTS_AND_FACULTIES.includes(faculty)) {
+    return faculty;
   }
-  for (const [key, label] of Object.entries(FACULTY_MAP)) {
-    if (label.toLowerCase() === cleanDept) return key;
-  }
-  for (const [key, label] of Object.entries(FACULTY_MAP)) {
-    const cleanLabel = label.toLowerCase();
-    if (cleanLabel.includes(cleanDept) || cleanDept.includes(cleanLabel)) {
-      return key;
+  if (dept) {
+    if (DEPARTMENTS_AND_FACULTIES.includes(dept)) {
+      return dept;
+    }
+    const parentFaculty = getFacultyForDepartment(dept);
+    if (parentFaculty && DEPARTMENTS_AND_FACULTIES.includes(parentFaculty)) {
+      return parentFaculty;
     }
   }
   return '';
@@ -103,29 +58,11 @@ const TOP_OFFICER_ROLES = new Set([
   'procurement_officer', 'procurement_committee',
 ]);
 
-const FACULTIES = [
-  // Faculties
-  { value: 'fom', label: 'Faculty of Medicine' },
-  { value: 'fots', label: 'Faculty of Technological Studies' },
-  { value: 'foas', label: 'Faculty of Applied Sciences' },
-  { value: 'foahs', label: 'Faculty of Animal Science & Export Agriculture' },
-  { value: 'fom-mgt', label: 'Faculty of Management' },
-  // Administrative & Central Divisions
-  { value: 'vc-office', label: "Vice Chancellor's Office" },
-  { value: 'admin-building', label: 'Administration Building' },
-  { value: 'supplies', label: 'Supplies Division' },
-  { value: 'works', label: 'Works Division' },
-  { value: 'exam-division', label: 'Examination Division' },
-  { value: 'student-affairs', label: 'Student Affairs Division' },
-  // University Common Sections
-  { value: 'library', label: 'Library' },
-  { value: 'main-canteen', label: 'Main Canteen (Samajaya)' },
-  { value: 'gallery-canteen', label: 'Gallery Canteen' },
-  { value: 'g-canteen', label: 'G Canteen' },
-  { value: 'sports-unit', label: 'Sports & Physical Education Unit' },
-  { value: 'hostels', label: 'Hostels' },
-  { value: 'security-unit', label: 'Security Unit' },
-];
+const FACULTIES = DEPARTMENTS_AND_FACULTIES.map(dept => ({
+  value: dept,
+  label: dept,
+}));
+
 const FUNDING = [
   { value: 'gosl', label: 'GOSL Treasury Funds' },
   { value: 'ahead', label: 'Foreign Funded - AHEAD Project' },
@@ -315,7 +252,9 @@ export default function CreateRequest() {
       fmpItemId: item._id || itemId,
       mppRef: item.planRef || f.mppRef,
       category: item.category === 'Works' ? 'works' : item.category === 'Services' ? 'non-consulting' : 'goods',
-      faculty: Object.keys(FACULTY_MAP).find(k => FACULTY_MAP[k] === item.faculty) || f.faculty,
+      faculty: (item.faculty && DEPARTMENTS_AND_FACULTIES.includes(item.faculty))
+        ? item.faculty
+        : (item.department ? (getFacultyForDepartment(item.department) || f.faculty) : f.faculty),
       baseAmount: item.estimatedTotalCost ? String(item.estimatedTotalCost) : f.baseAmount,
     }));
 
@@ -352,7 +291,9 @@ export default function CreateRequest() {
       dappItem: item._id || itemId,
       mppRef: plan.masterPlanRef || f.mppRef,
       category: item.category === 'Works' ? 'works' : item.category === 'Services' ? 'non-consulting' : 'goods',
-      faculty: Object.keys(FACULTY_MAP).find(k => FACULTY_MAP[k] === item.faculty) || f.faculty,
+      faculty: (item.faculty && DEPARTMENTS_AND_FACULTIES.includes(item.faculty))
+        ? item.faculty
+        : (item.department ? (getFacultyForDepartment(item.department) || f.faculty) : f.faculty),
       baseAmount: item.estimatedTotalCost ? String(item.estimatedTotalCost) : f.baseAmount,
     }));
     // Pre-fill BOQ with a single line from the annual plan item
@@ -377,7 +318,9 @@ export default function CreateRequest() {
           const reqData = res.data?.data || res.data;
 
           // Reverse-map faculty label back to code
-          const mappedFaculty = Object.keys(FACULTY_MAP).find(key => FACULTY_MAP[key] === reqData.faculty) || '';
+          const mappedFaculty = (reqData.faculty && DEPARTMENTS_AND_FACULTIES.includes(reqData.faculty))
+            ? reqData.faculty
+            : (reqData.department ? (getFacultyForDepartment(reqData.department) || getUserFacultyKey({ department: reqData.department })) : getUserFacultyKey(user));
 
           // Map category to frontend value
           let mappedCategory = 'goods';
@@ -667,21 +610,21 @@ export default function CreateRequest() {
     if (!form.faculty && !isTopOfficer) return [];
     if (!form.faculty) return plan.items;
 
-    const facultyLabel = FACULTY_MAP[form.faculty] || '';
-    const dappNames = FACULTY_TO_DAPP_NAMES[form.faculty] || [];
+    const dappNames = DEPARTMENTS_BY_FACULTY[form.faculty] || [];
     const searchTargets = [
       form.faculty,
-      facultyLabel,
       ...dappNames,
     ].filter(Boolean).map(s => s.toLowerCase().trim());
 
     return plan.items.filter(item => {
       const itemDept = (item.department || '').toLowerCase().trim();
       const itemFaculty = (item.faculty || '').toLowerCase().trim();
+      const parentFaculty = itemDept ? getFacultyForDepartment(itemDept).toLowerCase().trim() : '';
 
       const matchesFaculty = searchTargets.some(target =>
         (itemDept && (itemDept === target || itemDept.includes(target) || target.includes(itemDept))) ||
-        (itemFaculty && (itemFaculty === target || itemFaculty.includes(target) || target.includes(itemFaculty)))
+        (itemFaculty && (itemFaculty === target || itemFaculty.includes(target) || target.includes(itemFaculty))) ||
+        (parentFaculty && (parentFaculty === target || parentFaculty.includes(target) || target.includes(parentFaculty)))
       );
 
       if (matchesFaculty) return true;
@@ -735,6 +678,12 @@ export default function CreateRequest() {
       specifications: item.specifications?.trim() || item.description?.trim() || ''
     }));
 
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error('Please fill in all required fields before submitting.');
+      return;
+    }
+
     // Block submission if compliance check has been run and failed (hard fail, not special approval)
     if (submitToWorkflow && budgetCheck && !budgetCheck.passed && !budgetCheck.requiresSpecialApproval) {
       toast.error('Budget compliance check failed. Please resolve the issues before submitting.');
@@ -775,8 +724,8 @@ export default function CreateRequest() {
         mppReference: form.mppRef,
         procurementMethod: dbMethod,
         assignedCommittee: tce <= 50000000 ? 'DPC' : tce <= 400000000 ? 'MPC' : 'RPC',
-        faculty: FACULTY_MAP[form.faculty] || form.faculty,
-        department: FACULTY_MAP[form.faculty] || form.faculty,
+        faculty: form.faculty,
+        department: user?.department || form.faculty,
         invitationDate: form.invitationDate || undefined,
         bidClosingDate: form.bidClosingDate || undefined,
         deliveryDate: form.deliveryDate || undefined,
@@ -983,12 +932,24 @@ export default function CreateRequest() {
                   {(() => {
                     let items = approvedFinalPlanItems;
                     if (form.faculty && !isTopOfficer) {
-                      const facultyLabel = FACULTY_MAP[form.faculty] || '';
-                      items = items.filter(i => 
-                        !i.faculty || 
-                        i.faculty.toLowerCase().includes(facultyLabel.toLowerCase()) || 
-                        facultyLabel.toLowerCase().includes(i.faculty.toLowerCase())
-                      );
+                      const dappNames = DEPARTMENTS_BY_FACULTY[form.faculty] || [];
+                      const searchTargets = [
+                        form.faculty,
+                        ...dappNames,
+                      ].filter(Boolean).map(s => s.toLowerCase().trim());
+
+                      items = items.filter(i => {
+                        if (!i.faculty && !i.department) return true;
+                        const iDept = (i.department || '').toLowerCase().trim();
+                        const iFac = (i.faculty || '').toLowerCase().trim();
+                        const iParentFac = iDept ? getFacultyForDepartment(iDept).toLowerCase().trim() : '';
+
+                        return searchTargets.some(target =>
+                          (iDept && (iDept === target || iDept.includes(target) || target.includes(iDept))) ||
+                          (iFac && (iFac === target || iFac.includes(target) || target.includes(iFac))) ||
+                          (iParentFac && (iParentFac === target || iParentFac.includes(target) || target.includes(iParentFac)))
+                        );
+                      });
                     }
                     if (dappSearch) {
                       const s = dappSearch.toLowerCase();
@@ -1077,7 +1038,7 @@ export default function CreateRequest() {
                   </div>
                 </div>
                 {form.faculty && selectedPlanId && !isTopOfficer && (
-                  <p className="text-[10px] text-slate-400 mt-1">Showing items belonging strictly to your department ({FACULTY_MAP[form.faculty] || form.faculty}).</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Showing items belonging strictly to your department ({form.faculty}).</p>
                 )}
                 {form.faculty && selectedPlanId && isTopOfficer && (
                   <p className="text-[10px] text-emerald-600 mt-1">As a senior officer, you can also see common university department items.</p>
@@ -1367,7 +1328,6 @@ export default function CreateRequest() {
                     onClick={() => setTechSpecs(prev => [...prev, { title: '', description: '', isMandatory: true, priority: 'required' }])}
                     className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <FaPlus size={10} />
                     <span>Add Requirement</span>
                   </button>
                 </div>

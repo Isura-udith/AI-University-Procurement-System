@@ -5,7 +5,7 @@ import {
   FaChevronLeft, FaChevronRight, FaClock, FaGlobe, FaDesktop,
   FaCheckCircle, FaTimesCircle, FaBan, FaUsers,
   FaSync, FaUserPlus, FaUserCheck, FaUserTimes,
-  FaTimes, FaCopy, FaCheck, FaUserCog
+  FaTimes, FaCopy, FaCheck, FaUserCog, FaUnlock
 } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import auditLogService from '../../../services/audit.log.service';
@@ -590,6 +590,18 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
     }
   };
 
+  const handleUnlockUser = async (u) => {
+    if (!window.confirm(`Are you sure you want to unlock user account for ${u.firstName} ${u.lastName}?`)) return;
+    try {
+      await userService.unlockUser(u._id);
+      fetchUsersList(usersPagination.page);
+      fetchUserStatsData();
+      fetchLogs(1);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to unlock user account');
+    }
+  };
+
   const generateTempPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';
     let pwd = '';
@@ -898,6 +910,13 @@ export default function UserAuditPage({ defaultTab = 'logs' }) {
                             {isAdmin && (
                               <td className="px-6 py-3.5 text-right">
                                 <div className="flex items-center justify-end space-x-1.5">
+                                  <button
+                                    onClick={() => handleUnlockUser(u)}
+                                    className="p-2 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                                    title="Unlock User Account & Clear Login Lock"
+                                  >
+                                    <FaUnlock size={12} />
+                                  </button>
                                   <button
                                     onClick={() => handleOpenResetPassword(u)}
                                     className="p-2 text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"

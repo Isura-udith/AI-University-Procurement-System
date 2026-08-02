@@ -122,72 +122,47 @@ const SupplierDashboard = () => {
 
   const getDownloadUrl = (filePath) => {
     if (!filePath) return '#';
-    if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
+    let pathStr = typeof filePath === 'object' 
+      ? (filePath.url || filePath.path || filePath.filePath || filePath.fileUrl || filePath.name || filePath.title || filePath.originalName || '')
+      : String(filePath);
+    if (!pathStr || pathStr === '#') return '#';
+    if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) return pathStr;
     const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
-    let cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    let cleanPath = pathStr.startsWith('/') ? pathStr.substring(1) : pathStr;
     if (!cleanPath.startsWith('uploads/') && !cleanPath.startsWith('documents/')) {
       cleanPath = `uploads/${cleanPath}`;
     }
     return `${base}/${cleanPath}`;
   };
 
-  const handleFileDownload = (e, docOrUrl, defaultName = 'document.pdf') => {
+  const handleFileDownload = (e, docOrUrl, defaultName = 'Document.pdf') => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
-    let fileUrl = '';
     let fileName = defaultName;
+    let rawPath = '';
 
     if (typeof docOrUrl === 'string') {
-      if (docOrUrl.includes('/') || docOrUrl.startsWith('http')) {
-        fileUrl = docOrUrl;
-        fileName = docOrUrl.split('/').pop() || defaultName;
-      } else {
-        fileUrl = '';
-        fileName = docOrUrl || defaultName;
-      }
+      rawPath = docOrUrl;
+      fileName = docOrUrl.split('/').pop() || defaultName;
     } else if (docOrUrl && typeof docOrUrl === 'object') {
       fileName = docOrUrl.name || docOrUrl.originalName || docOrUrl.title || defaultName;
-      const rawUrl = docOrUrl.url || docOrUrl.path || docOrUrl.filePath || docOrUrl.fileUrl || '';
-      if (rawUrl && (rawUrl.includes('/') || rawUrl.startsWith('http') || rawUrl.startsWith('data:'))) {
-        fileUrl = rawUrl;
-      } else {
-        fileUrl = '';
-      }
+      rawPath = docOrUrl.url || docOrUrl.path || docOrUrl.filePath || docOrUrl.fileUrl || docOrUrl.name || docOrUrl.title || defaultName;
     }
 
-    const triggerBlobDownload = (name) => {
-      const cleanName = name.endsWith('.pdf') ? name : `${name}.pdf`;
-      const safeTitle = (name || 'Document').replace(/[^a-zA-Z0-9_.-]/g, ' ');
-      const pdfHeader = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources <<>> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 110 >>\nstream\nBT /F1 12 Tf 50 700 TD (${safeTitle}) Tj ET\nBT /F1 10 Tf 50 670 TD (Smart Procurement System - Official Document) Tj ET\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF`;
-      const blob = new Blob([pdfHeader], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = cleanName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+    if (!fileName) fileName = defaultName;
+
+    const openInNewTab = (url) => {
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        window.location.href = url;
+      }
     };
 
-    // If no real path on disk or if it's a sample/demo path, trigger blob download
-    if (!fileUrl || fileUrl === '#' || fileUrl.includes('documents/') || fileUrl.includes('tech_proposal') || fileUrl.includes('boq_schedule') || fileUrl.includes('bid_security')) {
-      triggerBlobDownload(fileName);
-      return;
-    }
-
-    const downloadUrl = getDownloadUrl(fileUrl);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const targetUrl = getDownloadUrl(rawPath || fileName);
+    openInNewTab(targetUrl);
   };
 
   const formatDateTime = (dateStr) => {
@@ -1510,109 +1485,180 @@ const SupplierDashboard = () => {
 
       {/* ── Requisition & BOQ Modal ── */}
       {selectedTender && (() => {
-        const tenderDeadline = selectedTender.tenderId?.bidSubmissionDeadline;
+        const tenderDeadline = selectedTender.tenderId?.bidSubmissionDeadline || selectedTender.bidClosingDate;
         const isDeadlinePassed = tenderDeadline ? new Date(tenderDeadline) < new Date() : false;
         const canBid = selectedTender.tenderId && !isDeadlinePassed;
 
         const statusLabel = (s) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const priorityColors = { low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700', high: 'bg-amber-100 text-amber-700', urgent: 'bg-red-100 text-red-700' };
 
+        const items = selectedTender.items?.length > 0 ? selectedTender.items : [{
+          description: selectedTender.title,
+          specifications: selectedTender.description || 'Standard technical specifications apply.',
+          quantity: 1,
+          unit: 'Lot',
+          estimatedUnitPrice: selectedTender.estimatedValue || selectedTender.totalEstimatedCost || 0
+        }];
+
+        // Parse technical specifications if string contains semicolon separated items
+        const rawDesc = selectedTender.description || '';
+        const hasSemicolons = rawDesc.includes(';');
+        const parsedDescSpecs = hasSemicolons
+          ? rawDesc.split(';').map(s => s.trim()).filter(Boolean)
+          : [];
+
+        const structuredTechSpecs = selectedTender.technicalSpecifications?.length > 0
+          ? selectedTender.technicalSpecifications
+          : [];
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedTender(null)}>
-            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs" />
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs" />
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-200" onClick={e => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <FaBuilding className="text-blue-600" size={16} />
-                    Procurement Notice & Specifications
+                    <FaBuilding className="text-blue-600" size={18} />
+                    <span>Procurement Notice & Specifications</span>
                   </h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <span className="font-mono text-xs bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold">
-                      {selectedTender.referenceNumber || selectedTender.tenderNumber || selectedTender._id}
+                      {selectedTender.referenceNumber || selectedTender.tenderNumber || (selectedTender._id ? selectedTender._id.substring(0, 8).toUpperCase() : 'N/A')}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                       {statusLabel(selectedTender.status || 'Published')}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${priorityColors[selectedTender.priority] || 'bg-slate-100 text-slate-600'}`}>
-                      {selectedTender.priority || 'Normal'} Priority
+                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${priorityColors[selectedTender.priority] || 'bg-blue-100 text-blue-800'}`}>
+                      {selectedTender.priority ? `${selectedTender.priority.toUpperCase()} PRIORITY` : 'MEDIUM PRIORITY'}
                     </span>
                   </div>
                 </div>
 
-                <button onClick={() => setSelectedTender(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
-                  <FaTimes size={15} />
+                <button onClick={() => setSelectedTender(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer transition-colors">
+                  <FaTimes size={16} />
                 </button>
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Description */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-                  <h4 className="text-sm font-bold text-slate-900">{selectedTender.title}</h4>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed whitespace-pre-line">
-                    {selectedTender.description || 'Detailed procurement notice published by Uva Wellassa University of Sri Lanka.'}
-                  </p>
+                {/* Notice & Overview Box */}
+                <div className="bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+                  <h4 className="text-base font-bold text-slate-900">{selectedTender.title}</h4>
+                  
+                  {parsedDescSpecs.length > 0 ? (
+                    <div className="space-y-2 text-xs text-slate-600 leading-relaxed pt-1">
+                      {parsedDescSpecs.map((spec, idx) => {
+                        const parts = spec.split(':');
+                        if (parts.length > 1) {
+                          return (
+                            <p key={idx} className="flex items-start gap-1.5">
+                              <span className="font-bold text-slate-800 shrink-0">{parts[0].trim()}:</span>
+                              <span>{parts.slice(1).join(':').trim()}</span>
+                            </p>
+                          );
+                        }
+                        return <p key={idx}>{spec}</p>;
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                      {selectedTender.description || 'Detailed procurement notice published by Uva Wellassa University of Sri Lanka.'}
+                    </p>
+                  )}
                 </div>
 
-                {/* Metrics */}
+                {/* 4 Summary Stat Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                    <FaTag className="mx-auto text-blue-500 mb-1" size={14} />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Category</p>
-                    <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTender.category || 'Goods'}</p>
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center flex flex-col items-center justify-center">
+                    <FaTag className="text-blue-500 mb-1.5" size={16} />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CATEGORY</p>
+                    <p className="text-xs font-bold text-slate-900 mt-1">{selectedTender.category || 'Goods'}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                    <FaMoneyCheckAlt className="mx-auto text-emerald-500 mb-1" size={14} />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Est. Total Cost</p>
-                    <p className="text-xs font-bold text-emerald-600 font-mono mt-0.5">LKR {formatLKR(selectedTender.totalEstimatedCost || selectedTender.estimatedValue)}</p>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center flex flex-col items-center justify-center">
+                    <FaMoneyCheckAlt className="text-emerald-500 mb-1.5" size={16} />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">EST. TOTAL COST</p>
+                    <p className="text-xs font-bold text-emerald-600 font-mono mt-1">
+                      LKR {formatLKR(selectedTender.totalEstimatedCost || selectedTender.estimatedValue)}
+                    </p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                    <FaGavel className="mx-auto text-indigo-500 mb-1" size={14} />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Method</p>
-                    <p className="text-xs font-bold text-slate-800 mt-0.5">{selectedTender.procurementMethod || 'NCB'}</p>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center flex flex-col items-center justify-center">
+                    <FaGavel className="text-indigo-500 mb-1.5" size={16} />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">METHOD</p>
+                    <p className="text-xs font-bold text-slate-900 mt-1">{selectedTender.procurementMethod || 'Shopping'}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                    <FaClock className="mx-auto text-purple-500 mb-1" size={14} />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Closing</p>
-                    <p className="text-xs font-bold text-slate-800 mt-0.5">{formatDateOnly(selectedTender.tenderId?.bidSubmissionDeadline)}</p>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-center flex flex-col items-center justify-center">
+                    <FaClock className="text-purple-500 mb-1.5" size={16} />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CLOSING</p>
+                    <p className="text-xs font-bold text-slate-900 mt-1">{formatDateOnly(tenderDeadline)}</p>
                   </div>
                 </div>
 
-                {/* BOQ Items */}
+                {/* Structured Technical Specifications Section */}
+                {structuredTechSpecs.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <FaShieldAlt className="text-blue-600" /> Technical Details & Specification Criteria ({structuredTechSpecs.length})
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {structuredTechSpecs.map((spec, idx) => (
+                        <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <FaCheckCircle className="text-emerald-500" size={13} />
+                              {spec.title || `Specification #${spec.specNumber || idx + 1}`}
+                            </span>
+                            {spec.isMandatory !== false && (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                                Mandatory Requirement
+                              </span>
+                            )}
+                          </div>
+                          {spec.description && (
+                            <p className="text-slate-600 text-[11px] leading-relaxed pt-0.5">{spec.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bill of Quantities (BOQ) Table */}
                 <div>
-                  <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <FaList className="text-blue-600" /> Bill of Quantities (BOQ) ({selectedTender.items?.length || 1})
+                  <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <FaList className="text-blue-600" /> BILL OF QUANTITIES (BOQ) ({items.length})
                   </h5>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                         <tr>
-                          <th className="px-3 py-2 text-center w-10">#</th>
-                          <th className="px-3 py-2">Description</th>
-                          <th className="px-3 py-2">Specifications</th>
-                          <th className="px-3 py-2 text-center w-16">Qty</th>
-                          <th className="px-3 py-2 text-center w-14">Unit</th>
-                          <th className="px-3 py-2 text-right w-24">Est. Unit Price</th>
-                          <th className="px-3 py-2 text-right w-24">Line Total</th>
+                          <th className="px-3.5 py-3 text-center w-10">#</th>
+                          <th className="px-4 py-3">Description</th>
+                          <th className="px-4 py-3">Specifications</th>
+                          <th className="px-3.5 py-3 text-center w-16">Qty</th>
+                          <th className="px-3.5 py-3 text-center w-16">Unit</th>
+                          <th className="px-4 py-3 text-right w-28">Est. Unit Price</th>
+                          <th className="px-4 py-3 text-right w-32">Line Total</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {(selectedTender.items?.length > 0 ? selectedTender.items : [{
-                          description: selectedTender.title,
-                          specifications: selectedTender.description || 'Standard technical specifications apply.',
-                          quantity: 1,
-                          unit: 'Lot',
-                          estimatedUnitPrice: selectedTender.estimatedValue || selectedTender.totalEstimatedCost || 0
-                        }]).map((item, index) => (
-                          <tr key={index} className="hover:bg-slate-50">
-                            <td className="px-3 py-2 font-bold text-slate-400 text-center">{index + 1}</td>
-                            <td className="px-3 py-2 font-bold text-slate-800">{item.description}</td>
-                            <td className="px-3 py-2 text-slate-600 font-medium">{item.specifications || '—'}</td>
-                            <td className="px-3 py-2 text-slate-800 font-bold text-center">{item.quantity}</td>
-                            <td className="px-3 py-2 text-slate-500 text-center">{item.unit}</td>
-                            <td className="px-3 py-2 text-slate-700 text-right font-mono">{formatLKR(item.estimatedUnitPrice)}</td>
-                            <td className="px-3 py-2 text-blue-700 font-bold text-right font-mono">{formatLKR(item.estimatedTotalPrice || item.quantity * item.estimatedUnitPrice)}</td>
+                        {items.map((item, index) => (
+                          <tr key={index} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-3.5 py-3 font-bold text-slate-400 text-center">{index + 1}</td>
+                            <td className="px-4 py-3 font-bold text-slate-900">{item.description || item.itemDescription}</td>
+                            <td className="px-4 py-3 text-slate-600 font-medium max-w-xs truncate" title={item.specifications}>
+                              {item.specifications || '—'}
+                            </td>
+                            <td className="px-3.5 py-3 text-slate-900 font-bold text-center">{item.quantity}</td>
+                            <td className="px-3.5 py-3 text-slate-500 text-center">{item.unit || 'Units'}</td>
+                            <td className="px-4 py-3 text-slate-700 text-right font-mono">
+                              {formatLKR(item.estimatedUnitPrice || item.unitPrice)}
+                            </td>
+                            <td className="px-4 py-3 text-blue-600 font-bold text-right font-mono">
+                              {formatLKR(item.estimatedTotalPrice || item.totalPrice || ((item.quantity || 1) * (item.estimatedUnitPrice || item.unitPrice || 0)))}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1620,11 +1666,11 @@ const SupplierDashboard = () => {
                   </div>
                 </div>
 
-                {/* Documents */}
+                {/* Attached Documents */}
                 {((selectedTender.attachments && selectedTender.attachments.length > 0) || (selectedTender.tenderId?.attachments && selectedTender.tenderId.attachments.length > 0)) && (
                   <div>
-                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <FaFileAlt className="text-blue-600" /> Attached Tender Documents
+                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                      <FaFileAlt className="text-blue-600" /> Official Tender Documents & Specifications
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {(selectedTender.attachments || selectedTender.tenderId?.attachments || []).map((att, idx) => {
@@ -1637,15 +1683,15 @@ const SupplierDashboard = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => handleFileDownload(e, att, fileName)}
-                            className="p-2.5 border border-slate-200 rounded-lg bg-white hover:bg-blue-50/50 hover:border-blue-300 transition-all flex items-center justify-between group cursor-pointer"
+                            className="p-3 border border-slate-200 rounded-xl bg-white hover:bg-blue-50/50 hover:border-blue-300 transition-all flex items-center justify-between group cursor-pointer"
                           >
-                            <div className="flex items-center space-x-2 overflow-hidden">
-                              <FaFileAlt size={13} className="text-blue-600 shrink-0" />
+                            <div className="flex items-center space-x-2.5 overflow-hidden">
+                              <FaFileAlt size={14} className="text-blue-600 shrink-0" />
                               <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-blue-700">
                                 {fileName}
                               </span>
                             </div>
-                            <FaDownload size={11} className="text-slate-400 group-hover:text-blue-600 shrink-0 ml-2" />
+                            <FaDownload size={12} className="text-slate-400 group-hover:text-blue-600 shrink-0 ml-2" />
                           </a>
                         );
                       })}
@@ -1655,18 +1701,29 @@ const SupplierDashboard = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-                <button onClick={() => setSelectedTender(null)} className="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between sticky bottom-0">
+                <button
+                  onClick={() => setSelectedTender(null)}
+                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer shadow-xs"
+                >
                   Close
                 </button>
 
-                {canBid && hasVendorProfile && (
+                {canBid && hasVendorProfile ? (
                   <Link
                     to={`/bid-box?tenderId=${selectedTender.tenderId._id}`}
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center shadow-xs cursor-pointer"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
                   >
-                    Proceed to Digital Bid Box <FaChevronRight className="ml-1.5 text-[9px]" />
+                    <span>Proceed to Digital Bid Box</span>
+                    <FaChevronRight size={10} />
                   </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="px-4 py-2 bg-slate-200 text-slate-500 text-xs font-semibold rounded-lg cursor-not-allowed"
+                  >
+                    Bidding Closed
+                  </button>
                 )}
               </div>
             </div>
@@ -1977,7 +2034,7 @@ const SupplierDashboard = () => {
                     ]).map((doc, idx) => (
                       <a
                         key={idx}
-                        href={getDownloadUrl(doc.url || doc.path)}
+                        href={getDownloadUrl(doc)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => handleFileDownload(e, doc, doc.name || `Bid_Document_${idx+1}.pdf`)}
@@ -1998,7 +2055,7 @@ const SupplierDashboard = () => {
                     {tenderDocs.map((doc, idx) => (
                       <a
                         key={`tender-doc-${idx}`}
-                        href={getDownloadUrl(typeof doc === 'string' ? doc : (doc.url || doc.path))}
+                        href={getDownloadUrl(doc)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => handleFileDownload(e, doc, `Tender_Document_${idx+1}.pdf`)}

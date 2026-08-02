@@ -38,7 +38,7 @@ const bidSchema = new mongoose.Schema({
   // Preliminary Examination
   preliminaryExam: { bidSecurityPresent: Boolean, formsSigned: Boolean, powerOfAttorney: Boolean, eligibilityMet: Boolean, majorDeviations: [String], result: { type: String, enum: ['pass', 'fail', 'pending'], default: 'pending' }, examDate: Date, examBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } },
   // Technical Evaluation
-  technicalEvaluation: { scores: [{ criterion: String, maxScore: Number, givenScore: Number, justification: String }], totalScore: Number, passed: Boolean, evaluatedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], evaluatedAt: Date },
+  technicalEvaluation: { scores: [{ criterion: String, maxScore: Number, givenScore: Number, justification: String }], totalScore: Number, passed: Boolean, notes: String, evaluatedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], evaluatedAt: Date },
   // Financial Evaluation
   financialEvaluation: { correctedBidAmount: Number, arithmeticErrors: [{ description: String, originalValue: Number, correctedValue: Number }], priceAdjustments: [{ description: String, amount: Number }], normalizedPrice: Number, evaluatedAt: Date },
   // AI Analysis

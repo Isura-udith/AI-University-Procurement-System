@@ -121,7 +121,7 @@ class ProcurementService {
 
     if (query.status) {
       if (query.status === 'pending-approval') {
-        filters.status = { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review'] };
+        filters.status = { $in: ['submitted', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'council_approved', 'pmd_review'] };
       } else if (query.status === 'budget-locked') {
         filters.status = 'budget_locked';
       } else if (query.status === 'tendering') {
@@ -754,7 +754,7 @@ class ProcurementService {
     const [total, active, pending, completed, byCategory, byStatus, byDepartment, recentItems, totalSpendAgg] = await Promise.all([
       Procurement.countDocuments(baseFilter),
       Procurement.countDocuments({ ...baseFilter, status: { $nin: ['completed', 'cancelled', 'rejected', 'draft'] } }),
-      Procurement.countDocuments({ ...baseFilter, status: { $in: ['submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'pmd_review'] } }),
+      Procurement.countDocuments({ ...baseFilter, status: { $in: ['submitted', 'under_review', 'hod_approved', 'dean_approved', 'pmd_approved', 'bursar_approved', 'finance_committee_approved', 'vc_approved', 'council_approved', 'pmd_review'] } }),
       Procurement.countDocuments({ ...baseFilter, status: 'completed' }),
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$category', count: { $sum: 1 }, totalValue: { $sum: '$totalEstimatedCost' } } }]),
       Procurement.aggregate([{ $match: baseFilter }, { $group: { _id: '$status', count: { $sum: 1 } } }]),

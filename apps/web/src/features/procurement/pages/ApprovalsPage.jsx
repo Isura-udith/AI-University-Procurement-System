@@ -175,6 +175,7 @@ export default function ApprovalsPage() {
       else if (a.stage === "bursar") roleLabel = "Bursar";
       else if (a.stage === "finance_committee") roleLabel = "Finance Committee";
       else if (a.stage === "vice_chancellor") roleLabel = "Vice-Chancellor";
+      else if (a.stage === "council") roleLabel = "University Council";
       else if (a.stage === "procurement_committee")
         roleLabel = "Procurement Committee";
 
@@ -192,9 +193,11 @@ export default function ApprovalsPage() {
                   ? "Finance Committee"
                   : a.stage === "vice_chancellor"
                     ? "Vice-Chancellor"
-                    : a.stage === "procurement_committee"
-                      ? "Procurement Committee"
-                      : "Approver";
+                    : a.stage === "council"
+                      ? "University Council"
+                      : a.stage === "procurement_committee"
+                        ? "Procurement Committee"
+                        : "Approver";
 
       return {
         role: roleLabel,

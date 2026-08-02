@@ -184,7 +184,7 @@ export default function SetupSupplierAccount() {
 
             <button
               onClick={() => navigate('/supplier-dashboard')}
-              className="w-full py-3.5 px-6 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3.5 px-6 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >
               <span>Go to Supplier Dashboard</span>
               <FaArrowRight />
@@ -316,7 +316,7 @@ export default function SetupSupplierAccount() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 px-6 bg-linear-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3.5 px-6 bg-linear-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
@@ -325,7 +325,7 @@ export default function SetupSupplierAccount() {
                   </>
                 ) : (
                   <>
-                    <span>Complete Account Setup</span>
+                    <span>Create Vendor Login Account</span>
                     <FaArrowRight />
                   </>
                 )}

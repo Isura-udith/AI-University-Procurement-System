@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, Cell } from 'recharts';
-import { FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaPencilAlt, FaChartPie, FaChartBar } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaPencilAlt, FaChartPie, FaChartBar, FaRobot, FaSpinner } from 'react-icons/fa';
 
 /**
  * Interactive evaluation scoring card with radar/bar score chart.
@@ -11,6 +11,8 @@ import { FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaPencilAlt, FaCha
  * @param {boolean} isWinner - Highlight as winner
  * @param {number} rank - Rank position
  * @param {function} onScore - Callback when scoring button clicked
+ * @param {function} onAIScore - Callback when AI scoring button clicked
+ * @param {string|number} aiScoringId - ID of bidder currently being scored by AI
  */
 export default function EvaluationScore({
   bidder,
@@ -20,8 +22,12 @@ export default function EvaluationScore({
   isWinner = false,
   rank = 0,
   onScore,
+  onAIScore,
+  aiScoringId,
 }) {
   const [chartType, setChartType] = useState('radar'); // 'radar' | 'bar'
+  const isAIScoring = aiScoringId === bidder?.id;
+
 
   if (!bidder) return null;
 
@@ -88,15 +94,35 @@ export default function EvaluationScore({
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Combined Score</p>
           </div>
 
-          {onScore && (
-            <button
-              onClick={() => onScore(bidder)}
-              className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-all cursor-pointer shadow-xs"
-            >
-              <FaPencilAlt size={10} />
-              <span>Score Bidder</span>
-            </button>
-          )}
+          <div className="flex items-center space-x-2">
+            {onAIScore && (
+              <button
+                type="button"
+                onClick={() => onAIScore(bidder)}
+                disabled={isAIScoring}
+                className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 hover:border-violet-300 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                title="Auto-score vendor proposal using AI evaluation model"
+              >
+                {isAIScoring ? (
+                  <FaSpinner className="animate-spin text-violet-600" size={10} />
+                ) : (
+                  <FaRobot size={11} className="text-violet-600" />
+                )}
+                <span>{isAIScoring ? 'AI Scoring...' : 'AI Auto-Score'}</span>
+              </button>
+            )}
+
+            {onScore && (
+              <button
+                type="button"
+                onClick={() => onScore(bidder)}
+                className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-all cursor-pointer shadow-xs"
+              >
+                <FaPencilAlt size={10} />
+                <span>Score Bidder</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -266,6 +292,13 @@ export default function EvaluationScore({
               LKR {(bidder.correctedPrice || bidder.quotedPrice || 0).toLocaleString()}
             </span>
           </div>
+
+          {bidder.evaluationNotes && (
+            <div className="text-xs p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-slate-600 italic">
+              <span className="font-bold not-italic text-slate-800 mr-1">TEC Remarks:</span>
+              "{bidder.evaluationNotes}"
+            </div>
+          )}
         </div>
       </div>
     </div>

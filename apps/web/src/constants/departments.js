@@ -72,13 +72,13 @@ export const DEPARTMENTS_BY_FACULTY = {
 export const ALL_DEPARTMENTS = Object.values(DEPARTMENTS_BY_FACULTY).flat();
 
 export const getFacultyForDepartment = (deptName) => {
-  if (!deptName) return 'Faculty of Applied Sciences';
+  if (!deptName) return '';
   const cleanTarget = String(deptName).trim().toLowerCase();
   for (const [faculty, depts] of Object.entries(DEPARTMENTS_BY_FACULTY)) {
     if (depts.some(d => d.trim().toLowerCase() === cleanTarget || cleanTarget.includes(d.trim().toLowerCase()))) {
       return faculty;
     }
   }
-  return 'Faculty of Applied Sciences';
+  return '';
 };
 

@@ -18,7 +18,7 @@ const documentSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Specifications', 'Evaluation', 'Contracts', 'Financial', 'Templates', 'General'],
+    enum: ['Specifications', 'Evaluation', 'Contracts', 'Financial', 'Templates', 'General', 'Bid Submission', 'Bid Security'],
     default: 'General',
   },
   type: {

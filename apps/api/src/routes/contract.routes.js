@@ -73,13 +73,13 @@ router.delete('/:id',
   deleteContract
 );
 
-// Digital signature (VC, Admin, Supplier signs contracts)
+// Digital signature (VC, Contract Manager, Procurement Officer, Admin, Supplier signs contracts)
 router.post('/:id/sign',
-  authorize('vc', 'admin', 'supplier', 'super_admin'),
+  authorize('vc', 'contract_manager', 'procurement_officer', 'admin', 'supplier', 'super_admin'),
   readOnlyGuard,
   signContract
 );
-
+ 
 // Contract lifecycle actions
 router.post('/:id/terminate',
   authorize('contract_manager', 'procurement_officer', 'admin', 'super_admin'),
@@ -147,7 +147,7 @@ router.post('/:id/performance',
 
 // Payment schedule mark-paid
 router.post('/:id/payments/:paymentIdx/mark-paid',
-  authorize('finance_officer', 'bursar', 'admin', 'super_admin'),
+  authorize('finance_officer', 'bursar', 'contract_manager', 'admin', 'super_admin'),
   readOnlyGuard,
   markPaymentPaid
 );

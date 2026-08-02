@@ -608,8 +608,19 @@ class TenderService {
     const bid = await Bid.findOne({ _id: bidId, tenderId, tenantId });
     if (!bid) throw Object.assign(new Error('Bid not found'), { statusCode: 404 });
 
+    // Calculate techMax from tender criteria or scores.technicalScores
+    let techMax = 70;
+    if (tender.technicalCriteria && tender.technicalCriteria.length > 0) {
+      techMax = tender.technicalCriteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+    } else if (scores.technicalScores && scores.technicalScores.length > 0) {
+      techMax = scores.technicalScores.reduce((sum, s) => sum + (s.maxScore || 0), 0);
+    }
+    if (techMax <= 0) techMax = 70;
+
     // Save technical evaluation scores
     if (scores.technicalScores) {
+      const totalTech = scores.technicalScores.reduce((sum, s) => sum + (s.givenScore || 0), 0);
+      const techPct = (totalTech / techMax) * 100;
       bid.technicalEvaluation = {
         scores: scores.technicalScores.map(s => ({
           criterion: s.criterion,
@@ -617,8 +628,9 @@ class TenderService {
           givenScore: s.givenScore,
           justification: s.justification || '',
         })),
-        totalScore: scores.technicalScores.reduce((sum, s) => sum + (s.givenScore || 0), 0),
-        passed: scores.technicalScores.reduce((sum, s) => sum + (s.givenScore || 0), 0) >= (tender.technicalPassMark || 70),
+        totalScore: totalTech,
+        passed: techPct >= (tender.technicalPassMark || 70),
+        notes: scores.notes || bid.technicalEvaluation?.notes || '',
         evaluatedBy: [userId],
         evaluatedAt: new Date(),
       };
@@ -638,15 +650,6 @@ class TenderService {
     // Calculate combined score using QCBS weighting
     const techWeight = scores.techWeight || 70;
     const finWeight = 100 - techWeight;
-
-    // Calculate techMax from tender criteria or scores.technicalScores
-    let techMax = 70;
-    if (tender.technicalCriteria && tender.technicalCriteria.length > 0) {
-      techMax = tender.technicalCriteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-    } else if (scores.technicalScores && scores.technicalScores.length > 0) {
-      techMax = scores.technicalScores.reduce((sum, s) => sum + (s.maxScore || 0), 0);
-    }
-    if (techMax <= 0) techMax = 70;
 
     const techRawScore = bid.technicalEvaluation?.totalScore || 0;
     const techWeightedScore = (techRawScore / techMax) * techWeight;
@@ -802,6 +805,7 @@ class TenderService {
         rank: bid.rank || i + 1,
         hasAnomaly: (bid.aiAnalysis?.anomalyFlags || []).length > 0,
         status: bid.status,
+        evaluationNotes: bid.technicalEvaluation?.notes || '',
       };
     });
 

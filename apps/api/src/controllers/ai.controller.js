@@ -1,6 +1,7 @@
 
 const aiService = require('../services/ai.service');
 const explainabilityService = require('../services/ai.explainability.service');
+const tenderService = require('../services/tender.service');
 const Procurement = require('../models/procurement.model');
 const Tender = require('../models/tender.model');
 const Bid = require('../models/bid.model');
@@ -1149,6 +1150,79 @@ const proxyFlowisePrediction = async (req, res, next) => {
   }
 };
 
+/**
+ * Feature 10: AI Vendor Technical Scoring
+ * POST /ai/score-bidder/:tenderId/:bidId
+ */
+const scoreBidderAI = async (req, res, next) => {
+  try {
+    const { tenderId, bidId } = req.params;
+    const tender = await Tender.findOne({ _id: tenderId, tenantId: req.tenantId });
+    if (!tender) throw Object.assign(new Error('Tender not found'), { statusCode: 404 });
+
+    const bid = await Bid.findOne({ _id: bidId, tenderId, tenantId: req.tenantId }).populate('vendorId');
+    if (!bid) throw Object.assign(new Error('Bid not found'), { statusCode: 404 });
+
+    const criteria = req.body.criteria || tender.technicalCriteria || [];
+    const evaluation = await aiService.scoreBidderAI(tender, bid, criteria);
+
+    // Save evaluation to DB
+    await tenderService.evaluateBid(tenderId, bidId, {
+      technicalScores: evaluation.technicalScores,
+      notes: evaluation.overallNotes,
+    }, req.user._id, req.tenantId);
+
+    if (evaluation.explainabilityLog) {
+      await explainabilityService.recordLog(evaluation.explainabilityLog, {
+        userId: req.user._id,
+        tenantId: req.tenantId,
+        tenderId: tender._id,
+      });
+    }
+
+    return success(res, evaluation, 'AI Vendor Scoring completed');
+  } catch (err) { next(err); }
+};
+
+/**
+ * Feature 10 (Bulk): AI Score All Bidders for Tender
+ * POST /ai/score-all-bidders/:tenderId
+ */
+const scoreAllBiddersAI = async (req, res, next) => {
+  try {
+    const { tenderId } = req.params;
+    const tender = await Tender.findOne({ _id: tenderId, tenantId: req.tenantId });
+    if (!tender) throw Object.assign(new Error('Tender not found'), { statusCode: 404 });
+
+    const bids = await Bid.find({ tenderId, tenantId: req.tenantId }).populate('vendorId');
+    if (!bids || bids.length === 0) {
+      return success(res, { evaluations: [] }, 'No bids found to score');
+    }
+
+    const criteria = req.body.criteria || tender.technicalCriteria || [];
+    const evaluations = [];
+
+    for (const bid of bids) {
+      const evaluation = await aiService.scoreBidderAI(tender, bid, criteria);
+      await tenderService.evaluateBid(tenderId, bid._id, {
+        technicalScores: evaluation.technicalScores,
+        notes: evaluation.overallNotes,
+      }, req.user._id, req.tenantId);
+
+      if (evaluation.explainabilityLog) {
+        await explainabilityService.recordLog(evaluation.explainabilityLog, {
+          userId: req.user._id,
+          tenantId: req.tenantId,
+          tenderId: tender._id,
+        });
+      }
+      evaluations.push(evaluation);
+    }
+
+    return success(res, { evaluations }, 'AI scoring completed for all bidders');
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   getMarketPrice,
   verifyQuotations,
@@ -1179,4 +1253,10 @@ module.exports = {
   renameChatSession,
   togglePinSession,
   rateChatMessage,
+  // AI Vendor Technical Scoring
+  scoreBidderAI,
+  scoreAllBiddersAI,
 };
+
+
+

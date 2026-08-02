@@ -4,6 +4,7 @@ const {
   generateReport,
   getAllReports,
   getReport,
+  updateReport,
   getSpendAnalysis,
   getVendorPerformance,
   getComplianceAudit,
@@ -58,6 +59,12 @@ router.get('/:id/export',
 router.get('/:id',
   authorize('procurement_officer', 'contract_manager', 'admin', 'vc', 'dean', 'bursar', 'finance_officer', 'department_head', 'auditor', 'super_admin'),
   getReport
+);
+
+// Update report status / details
+router.patch('/:id',
+  authorize('procurement_officer', 'bursar', 'admin', 'vc', 'auditor', 'super_admin'),
+  updateReport
 );
 
 // Delete report

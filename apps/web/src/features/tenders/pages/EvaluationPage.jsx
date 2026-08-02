@@ -47,6 +47,8 @@ export default function EvaluationPage() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [submitModal, setSubmitModal] = useState(false);
   const [weights, setWeights] = useState({ tech: 70, fin: 30 });
+  const [aiScoringId, setAiScoringId] = useState(null);
+  const [aiBulkScoring, setAiBulkScoring] = useState(false);
 
   // UI state
   const [viewMode, setViewMode] = useState("cards"); // 'cards' | 'table'
@@ -159,23 +161,31 @@ export default function EvaluationPage() {
         setCriteria(techCriteria.length > 0 ? techCriteria : DEFAULT_CRITERIA);
 
         setBidders(
-          bidsArr.map((bid, i) => ({
-            id: bid._id,
-            vendorId: bid.vendorId,
-            name: bid.vendorId?.companyName || "Unknown Vendor",
-            techScores: {},
-            quotedPrice: bid.totalBidAmount || 0,
-            correctedPrice:
-              bid.financialEvaluation?.correctedBidAmount ||
-              bid.totalBidAmount ||
-              0,
-            techWeighted: 0,
-            finWeighted: 0,
-            combined: bid.combinedScore || 0,
-            rank: bid.rank || i + 1,
-            hasAnomaly: false,
-            status: bid.status,
-          })),
+          bidsArr.map((bid, i) => {
+            const tScores = {};
+            (bid.technicalEvaluation?.scores || []).forEach((s) => {
+              const key = s.criterion.toLowerCase().replace(/[^a-z0-9]/g, "_");
+              tScores[key] = s.givenScore || 0;
+            });
+            return {
+              id: bid._id,
+              vendorId: bid.vendorId,
+              name: bid.vendorId?.companyName || "Unknown Vendor",
+              techScores: tScores,
+              quotedPrice: bid.totalBidAmount || 0,
+              correctedPrice:
+                bid.financialEvaluation?.correctedBidAmount ||
+                bid.totalBidAmount ||
+                0,
+              techWeighted: 0,
+              finWeighted: 0,
+              combined: bid.combinedScore || 0,
+              rank: bid.rank || i + 1,
+              hasAnomaly: (bid.aiAnalysis?.anomalyFlags || []).length > 0,
+              status: bid.status,
+              evaluationNotes: bid.technicalEvaluation?.notes || "",
+            };
+          }),
         );
         setEvaluated(false);
       } catch {
@@ -235,6 +245,51 @@ export default function EvaluationPage() {
       toast.error(err.message || "Failed to save evaluation scores.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAIScoreBidder = async (bidder) => {
+    if (!selectedTenderId || !bidder) return;
+    setAiScoringId(bidder.id);
+    try {
+      const res = await aiService.scoreBidderAI(selectedTenderId, bidder.id, criteria);
+      const evalData = res.data || res;
+
+      const newScores = {};
+      (evalData.technicalScores || []).forEach((item) => {
+        const key = item.criterion.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        newScores[key] = item.givenScore;
+      });
+
+      setScores(newScores);
+      setNotes(evalData.overallNotes || evalData.notes || "");
+      setScoringBidder(bidder);
+      setEditMode(true);
+
+      toast.success(`✨ AI auto-scored "${bidder.name}" (${evalData.totalGiven || 0}/${evalData.totalMax || 0} pts). Scores populated for review.`);
+      loadEvaluation();
+    } catch (err) {
+      console.error("AI scoring error:", err);
+      toast.error("AI scoring failed for bidder. Please score manually.");
+    } finally {
+      setAiScoringId(null);
+    }
+  };
+
+  const handleAIScoreAllBidders = async () => {
+    if (!selectedTenderId) return;
+    setAiBulkScoring(true);
+    try {
+      const res = await aiService.scoreAllBiddersAI(selectedTenderId, criteria);
+      const data = res.data || res;
+      const count = data.evaluations?.length || bidders.length;
+      toast.success(`✨ AI successfully evaluated & auto-scored all ${count} bidders!`);
+      loadEvaluation();
+    } catch (err) {
+      console.error("AI bulk scoring error:", err);
+      toast.error(err.message || "Failed to score all bidders with AI.");
+    } finally {
+      setAiBulkScoring(false);
     }
   };
 
@@ -560,6 +615,21 @@ export default function EvaluationPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleAIScoreAllBidders}
+                disabled={aiBulkScoring}
+                className="flex items-center space-x-2 px-4 py-2.5 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-500 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                title="Automatically score all vendors based on technical proposal parameters using AI"
+              >
+                {aiBulkScoring ? (
+                  <FaSpinner className="animate-spin text-white" size={12} />
+                ) : (
+                  <FaRobot size={13} className="text-white" />
+                )}
+                <span>{aiBulkScoring ? "AI Scoring All Bidders..." : "AI Score All Bidders"}</span>
+              </button>
+
               {!evaluating && (
                 <button
                   onClick={handleRunAIAnalysis}
@@ -853,6 +923,8 @@ export default function EvaluationPage() {
                     isWinner={sorted[0]?.id === bidder.id}
                     rank={sorted.findIndex((b) => b.id === bidder.id) + 1}
                     onScore={handleStartScoring}
+                    onAIScore={handleAIScoreBidder}
+                    aiScoringId={aiScoringId}
                   />
                 ))}
               </div>
@@ -952,12 +1024,29 @@ export default function EvaluationPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3.5 text-right">
-                              <button
-                                onClick={() => handleStartScoring(bidder)}
-                                className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
-                              >
-                                Score
-                              </button>
+                              <div className="flex items-center justify-end space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAIScoreBidder(bidder)}
+                                  disabled={aiScoringId === bidder.id}
+                                  className="px-2.5 py-1 text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer flex items-center space-x-1 disabled:opacity-50"
+                                  title="AI Auto-Score"
+                                >
+                                  {aiScoringId === bidder.id ? (
+                                    <FaSpinner className="animate-spin text-violet-600" size={10} />
+                                  ) : (
+                                    <FaRobot size={10} className="text-violet-600" />
+                                  )}
+                                  <span>AI Score</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartScoring(bidder)}
+                                  className="px-3 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+                                >
+                                  Score
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -974,6 +1063,8 @@ export default function EvaluationPage() {
             bidders={sorted}
             onSelectWinner={handleSelectWinner}
             disabled={false}
+            aiAnalysis={aiAnalysis}
+            onRunAI={handleRunAIAnalysis}
           />
 
           {/* Proceed to Awards Footer Card */}
@@ -1010,15 +1101,31 @@ export default function EvaluationPage() {
                       criterion
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditMode(false);
-                      setScoringBidder(null);
-                    }}
-                    className="text-slate-400 hover:text-slate-600 text-sm font-bold px-2 py-1"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAIScoreBidder(scoringBidder)}
+                      disabled={aiScoringId === scoringBidder.id}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                      title="Auto-evaluate scores using AI model"
+                    >
+                      {aiScoringId === scoringBidder.id ? (
+                        <FaSpinner className="animate-spin text-violet-600" size={11} />
+                      ) : (
+                        <FaRobot className="text-violet-600" size={12} />
+                      )}
+                      <span>{aiScoringId === scoringBidder.id ? "Scoring..." : "Auto-Fill with AI"}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setScoringBidder(null);
+                      }}
+                      className="text-slate-400 hover:text-slate-600 text-sm font-bold px-2 py-1 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">

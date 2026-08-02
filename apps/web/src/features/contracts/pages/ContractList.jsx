@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import contractService from '../../../services/contract.service';
+import tenderService from '../../../services/tender.service';
 import ConfirmModal from '../../../components/ConfirmModal';
 import StatusBadge from '../../../components/StatusBadge';
-import { FaFileAlt } from 'react-icons/fa';
+import { FaFileAlt, FaCheckCircle } from 'react-icons/fa';
 
 import usePermissions from '../../../hooks/usePermissions';
 
@@ -25,6 +26,7 @@ const TYPE_FILTERS = [
 ];
 
 export default function ContractList() {
+  const navigate = useNavigate();
   const { role } = usePermissions();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,13 +37,15 @@ export default function ContractList() {
   const [perPage, setPerPage] = useState(10);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [backendStats, setBackendStats] = useState(null);
+  const [selectedTenders, setSelectedTenders] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, statsRes] = await Promise.allSettled([
+      const [res, statsRes, tendersRes] = await Promise.allSettled([
         contractService.getAll(),
-        contractService.getStats()
+        contractService.getStats(),
+        tenderService.getAll({ limit: 100 })
       ]);
 
       if (res.status === 'fulfilled') {
@@ -76,6 +80,16 @@ export default function ContractList() {
       if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
         setBackendStats(statsRes.value.data);
       }
+
+      if (tendersRes.status === 'fulfilled') {
+        const items = tendersRes.value.data || tendersRes.value || [];
+        const selectedOnly = items.filter(t => {
+          const hasActiveAppeals = t.appeals && t.appeals.some(ap => ap.status === 'pending' || ap.status === 'under-review');
+          if (hasActiveAppeals) return false;
+          return ['awarded', 'loa_issued', 'standstill', 'cleared'].includes(t.status) || Boolean(t.awardedVendorId) || Boolean(t.winner);
+        });
+        setSelectedTenders(selectedOnly);
+      }
     } catch (err) {
       console.error('Failed to fetch contracts:', err);
       setData([]);
@@ -93,9 +107,10 @@ export default function ContractList() {
     try {
       await contractService.delete(deleteTarget._id);
       setData((prev) => prev.filter((d) => d._id !== deleteTarget._id));
-      toast.success(`Contract ${deleteTarget.contractNumber} deleted successfully.`);
-    } catch {
-      toast.error('Failed to delete contract');
+      toast.success(`Contract ${deleteTarget.contractNumber || deleteTarget.title} deleted successfully.`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete contract');
     }
     setDeleteTarget(null);
   };
@@ -230,6 +245,64 @@ export default function ContractList() {
           <p className="text-[11px] text-purple-700 font-semibold mt-0.5">Fully fulfilled contracts</p>
         </div>
       </div>
+
+      {/* Selected Suppliers & Awarded Tenders Ready for Contract */}
+      {selectedTenders.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <FaCheckCircle className="text-emerald-600" />
+                Selected Suppliers & Awarded Tenders
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Tenders awarded to selected suppliers ready for contract agreement drafting
+              </p>
+            </div>
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 self-start sm:self-auto">
+              {selectedTenders.length} Selected Supplier(s)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {selectedTenders.slice(0, 6).map((t) => {
+              const vName = t.winner?.name || t.awardedVendorId?.companyName || t.awardedVendorId?.tradingName || 'Awarded Supplier';
+              const amount = t.winner?.bidAmount || t.awardAmount || t.estimatedValue || 0;
+
+              return (
+                <div key={t._id} className="p-3.5 bg-slate-50 hover:bg-emerald-50/40 border border-slate-200 hover:border-emerald-300 rounded-xl transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded">
+                        {t.tenderNumber}
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        {t.status || 'Awarded'}
+                      </span>
+                    </div>
+                    <p className="font-bold text-xs text-slate-900 mt-2 line-clamp-1">{t.title}</p>
+                    <div className="mt-2 text-xs text-slate-600 font-semibold truncate">
+                      👤 {vName}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex items-center justify-between">
+                    <span className="font-extrabold text-xs text-slate-900">
+                      LKR {Number(amount).toLocaleString()}
+                    </span>
+                    <button
+                      onClick={() => navigate('/contracts/new', { state: { award: t } })}
+                      className="px-3 py-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors flex items-center gap-1"
+                    >
+                      Draft Contract →
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Expiry Alerts Banner */}
       {stats.expiring > 0 && (
@@ -426,7 +499,7 @@ export default function ContractList() {
                           >
                             View
                           </Link>
-                          {c.status === 'draft' && (
+                          {['draft', 'pending_signature'].includes(c.status) && (
                             <button
                               onClick={() => setDeleteTarget(c)}
                               className="px-2.5 py-1 text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"

@@ -126,14 +126,14 @@ router.post('/:id/generate-minutes',
 
 // Award (VC signs off on high-value awards)
 router.post('/:id/award',
-  authorize('procurement_officer', 'supplies_division', 'tec_member', 'admin', 'vc', 'super_admin'),
+  authorize('procurement_officer', 'supplies_division', 'contract_manager', 'tec_member', 'admin', 'vc', 'super_admin'),
   readOnlyGuard,
   awardTender
 );
 
 // LOA (VC as Accounting Officer signs the Letter of Acceptance)
 router.post('/:id/issue-loa',
-  authorize('vc', 'admin', 'super_admin'),
+  authorize('vc', 'contract_manager', 'admin', 'super_admin'),
   readOnlyGuard,
   issueLOA
 );

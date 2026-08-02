@@ -39,7 +39,7 @@ router.get('/:id/budget-check',
 router.get('/',
   authorize(
     'department_user', 'department_head', 'dean',
-    'procurement_officer', 'supplies_division', 'tec_member', 'admin', 'vc',
+    'procurement_officer', 'contract_manager', 'supplies_division', 'tec_member', 'admin', 'vc',
     'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,
@@ -48,7 +48,7 @@ router.get('/',
 router.get('/:id',
   authorize(
     'department_user', 'department_head', 'dean',
-    'procurement_officer', 'supplies_division', 'tec_member', 'admin', 'vc',
+    'procurement_officer', 'contract_manager', 'supplies_division', 'tec_member', 'admin', 'vc',
     'bursar', 'finance_officer', 'finance_committee', 'procurement_committee', 'council', 'council_member', 'auditor', 'super_admin'
   ),
   requireSameFaculty,

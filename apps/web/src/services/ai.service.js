@@ -47,6 +47,10 @@ export const aiService = {
   rateChatMessage: (sessionId, messageIndex, rating, feedback) =>
     api.post(`/ai/chat/sessions/${sessionId}/rate`, { messageIndex, rating, feedback }),
 
+  // Feature 10: AI Vendor Technical Scoring
+  scoreBidderAI: (tenderId, bidId, criteria) => api.post(`/ai/score-bidder/${tenderId}/${bidId}`, { criteria }),
+  scoreAllBiddersAI: (tenderId, criteria) => api.post(`/ai/score-all-bidders/${tenderId}`, { criteria }),
+
   // ─── Flowise Knowledge Base (Document Store) ──────────────────
   uploadKnowledgeDocument: (file) => {
     const formData = new FormData();
@@ -62,3 +66,4 @@ export const aiService = {
 };
 
 export default aiService;
+
