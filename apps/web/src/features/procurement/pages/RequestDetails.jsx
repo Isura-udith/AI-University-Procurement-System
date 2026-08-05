@@ -66,7 +66,7 @@ export default function RequestDetails() {
       // Re-fetch the procurement to get the updated approval chain from backend
       const res = await procurementService.getById(id);
       setData(res.data?.data || res.data || res);
-      toast.success('📝 Request submitted for value-based multi-level approval.');
+      toast.success('Request submitted for value-based multi-level approval.');
     } catch (err) {
       const errMsg = err?.message || err?.error || 'Submission failed';
       toast.error(`❌ ${errMsg}`);
@@ -84,7 +84,7 @@ export default function RequestDetails() {
       await procurementService.publish(id);
       const res = await procurementService.getById(id);
       setData(res.data?.data || res.data || res);
-      toast.success('🚀 Procurement published to suppliers! It is now visible on the public portal.');
+      toast.success('Procurement published to suppliers! It is now visible on the public portal.');
     } catch (err) {
       const errMsg = err?.message || err?.error || 'Publishing failed';
       toast.error(`❌ ${errMsg}`);
@@ -128,9 +128,9 @@ export default function RequestDetails() {
     const analysis = procurement.aiAnalysis;
     if (analysis) {
       if (analysis.anomalyFlags && analysis.anomalyFlags.length > 0) {
-        analysis.anomalyFlags.forEach(a => insights.push(`⚠️ Anomaly: ${a.description}`));
+        analysis.anomalyFlags.forEach(a => insights.push(`Anomaly: ${a.description}`));
       } else {
-        insights.push('✓ Specifications are generic — no brand names detected.');
+        insights.push('Specifications are generic — no brand names detected.');
       }
       
       if (analysis.budgetGuardResult) {

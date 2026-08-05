@@ -242,7 +242,7 @@ export default function ApprovalsPage() {
       });
 
       const stageLabel = STAGE_LABELS[stageSlug] || stageSlug;
-      toast.success(`✅ Approved at ${stageLabel} stage`);
+      toast.success(`Approved at ${stageLabel} stage`);
 
       // Refresh the approvals list from the API
       await fetchApprovals();
