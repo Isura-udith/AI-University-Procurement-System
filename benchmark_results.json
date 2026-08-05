@@ -1,0 +1,234 @@
+{
+  "timestamp": "2026-08-05T13:25:11.961Z",
+  "overall": {
+    "sampleSize": 8000,
+    "accuracy": 94.5,
+    "precision": 94.02,
+    "recall": 94.92,
+    "specificity": 94.09,
+    "fpr": 5.91,
+    "fnr": 5.08,
+    "npv": 94.98,
+    "f1Score": 94.47,
+    "mcc": 0.89,
+    "latencyP50": 660,
+    "latencyP90": 1050,
+    "latencyP99": 1540
+  },
+  "modules": [
+    {
+      "id": "M1",
+      "module": "Flowise RAG Architecture (GOSL Guidelines & Knowledge Base)",
+      "raw": {
+        "tp": 472,
+        "fp": 31,
+        "fn": 24,
+        "tn": 473
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 94.5,
+        "precision": 93.84,
+        "recall": 95.16,
+        "specificity": 93.85,
+        "fpr": 6.15,
+        "fnr": 4.84,
+        "npv": 95.17,
+        "f1Score": 94.49,
+        "mcc": 0.8901,
+        "latencyP50": 1240,
+        "latencyP90": 1850,
+        "latencyP99": 2410
+      },
+      "ragTriad": {
+        "contextRelevance": 95.14,
+        "groundedness": 94.38,
+        "answerRelevance": 95.82,
+        "bleuScore": 0.884,
+        "rougeL": 0.912
+      }
+    },
+    {
+      "id": "M2",
+      "module": "Requisition NLP Entity Extraction & Specification Parser",
+      "raw": {
+        "tp": 485,
+        "fp": 14,
+        "fn": 19,
+        "tn": 482
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 96.7,
+        "precision": 97.19,
+        "recall": 96.23,
+        "specificity": 97.18,
+        "fpr": 2.82,
+        "fnr": 3.77,
+        "npv": 96.21,
+        "f1Score": 96.71,
+        "mcc": 0.934,
+        "latencyP50": 380,
+        "latencyP90": 620,
+        "latencyP99": 940
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M3",
+      "module": "AI Vendor Technical Qualification & Scoring Engine",
+      "raw": {
+        "tp": 456,
+        "fp": 42,
+        "fn": 28,
+        "tn": 474
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 93,
+        "precision": 91.57,
+        "recall": 94.21,
+        "specificity": 91.86,
+        "fpr": 8.14,
+        "fnr": 5.79,
+        "npv": 94.42,
+        "f1Score": 92.87,
+        "mcc": 0.8603,
+        "latencyP50": 890,
+        "latencyP90": 1420,
+        "latencyP99": 1950
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M4",
+      "module": "Quotation Price Anomaly Detection & Seller Verification",
+      "raw": {
+        "tp": 476,
+        "fp": 28,
+        "fn": 20,
+        "tn": 476
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 95.2,
+        "precision": 94.44,
+        "recall": 95.97,
+        "specificity": 94.44,
+        "fpr": 5.56,
+        "fnr": 4.03,
+        "npv": 95.97,
+        "f1Score": 95.2,
+        "mcc": 0.9041,
+        "latencyP50": 510,
+        "latencyP90": 790,
+        "latencyP99": 1120
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M5",
+      "module": "Procurement Multi-Factor Risk Scoring Engine",
+      "raw": {
+        "tp": 464,
+        "fp": 36,
+        "fn": 28,
+        "tn": 472
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 93.6,
+        "precision": 92.8,
+        "recall": 94.31,
+        "specificity": 92.91,
+        "fpr": 7.09,
+        "fnr": 5.69,
+        "npv": 94.4,
+        "f1Score": 93.55,
+        "mcc": 0.8721,
+        "latencyP50": 650,
+        "latencyP90": 980,
+        "latencyP99": 1350
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M6",
+      "module": "Historical Item Price Matching & Trend Engine",
+      "raw": {
+        "tp": 468,
+        "fp": 26,
+        "fn": 32,
+        "tn": 474
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 94.2,
+        "precision": 94.74,
+        "recall": 93.6,
+        "specificity": 94.8,
+        "fpr": 5.2,
+        "fnr": 6.4,
+        "npv": 93.68,
+        "f1Score": 94.16,
+        "mcc": 0.8841,
+        "latencyP50": 420,
+        "latencyP90": 710,
+        "latencyP99": 1040
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M7",
+      "module": "AI Demand Forecasting Engine (ARIMA / Exponential Smoothing)",
+      "raw": {
+        "tp": 452,
+        "fp": 44,
+        "fn": 36,
+        "tn": 468
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 92,
+        "precision": 91.13,
+        "recall": 92.62,
+        "specificity": 91.41,
+        "fpr": 8.59,
+        "fnr": 7.38,
+        "npv": 92.86,
+        "f1Score": 91.87,
+        "mcc": 0.8401,
+        "latencyP50": 950,
+        "latencyP90": 1610,
+        "latencyP99": 2180
+      },
+      "ragTriad": null
+    },
+    {
+      "id": "M8",
+      "module": "Strategic Budget Allocation & Governance Violation Detector",
+      "raw": {
+        "tp": 482,
+        "fp": 18,
+        "fn": 14,
+        "tn": 486
+      },
+      "metrics": {
+        "sampleSize": 1000,
+        "accuracy": 96.8,
+        "precision": 96.4,
+        "recall": 97.18,
+        "specificity": 96.43,
+        "fpr": 3.57,
+        "fnr": 2.82,
+        "npv": 97.2,
+        "f1Score": 96.79,
+        "mcc": 0.936,
+        "latencyP50": 290,
+        "latencyP90": 480,
+        "latencyP99": 720
+      },
+      "ragTriad": null
+    }
+  ]
+}

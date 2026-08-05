@@ -1,0 +1,1162 @@
+{
+	"info": {
+		"_postman_id": "a9b8c7d6-e5f4-4a3b-9c8d-1e2f3a4b5c6d",
+		"name": "Smart Procurement System API & RAG Test Suite",
+		"description": "Complete Postman API & Flowise RAG testing collection for the UWU Smart Procurement System (GOSL Compliant, AI-Driven). Includes automated authentication token handling, Flowise chat endpoints, risk scoring, vendor technical evaluation, and financial workflow checks.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "flowiseUrl",
+			"value": "http://localhost:3000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "tenantId",
+			"value": "uwu-main",
+			"type": "string"
+		},
+		{
+			"key": "procurementId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01. Auth & System Health",
+			"item": [
+				{
+					"name": "API Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Response includes service name and status ok', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('ok');",
+									"    pm.expect(jsonData.service).to.contain('UWU Smart Procurement API');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "User Login (Procurement Officer)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Token is returned and stored in variables', function () {",
+									"    const jsonData = pm.response.json();",
+									"    const token = jsonData.data ? (jsonData.data.accessToken || jsonData.data.token) : null;",
+									"    pm.expect(token).to.be.a('string').and.not.empty;",
+									"    pm.environment.set('token', token);",
+									"    pm.collectionVariables.set('token', token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"procurement.officer@uwu.ac.lk\",\n  \"password\": \"Demo@1234\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User Login (Super Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Super Admin token is returned and stored', function () {",
+									"    const jsonData = pm.response.json();",
+									"    const token = jsonData.data ? (jsonData.data.accessToken || jsonData.data.token) : null;",
+									"    pm.expect(token).to.be.a('string').and.not.empty;",
+									"    pm.environment.set('adminToken', token);",
+									"    pm.collectionVariables.set('adminToken', token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"superadmin@uwu.ac.lk\",\n  \"password\": \"Demo@1234\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User Login (Supplier)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Supplier token is returned and stored', function () {",
+									"    const jsonData = pm.response.json();",
+									"    const token = jsonData.data ? (jsonData.data.accessToken || jsonData.data.token) : null;",
+									"    pm.expect(token).to.be.a('string').and.not.empty;",
+									"    pm.environment.set('supplierToken', token);",
+									"    pm.collectionVariables.set('supplierToken', token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"supplier@vendor.lk\",\n  \"password\": \"Demo@1234\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"profile"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('User has valid role and email', function () {",
+									"    const jsonData = pm.response.json();",
+									"    const user = jsonData.data ? (jsonData.data.user || jsonData.data) : null;",
+									"    pm.expect(user).to.have.property('role');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "02. Flowise RAG & AI Intelligence",
+			"item": [
+				{
+					"name": "AI System Status Check",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ai/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"status"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('AI service configuration is valid', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.be.an('object');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Flowise RAG Conversational Search (Post /ai/chat)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question\": \"What are the GOSL Shopping Procurement procedure limits for goods according to National Procurement Guidelines?\",\n  \"overrideConfig\": {\n    \"returnSourceDocuments\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ai/chat",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"chat"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('RAG answer returned with context', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('text');",
+									"    pm.expect(jsonData.data.text.length).to.be.above(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Parse Unstructured Requisition NLP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rawText\": \"Need 20 High Performance Core i7 Laptops with 16GB RAM for the Faculty of Applied Sciences CS Lab, estimated total LKR 6,500,000.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ai/parse-requisition",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"parse-requisition"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Extracted structured item specifications', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('items');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Real-Time Market Price Recommendation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"description\": \"Core i7 Workstation Laptop 16GB RAM 512GB SSD\",\n      \"category\": \"Goods\",\n      \"specifications\": \"i7 16GB RAM 512GB SSD\",\n      \"quantity\": 20,\n      \"unit\": \"Units\",\n      \"estimatedUnitPrice\": 325000\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ai/market-price",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"market-price"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Price recommendation response returned', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('priceRecommendation');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Internal Knowledge Base Search (Flowise Shared Secret Endpoint)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Internal-Key",
+								"value": "uwu-flowise-secret-key-2026-gosl-compliant"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"model\": \"procurement\",\n  \"queryText\": \"Laptop\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/ai/internal-query",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"internal-query"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Internal query returns data payload', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get AI Market Alerts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ai/market-alerts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"market-alerts"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "03. Strategic Planning & Budget",
+			"item": [
+				{
+					"name": "Get Budget Allocations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/budget-allocations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"budget-allocations"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get My Department Budget",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/budget-allocations/my-budget",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"budget-allocations",
+								"my-budget"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Final Master Plans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/final-master-plans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"final-master-plans"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "04. Requisitions & Procurements",
+			"item": [
+				{
+					"name": "Get List of Procurement Requisitions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/procurements?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"procurements"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Paginated result returned', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Create New Procurement Requisition",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Supply of Server Infrastructure for Main IT Center\",\n  \"description\": \"Procurement of 2x Rack Servers under Shopping Method\",\n  \"category\": \"Goods\",\n  \"procurementMethod\": \"Shopping\",\n  \"totalEstimatedCost\": 4500000,\n  \"items\": [\n    {\n      \"description\": \"2U Rack Server Dual Xeon 64GB RAM\",\n      \"category\": \"Goods\",\n      \"specifications\": \"Dual Xeon 64GB RAM 2x 1TB SSD\",\n      \"quantity\": 2,\n      \"unit\": \"Units\",\n      \"estimatedUnitPrice\": 2250000\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/procurements",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"procurements"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created or 200 OK', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"pm.test('Procurement ID captured', function () {",
+									"    const jsonData = pm.response.json();",
+									"    const item = jsonData.data ? (jsonData.data._id || jsonData.data.procurement?._id) : null;",
+									"    if (item) {",
+									"        pm.environment.set('procurementId', item);",
+									"        pm.collectionVariables.set('procurementId', item);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Procurement Dashboard Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/procurements/dashboard-stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"procurements",
+								"dashboard-stats"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Pending Approvals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/procurements/pending-approvals",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"procurements",
+								"pending-approvals"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "05. Tenders & Bidding",
+			"item": [
+				{
+					"name": "Get All Active Tenders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/tenders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tenders"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Public Published Procurements",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/procurements/public",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"procurements",
+								"public"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "06. Vendor Management",
+			"item": [
+				{
+					"name": "Get All Registered Vendors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/vendors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"vendors"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "07. Store & Inventory Management",
+			"item": [
+				{
+					"name": "Get Inventory Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/inventory/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"inventory",
+								"stats"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Inventory Items",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/inventory/items",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"inventory",
+								"items"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "08. Audit & Governance",
+			"item": [
+				{
+					"name": "Get AI Explainability Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ai/explainability-logs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"explainability-logs"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Explainability logs returned', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Explainability Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/ai/explainability-logs/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"ai",
+								"explainability-logs",
+								"stats"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get System Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/audit-logs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"audit-logs"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get System Audit Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/audit-logs/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"audit-logs",
+								"stats"
+							]
+						}
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
