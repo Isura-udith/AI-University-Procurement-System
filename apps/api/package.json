@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "1.2.0",
-  "description": "AI-Based Smart Procurement System - Backend API",
+  "description": "AI-Driven Smart Procurement System for a Transparent and Predictive University - Backend API",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",

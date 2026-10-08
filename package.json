@@ -1,7 +1,7 @@
 {
   "name": "smart-procurement-system",
   "version": "1.2.0",
-  "description": "AI-Based Smart Procurement System - SaaS Multi-Tenant MERN Stack",
+  "description": "AI-Driven Smart Procurement System for a Transparent and Predictive University - SaaS Multi-Tenant MERN Stack",
   "private": true,
   "packageManager": "npm@11.9.0",
   "workspaces": ["apps/*", "packages/*"],

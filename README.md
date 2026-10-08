@@ -1,10 +1,10 @@
-# AI-Based Smart Procurement System for University
+# AI-Driven Smart Procurement System for a Transparent and Predictive University
 
 <div align="center">
 
 ![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)
 ![Author](https://img.shields.io/badge/Author-Isura%20Udith%20Gunawardhana-orange.svg?style=for-the-badge&logo=github)
-![Degree](https://img.shields.io/badge/Degree-BICT%20(Hons)%20Software%20Tech-informational.svg?style=for-the-badge)
+![Degree](https://img.shields.io/badge/Degree-BICT%20(Hons)%20Specializing%20in%20Software%20Tech-informational.svg?style=for-the-badge)
 ![Institution](https://img.shields.io/badge/University-Uva%20Wellassa%20University-blueviolet.svg?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.2.0-emerald.svg?style=for-the-badge)
 ![Node Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs&logoColor=white)
@@ -35,7 +35,7 @@
 
 ## 🌟 Executive Summary
 
-The **AI-Based Smart Procurement System for University** is an enterprise-grade Software as a Service (SaaS) procurement management platform engineered in accordance with university governance standards and public procurement guidelines (GOSL). Built inside a high-performance **Turborepo monorepo**, the system unifies the complete **45-step university procurement lifecycle** into an integrated, transparent, and auditable digital environment.
+The **AI-Driven Smart Procurement System for a Transparent and Predictive University** is an enterprise-grade Software as a Service (SaaS) procurement management platform engineered in accordance with university governance standards and public procurement guidelines (GOSL). Built inside a high-performance **Turborepo monorepo**, the system unifies the complete **45-step university procurement lifecycle** into an integrated, transparent, and auditable digital environment.
 
 It bridges institutional operational gaps through **automated multi-level approvals**, **electronic tendering**, **live-streamed bid opening ceremonies**, **digital contract signing**, and **milestone payment disbursements**. Powered by Natural Language Processing (NLP) and Machine Learning models, the system proactively detects supply chain and price volatility, automates vendor grading, and provides explainable audit rationales for every automated decision.
 
@@ -43,10 +43,11 @@ It bridges institutional operational gaps through **automated multi-level approv
 
 ## 🎓 Project Ownership & Academic Context
 
-* **Project Title**: AI-Based Smart Procurement System for University
+* **Project Title**: AI-Driven Smart Procurement System for a Transparent and Predictive University
 * **Principal Investigator & Lead Developer**: **Isura Udith Gunawardhana**
 * **Personal Email**: [`isuraudith@gmail.com`](mailto:isuraudith@gmail.com)
-* **Degree Programme**: **Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology**
+* **Degree Programme**: **Bachelor of Information and Communication Technology (Honours), specializing in Software Technology**
+* **Department**: **Department of Information and Communication Technology**
 * **Faculty**: **Faculty of Technological Studies**
 * **Institution**: **Uva Wellassa University of Sri Lanka (UWU)**
 * **Academic Level**: Undergraduate Final Year Honours Research Project
@@ -447,7 +448,7 @@ All API routes are prefixed with `/api/v1`:
 
 ## 📄 License & Ownership
 
-This software application, system architecture, source code, and associated documentation are the intellectual property of **Isura Udith Gunawardhana**, developed as a **University Final Year Honours Research Project** in partial fulfillment of the requirements for the **Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology** at the **Faculty of Technological Studies, Uva Wellassa University of Sri Lanka**.
+This software application, system architecture, source code, and associated documentation are the intellectual property of **Isura Udith Gunawardhana**, developed as a **University Final Year Honours Research Project** titled **"AI-Driven Smart Procurement System for a Transparent and Predictive University"**, in partial fulfillment of the requirements for the degree of **Bachelor of Information and Communication Technology (Honours), specializing in Software Technology** at the **Department of Information and Communication Technology, Faculty of Technological Studies, Uva Wellassa University of Sri Lanka**.
 
 Licensed under the **[ISC License](LICENSE)**. Full license and ownership reside exclusively with the author:
 
@@ -456,9 +457,10 @@ ISC License
 
 Copyright (c) 2026 Isura Udith Gunawardhana
 
-Project: AI-Based Smart Procurement System for University
+Project: AI-Driven Smart Procurement System for a Transparent and Predictive University
 Author & Principal Investigator: Isura Udith Gunawardhana (isuraudith@gmail.com)
-Degree Programme: Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology
+Degree Programme: Bachelor of Information and Communication Technology (Honours), specializing in Software Technology
+Department: Department of Information and Communication Technology
 Faculty: Faculty of Technological Studies
 Affiliation: Uva Wellassa University of Sri Lanka (Final Year Honours Research Project)
 
@@ -479,6 +481,6 @@ PERFORMANCE OF THIS SOFTWARE.
 
 <div align="center">
   <sub>Developed, Designed & Maintained by <b>Isura Udith Gunawardhana</b> (<a href="mailto:isuraudith@gmail.com">isuraudith@gmail.com</a>)<br/>
-  Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology<br/>
-  <b>Faculty of Technological Studies • Uva Wellassa University of Sri Lanka</b></sub>
+  Bachelor of Information and Communication Technology (Honours), specializing in Software Technology<br/>
+  <b>Department of Information and Communication Technology • Faculty of Technological Studies • Uva Wellassa University of Sri Lanka</b></sub>
 </div>
