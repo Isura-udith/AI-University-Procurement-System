@@ -3,8 +3,8 @@
 <div align="center">
 
 ![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)
-![Author](https://img.shields.io/badge/Author-Isura%20Udith-orange.svg?style=for-the-badge&logo=github)
-![Academic Project](https://img.shields.io/badge/Project-Final%20Year%20Research-purple.svg?style=for-the-badge)
+![Author](https://img.shields.io/badge/Author-Isura%20Udith%20Gunawardhana-orange.svg?style=for-the-badge&logo=github)
+![Degree](https://img.shields.io/badge/Degree-BICT%20(Hons)%20Software%20Tech-informational.svg?style=for-the-badge)
 ![Institution](https://img.shields.io/badge/University-Uva%20Wellassa%20University-blueviolet.svg?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.2.0-emerald.svg?style=for-the-badge)
 ![Node Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs&logoColor=white)
@@ -15,7 +15,7 @@
 
 <p align="center">
   <b>An AI-Powered, Multi-Tenant SaaS Procurement Governance Platform Engineered with Machine Learning, Explainable AI, and Real-Time Bid Opening Automation.</b><br/>
-  <i>University Final Year Undergraduate Research Project — Uva Wellassa University of Sri Lanka</i>
+  <i>Undergraduate Final Year Honours Research Project — Uva Wellassa University of Sri Lanka</i>
 </p>
 
 [Project Overview](#-executive-summary) •
@@ -45,9 +45,12 @@ It bridges institutional operational gaps through **automated multi-level approv
 
 * **Project Title**: AI-Based Smart Procurement System for University
 * **Principal Investigator & Lead Developer**: **Isura Udith Gunawardhana**
-* **Project Nature**: Undergraduate Final Year Honours Research Project
+* **Personal Email**: [`isuraudith@gmail.com`](mailto:isuraudith@gmail.com)
+* **Degree Programme**: **Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology**
+* **Faculty**: **Faculty of Technological Studies**
 * **Institution**: **Uva Wellassa University of Sri Lanka (UWU)**
-* **License & Intellectual Property**: Full license, project ownership, architecture, and copyright belong to **Isura Udith Gunawardhana**.
+* **Academic Level**: Undergraduate Final Year Honours Research Project
+* **License & Intellectual Property**: Full license, project ownership, system architecture, and copyright belong exclusively to **Isura Udith Gunawardhana**.
 
 ---
 
@@ -444,18 +447,20 @@ All API routes are prefixed with `/api/v1`:
 
 ## 📄 License & Ownership
 
-This software application, system design, source code, and associated documentation are the intellectual property of **Isura Udith**, developed as a **University Final Year Research Project** at **Uva Wellassa University of Sri Lanka**.
+This software application, system architecture, source code, and associated documentation are the intellectual property of **Isura Udith Gunawardhana**, developed as a **University Final Year Honours Research Project** in partial fulfillment of the requirements for the **Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology** at the **Faculty of Technological Studies, Uva Wellassa University of Sri Lanka**.
 
-Licensed under the **[ISC License](LICENSE)**. Full license and ownership reside with the author:
+Licensed under the **[ISC License](LICENSE)**. Full license and ownership reside exclusively with the author:
 
 ```
 ISC License
 
-Copyright (c) 2026 Isura Udith
+Copyright (c) 2026 Isura Udith Gunawardhana
 
 Project: AI-Based Smart Procurement System for University
-Author & Principal Investigator: Isura Udith
-Affiliation: Uva Wellassa University of Sri Lanka (Final Year Research Project)
+Author & Principal Investigator: Isura Udith Gunawardhana (isuraudith@gmail.com)
+Degree Programme: Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology
+Faculty: Faculty of Technological Studies
+Affiliation: Uva Wellassa University of Sri Lanka (Final Year Honours Research Project)
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -473,5 +478,7 @@ PERFORMANCE OF THIS SOFTWARE.
 ---
 
 <div align="center">
-  <sub>Developed, Designed & Maintained by <b>Isura Udith</b> • University Final Year Research Project • <b>Uva Wellassa University of Sri Lanka</b></sub>
+  <sub>Developed, Designed & Maintained by <b>Isura Udith Gunawardhana</b> (<a href="mailto:isuraudith@gmail.com">isuraudith@gmail.com</a>)<br/>
+  Bachelor of Information & Communication Technology (Hons) Specialization in Software Technology<br/>
+  <b>Faculty of Technological Studies • Uva Wellassa University of Sri Lanka</b></sub>
 </div>

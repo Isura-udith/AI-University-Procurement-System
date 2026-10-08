@@ -14,7 +14,7 @@
     "uwu",
     "gosl"
   ],
-  "author": "Isura Udith Gunawardhana",
+  "author": "Isura Udith Gunawardhana <isuraudith@gmail.com>",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
