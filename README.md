@@ -1,66 +1,218 @@
 # 🛒 UWU AI-Based Smart Procurement System
 
-> **Version 1.2.0** — SaaS Multi-Tenant MERN Stack Enterprise Procurement Platform
+<div align="center">
+
+![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.0-emerald.svg?style=for-the-badge)
+![Node Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Turborepo](https://img.shields.io/badge/Monorepo-Turborepo-EF4444.svg?style=for-the-badge&logo=turborepo&logoColor=white)
+![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)
+![Express](https://img.shields.io/badge/Backend-Express%205-000000.svg?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB%20v7-47A248.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![Docker](https://img.shields.io/badge/Containers-Docker%20Ready-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)
+
+<p align="center">
+  <b>A Next-Generation, Multi-Tenant SaaS Procurement Governance Platform Powered by Machine Learning, Explainable AI, and Real-Time Bid Ceremony Automation.</b>
+</p>
+
+[Key Features](#-key-features) •
+[System Architecture](#-system-architecture) •
+[Procurement Lifecycle](#-procurement-lifecycle--workflow) •
+[Tech Stack](#-technology-stack) •
+[RBAC Engine](#-role-based-access-control-rbac) •
+[Getting Started](#-getting-started) •
+[Docker Deployment](#-docker-deployment) •
+[API Reference](#-rest-api-reference) •
+[License](#-license)
 
 ---
 
-## 🌟 Overview
+</div>
 
-The **UWU AI-Based Smart Procurement System** is a modern, enterprise-grade Software as a Service (SaaS) application designed to streamline, automate, and intelligentize the entire procurement lifecycle. Built on a robust MERN stack monorepo, it manages everything from initial purchase requisitions and approvals to tendering, electronic bidding, live bid opening ceremonies, contract signing, and milestone-based payments.
+## 🌟 Executive Summary
 
-Integrated with Machine Learning (ML) models and Natural Language Processing (NLP), the system actively analyzes market trends to generate predictive alerts, performs automated bid evaluations, and logs decisions with full AI explainability audits.
+The **UWU AI-Based Smart Procurement System** is an enterprise-grade Software as a Service (SaaS) procurement management platform engineered in accordance with university governance standards and public procurement guidelines (GOSL). Built inside a high-performance **Turborepo monorepo**, the system unifies the complete **45-step procurement lifecycle** into an integrated, transparent, and auditable digital environment.
+
+It bridges legacy operational gaps through **automated multi-level approvals**, **electronic tendering**, **live-streamed bid opening ceremonies**, **digital contract signing**, and **milestone payment disbursements**. Powered by Natural Language Processing (NLP) and Machine Learning models, the system proactively detects supply chain and price volatility, automates vendor grading, and provides explainable audit rationales for every automated decision.
+
+---
+
+## 🚀 Key Features
+
+### 📋 Strategic Planning & Budgeting (Phases 1–4)
+* **Master Procurement Plan (MPP)**: Consolidate annual institutional departmental demands into structured, compliant master plans.
+* **Draft Requisition Staging**: Draft, revise, and prepare requisitions prior to formal submission.
+* **Budget Allocations & Thresholds**: Dynamic real-time verification against departmental votes, preventing over-commitment and unauthorized spending.
+* **Annual Procurement Plans (APP)**: Automated scheduling aligned with fiscal governance frameworks.
+
+### 🔄 End-to-End Requisition Lifecycle
+* **Intelligent Requisition Routing**: Multi-tiered approval flows routing dynamically through HODs, Deans, Bursar, and Vice-Chancellor based on financial delegation thresholds.
+* **Collaborative Revisioning**: In-line revision notes and detailed action history capturing every change made by authorized officers.
+* **Full File Attachment Ingestion**: Automated ingestion and extraction of technical specifications using `pdf-parse` and Cloudinary secure storage.
+
+### 🏛️ E-Tendering & Live Bid Opening Ceremony
+* **Digital Tender Publishing**: Configurable public, selective, or direct bidding with automated deadline management and tender security deposits.
+* **Encrypted Electronic Bidding**: Vendors submit sealed bids with cryptographic protection preventing premature disclosure.
+* **Interactive Bid Opening Ceremony**: A real-time ceremony interface providing synchronized schedule tracking, attendee verification, transparent bid box opening, and public disclosure logs.
+
+### 🤖 Explainable AI & Machine Learning Intelligence
+* **Market Trend & Price Volatility Alerts**: Powered by `ml-random-forest` to predict commodity price spikes and supply market risks.
+* **NLP-Powered Item Catalog Matching**: Uses natural language algorithms (`natural`) to identify duplicate requisitions and benchmark historical pricing.
+* **LLM & Flowise RAG Integration**: Chatflow-assisted procurement guidance, document Q&A, and vendor evaluation synthesis backed by Google Gemini 2.0.
+* **Explainable AI (XAI) Audit Logs**: Clear, human-readable rationale explanations accompanying all automated algorithmic scores.
+
+### 📜 Digital Contracts, Milestones & Payments
+* **Contract Generation & Digital Execution**: Lifecycle management with automated SLA timers and terms tracking.
+* **Milestone Inspection & Verification**: Visual milestone progress, Goods Received Notes (GRN), and Technical Evaluation Committee (TEC) sign-offs.
+* **3-Way Matching Engine**: Automatic reconciliation between Purchase Orders (PO), GRNs, and Invoices before payment disbursement.
+
+### 📦 Store & Inventory Management (Phases 7–8)
+* **Stock Receipt & GRN Verification**: Immediate inventory updates upon delivery acceptance.
+* **Asset Allocation & Dispatch**: Departmental transfer tracking with centralized store asset accountability.
+
+### 🛡️ Enterprise Security & Auditing
+* **Immutable Audit Trail**: Chronological event logging recording actor ID, IP address, timestamp, affected resource, and delta states.
+* **Hardened Perimeter**: Protected with Helmet, CORS policies, XSS sanitization, Zod schema validation, and rate limiting.
+
+---
+
+## ⚙️ System Architecture
+
+The project leverages a **Turborepo** workspace structure separating the presentation layer, the API core, shared type definitions, and containerized deployment infrastructure:
+
+```
+smart-procurement-system/
+├── apps/
+│   ├── api/                     # Node.js Express 5 REST API & AI Service Engine
+│   │   ├── src/
+│   │   │   ├── ai/              # ML Models (Random Forest, NLP, RAG connectors)
+│   │   │   ├── config/          # Database, Cloudinary, Redis & Email configs
+│   │   │   ├── controllers/     # Controller handlers for all domain entities
+│   │   │   ├── middlewares/     # Authentication, RBAC, error & validation handlers
+│   │   │   ├── models/          # Mongoose database schemas & indexes
+│   │   │   ├── routes/          # Express route definitions
+│   │   │   ├── services/        # Core business logic services
+│   │   │   └── utils/           # Shared API utilities, loggers & helpers
+│   │   ├── tests/               # Backend Jest test suites
+│   │   └── seed.js              # Comprehensive DB seeder (roles, users, sample data)
+│   │
+│   └── web/                     # Modern React 19 Single Page Application
+│       ├── src/
+│       │   ├── assets/          # Static assets, branding, and icons
+│       │   ├── components/      # Reusable atomic UI & layout components
+│       │   ├── pages/           # Route views (Portals for Admin, Vendor, Finance)
+│       │   ├── redux/           # Redux Toolkit slices and global store
+│       │   ├── services/        # Axios API client services
+│       │   └── utils/           # UI formatters, date utilities, helpers
+│       ├── index.html           # SPA entry point
+│       └── vite.config.js       # Vite bundler configuration
+│
+├── packages/
+│   └── types/                   # Shared types, constants & centralized RBAC matrix
+│       └── rbac.config.js       # Single source of truth for permissions across monorepo
+│
+├── docker/                      # Production & staging containerization
+│   ├── docker-compose.yml       # Multi-service stack (Mongo, Redis, API, Web)
+│   ├── Dockerfile.api           # Multi-stage production container for API
+│   ├── Dockerfile.web           # Production build container for React / Nginx
+│   └── nginx.conf               # Web reverse proxy and routing configuration
+│
+├── .env.example                 # Environment configuration reference
+├── package.json                 # Monorepo root configuration & npm workspaces
+├── turbo.json                   # Turborepo task pipeline definition
+└── LICENSE                      # ISC Open-Source License
+```
+
+---
+
+## 📈 Procurement Lifecycle & Workflow
+
+The platform automates the end-to-end institutional procurement journey:
+
+```mermaid
+flowchart TD
+    subgraph S1["1. Planning & Requisition"]
+        MPP["Annual Master Plan"] --> REQ["Create Requisition"]
+        REQ --> BUD["Budget & Vote Verification"]
+    end
+
+    subgraph S2["2. Approval Hierarchy"]
+        BUD --> HOD["Department Head Review"]
+        HOD --> DEAN["Dean / Division Head"]
+        DEAN --> BUR["Bursar Approval"]
+        BUR --> VC["Vice-Chancellor Final Sign-off"]
+    end
+
+    subgraph S3["3. Sourcing & Tendering"]
+        VC --> TND["Publish Tender Notice"]
+        TND --> VREG["Vendor Bid Submission (Encrypted)"]
+        VREG --> BOC["Live Bid Opening Ceremony"]
+    end
+
+    subgraph S4["4. Evaluation & Award"]
+        BOC --> AI["AI Volatility & Bid Scoring"]
+        AI --> TEC["Technical Evaluation Committee (TEC)"]
+        TEC --> PC["Procurement Committee (PC) Review"]
+        PC --> AWD["Contract Award & Standstill Notice"]
+    end
+
+    subgraph S5["5. Fulfillment & Finance"]
+        AWD --> CTR["Digital Contract Signing"]
+        CTR --> GRN["Store Delivery & GRN Inspection"]
+        GRN --> 3WAY["3-Way Match (PO, GRN, Invoice)"]
+        3WAY --> PAY["Payment Release & Audit Archive"]
+    end
+
+    style S1 fill:#eff6ff,stroke:#3b82f6,stroke-width:1px
+    style S2 fill:#f8fafc,stroke:#64748b,stroke-width:1px
+    style S3 fill:#fdf4ff,stroke:#c026d3,stroke-width:1px
+    style S4 fill:#fefce8,stroke:#eab308,stroke-width:1px
+    style S5 fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+```
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Layer | Technologies & Frameworks |
-| :--- | :--- |
-| **Frontend (`apps/web`)** | React 19, Redux Toolkit, React Router v7, Tailwind CSS v4, React Hook Form, Yup, Recharts, React Icons |
-| **Backend (`apps/api`)** | Node.js, Express.js 5, MongoDB (Mongoose v9), Zod (Validation), bcryptjs, JWT |
-| **AI / ML Engine** | `ml-random-forest` (Market Alerts), `natural` (NLP-based bid matching), Gemini AI / Flowise RAG |
-| **Monorepo Tooling** | Turborepo, Workspace Packages |
-| **Storage & Services** | Cloudinary (Document/Attachment Storage), Nodemailer (Email notifications), `pdf-parse` (Invoices/Proposal parsing) |
-| **Containerization** | Docker, Docker Compose, Nginx |
+| Domain | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend Framework** | **React 19** | Modern component architecture, concurrent rendering |
+| **Build & Tooling** | **Vite 8 & Turborepo** | Blazing-fast HMR and monorepo pipeline caching |
+| **Styling & UI** | **Tailwind CSS v4** | Modern utility-first responsive styling engine |
+| **State Management** | **Redux Toolkit** | Centralized predictable state management |
+| **Routing** | **React Router v7** | Nested route layouts and auth route guards |
+| **Backend Runtime** | **Node.js (>=18) & Express 5** | High-performance asynchronous REST API architecture |
+| **Primary Database** | **MongoDB v7 & Mongoose v9** | Schema modeling with transactional guarantees |
+| **Caching & Messaging** | **Redis v7** | In-memory session, cache, and task worker broker |
+| **AI / Machine Learning** | **`ml-random-forest` & `natural`** | In-process Random Forest forecasting and NLP parsing |
+| **Generative AI & RAG** | **Gemini 2.0 Flash & Flowise** | Procurement assistant and semantic document Q&A |
+| **File Storage & Parsing** | **Cloudinary & `pdf-parse`** | Cloud media storage and programmatic PDF content parsing |
+| **Security & Validation** | **Zod, Helmet, XSS-Clean, JWT** | Strict schema validation, HTTP hardening, dual JWT auth |
+| **Containerization** | **Docker & Docker Compose** | Isolated production orchestration with Nginx reverse proxy |
 
 ---
 
-## 📈 System Workflow
+## 👥 Role-Based Access Control (RBAC)
 
-```mermaid
-graph TD
-    A[Requisition Created] --> B[Approval Workflow]
-    B -->|Approved| C[Tender Created]
-    C -->|Published| D[Vendor Bid Submission]
-    D --> E[Bid Opening Ceremony]
-    E --> F[AI-Assisted Evaluation]
-    F --> G[Contract Awarded]
-    G --> H[Milestone Tracking & Payments]
-    
-    style A fill:#dbeafe,stroke:#2563eb,stroke-width:2px
-    style E fill:#fdf4ff,stroke:#c026d3,stroke-width:2px
-    style F fill:#fdf4ff,stroke:#c026d3,stroke-width:2px
-    style H fill:#f0fdf4,stroke:#16a34a,stroke-width:2px
-```
+The system enforces a granular **Role and Permission-Based Access Control (RBAC/PBAC)** matrix configured in [`packages/types/rbac.config.js`](packages/types/rbac.config.js):
 
----
-
-## ⚙️ Architecture & Core Modules
-
-The repository is structured as a Turborepo monorepo:
-
-- **`apps/web`**: React SPA application built with Vite. It consumes the API endpoints and renders responsive interfaces with modern Tailwind CSS styling.
-- **`apps/api`**: Express backend providing RESTful endpoints, running background workers, and housing machine learning services.
-- **`packages/types`**: Shared types, constants, and RBAC permissions across the monorepo.
-- **`docker`**: Production containerization with Docker Compose, multi-stage Node/Nginx Dockerfiles, and persistent data volumes.
-
-### Core Modules
-
-1. **Multi-Tenant Authentication & RBAC**: Segmented access control supporting 15 distinct roles: `super_admin`, `admin`, `procurement_officer`, `vendor`/`supplier`, `finance`, `executive`, `system`, and others.
-2. **Requisition Lifecycle**: End-to-end procurement workflow engine supporting multi-stage approvals, modifications, and audit tracking.
-3. **Tendering & E-Bidding**: Secure publishing of tenders, vendor registration, and digital bid submission. Includes live Bid Opening ceremonies.
-4. **AI Intelligence**: Predictive market alerts for supply chain/pricing risks, historical item price matching, and transparent evaluation log reasoning.
-5. **Contract & Finance**: Digital agreement tracking, milestone execution, and payout releases.
+| Role Identifier | Role Title | Hierarchy Level | Primary Responsibilities |
+| :--- | :--- | :---: | :--- |
+| `super_admin` | **Super Administrator** | 100 | Full system governance, multi-tenant onboarding, configuration |
+| `admin` | **Procurement Admin** | 95 | Master data templates, tender configuration, workflow rules |
+| `vc` | **Vice-Chancellor** | 90 | Accounting Officer (AO); high-value contract awards & authorizations |
+| `bursar` | **Bursar** | 85 | Financial vote controller, final financial authorization |
+| `dean` | **Faculty Dean** | 70 | Faculty-level requisition reviews and departmental budget monitoring |
+| `department_head` | **Head of Department (HOD)** | 60 | Departmental requisition approval, vote confirmation |
+| `procurement_officer`| **Procurement Officer** | 55 | Day-to-day procurement ops, tender drafting, PO processing |
+| `finance_officer` | **Finance Officer** | 50 | Budget allocations, invoice verification, 3-way reconciliation |
+| `tec_member` | **TEC Member** | 45 | Technical evaluation of bids, compliance matrix scoring |
+| `procurement_committee`| **PC Member** | 45 | Commercial bid evaluation and award recommendations |
+| `contract_manager` | **Contract Manager** | 40 | Contract drafting, SLA tracking, milestone monitoring |
+| `store_manager` | **Store Manager** | 35 | Goods receipt, inspection verification, GRN issue, dispatch |
+| `department_user` | **Department Requester**| 25 | Drafts initial purchase requisitions and item requests |
+| `supplier` / `vendor` | **Vendor / Bidder** | 10 | Tender discovery, bid submission, invoice submission |
+| `auditor` | **Internal / External Auditor**| 5 | Read-only inspection across all audit logs, tenders, and payments |
 
 ---
 
@@ -68,115 +220,238 @@ The repository is structured as a Turborepo monorepo:
 
 ### 📋 Prerequisites
 
-- **Node.js**: v18+ (npm v10+)
-- **MongoDB**: v6.0+ or MongoDB Atlas instance
-- **Redis**: v6+ (optional for caching and background SLA workers)
+Before setting up the project locally, ensure you have the following installed:
+
+* **Node.js**: `v18.0.0` or higher (recommended: Node LTS v20+)
+* **npm**: `v10.0.0` or higher
+* **MongoDB**: `v6.0` or `v7.0` (running locally or MongoDB Atlas)
+* **Redis**: `v6.0+` (optional for local dev; recommended for SLA workers)
+* **Git**: Installed and configured
+
+---
 
 ### 🔧 Environment Setup
 
-Create a `.env` file in the root directory (based on [.env.example](.env.example)):
+Create an active `.env` configuration file in the project root:
 
 ```bash
-# Server Configuration
+cp .env.example .env
+```
+
+Configure your environment variables as required:
+
+```ini
+# --- Server Environment ---
 NODE_ENV=development
 PORT=5000
+API_VERSION=v1
 
-# Databases
-MONGODB_URI=mongodb://localhost:27017/uwu_procurement
-REDIS_URL=redis://localhost:6379
+# --- Database & In-Memory Cache ---
+MONGODB_URI=mongodb://127.0.0.1:27017/uwu_procurement
+REDIS_URL=redis://127.0.0.1:6379
 
-# Secrets
-JWT_SECRET=your_jwt_secret
-JWT_REFRESH_SECRET=your_jwt_refresh_secret
+# --- Authentication & Tokens ---
+JWT_SECRET=your_jwt_access_secret_key_minimum_32_chars
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_minimum_32_chars
+JWT_REFRESH_EXPIRES_IN=30d
 
-# Third-Party Integrations (Optional for local development)
+# --- Artificial Intelligence (Optional for Local Core) ---
+GEMINI_API_KEY=your_google_gemini_api_key
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+
+# --- Document Storage & Ingestion ---
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# AI Key (Optional)
-GEMINI_API_KEY=your_gemini_api_key
+# --- Email Notifications ---
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@domain.com
+SMTP_PASS=your_smtp_app_password
+
+# --- Web Frontend ---
+CLIENT_URL=http://localhost:5173
+VITE_API_URL=http://localhost:5000/api/v1
+
+# --- Multi-Tenant Settings ---
+DEFAULT_TENANT_ID=uwu-main
 ```
+
+---
 
 ### 📦 Installation
 
-Install dependencies from the root directory:
+Install workspace dependencies for all packages:
 
 ```bash
 npm install
 ```
 
-### 🏃 Running the Application
+---
 
-To run the full stack (Frontend & Backend simultaneously) using Turborepo:
+### 🗄️ Database Seeding
 
-```bash
-npm run dev
-```
-
-To run individual packages separately:
-
-- **API Backend**: `npm run dev:api`
-- **Web Frontend**: `npm run dev:web`
-
-To seed the database with initial configurations, mock roles, and demo users:
+Populate the database with foundational roles, permissions, administrative entities, and test users:
 
 ```bash
 npm run db:seed
 ```
 
 > [!NOTE]
-> Ensure your MongoDB server is running before executing `npm run db:seed` or starting the dev server.
+> Ensure MongoDB is active before running the seed command. The seeder generates pre-configured test credentials for `super_admin`, `admin`, `dean`, `hod`, `vendor`, and others.
 
-### 🧪 Running Tests & Quality Checks
+---
 
-Run all workspace tests:
+### 🏃 Running the Application
 
+#### 1. Run Complete Monorepo (Web + API simultaneously)
+```bash
+npm run dev
+```
+
+#### 2. Run Individual Applications
+* **Backend API only**:
+  ```bash
+  npm run dev:api
+  ```
+  *Accessible at:* `http://localhost:5000` (Healthcheck: `http://localhost:5000/api/v1/health`)
+
+* **Frontend Web Client only**:
+  ```bash
+  npm run dev:web
+  ```
+  *Accessible at:* `http://localhost:5173`
+
+---
+
+### 🧪 Tests & Code Quality
+
+Run tests across all packages:
 ```bash
 npm run test
 ```
 
-Run code quality linting:
-
+Run ESLint verification:
 ```bash
 npm run lint
 ```
 
-Build production distribution packages:
-
+Build optimized production bundles:
 ```bash
 npm run build
 ```
 
-### 🐳 Running with Docker
+---
 
-Run all services (MongoDB, Redis, API Server, and Web Client) in containers:
+## 🐳 Docker Deployment
 
+The application includes production-ready Dockerfiles and a Compose orchestrator to run the complete environment with zero local runtime dependencies.
+
+### Spin up the full container stack:
 ```bash
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
+### Inspect service status:
+```bash
+docker compose -f docker/docker-compose.yml ps
+```
+
+### Access running services:
+* **Web Application**: `http://localhost:5173`
+* **API Service**: `http://localhost:5000/api/v1`
+* **MongoDB**: `localhost:27017`
+* **Redis**: `localhost:6379`
+
+### Stop and clean up containers:
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
 ---
 
-## 🔄 Release Log & Changelog
+## 📡 REST API Reference
 
-### 🟢 Version 1.2.0 (Current Release)
+All API routes are prefixed with `/api/v1`:
 
-- **Role Permissions Upgrades**: Added permissions to allow users with `System` and `Executive` roles to edit and delete procurements.
-- **Audit Trails**: Enhanced procurement edits to record detailed user action metadata (notes/fields capturing who edited the requisition).
-- **Tendering Stability**: Patched controller and service layers (`tender.service.js`, `tender.controller.js`) to secure inputs and validate bidding ranges.
-- **Bid Opening Ceremony**: Implemented a responsive live status timeline interface for public/private bid opening events.
-- **Linter & Build Cleanup**: Resolved unused variables, parameters, and syntax warnings across packages, enabling clean production builds.
-- **Security & Hygiene**: Sanitized all sample environment variables, secured configuration boundaries, and validated .gitignore coverage.
+| Endpoint Category | Base Path | Description | Access Control |
+| :--- | :--- | :--- | :--- |
+| **Authentication** | `/auth` | Login, token refresh, logout, password recovery | Public / Authenticated |
+| **Users & Roles** | `/users` | User management, profile, status, role assignments | Admin / Super Admin |
+| **Requisitions** | `/procurements` | Requisition creation, status update, multi-tier approvals | Requester, HOD, Dean, Bursar, VC |
+| **Draft Procurements**| `/draft-procurements` | Staging area for drafting unsubmitted item requests | Requesters |
+| **Master Plans** | `/master-plans` | Institutional strategic planning & annual procurement plans | Admin, Bursar, VC |
+| **Budget Allocations**| `/budget-allocations` | Department vote management, expenditure limits | Finance, Bursar, Admin |
+| **Tenders** | `/tenders` | Tender publishing, bid submission, opening ceremonies | Procurement Officers, Vendors |
+| **Vendors** | `/vendors` | Vendor directory, qualification grading, blacklisting | Procurement Admin, Officers |
+| **Contracts** | `/contracts` | Digital contract generation, terms, milestones | Contract Managers, Officers, VC |
+| **Payments** | `/payments` | Invoice validation, 3-way matching, payment releases | Finance Officer, Bursar |
+| **Store & Inventory** | `/inventory` | GRN processing, stock levels, item issue/dispatch | Store Managers |
+| **Explainable AI** | `/ai` | Price alerts, NLP similarity, LLM evaluation synthesis | Procurement Officers, Admin |
+| **Audit Logs** | `/audit-logs` | Immutable audit records and system event stream | Auditors, Super Admin |
+| **Notifications** | `/notifications` | User alerts, system broadcasts, email logs | Authenticated Users |
+| **Workflow Engine** | `/workflow` | Multi-step lifecycle progression and status gates | System, Officers, Admin |
 
-### 🟡 Version 1.1.0
+---
 
-- **AI Explainability**: Integrated decision-making tracking for AI-driven vendor grading.
-- **Smart Market Alerts**: Configured Random Forest classification to evaluate pricing inflation trends.
-- **PDF Document Ingestion**: Integrated `pdf-parse` backend utilities to scan and parse incoming vendor PDFs.
+## 🔒 Security Best Practices
 
-### 🔴 Version 1.0.0
+* **Dual-Token Authentication**: Short-lived Access Tokens (JWT) paired with secure Refresh Tokens.
+* **Granular RBAC**: Defense-in-depth authorization verified at both route middleware and controller levels.
+* **Request Sanitization**: All incoming inputs strictly sanitized against NoSQL injection and Cross-Site Scripting (XSS).
+* **HTTP Security Headers**: Powered by Helmet to prevent clickjacking, MIME sniffing, and unwanted framing.
+* **Rate Limiting**: IP-based rate limiting on sensitive authentication and transaction routes.
+* **Audit Immutability**: All sensitive entity mutations append records to an append-only audit collection.
 
-- **Initial SaaS MERN Stack MVP**: Multi-tenant database separation, Core Requisitions engine, and basic RBAC.
+---
 
---
+## 🔄 Release History
+
+### 🟢 v1.2.0 (Current Release)
+* **RBAC Expansion**: Granted permission sets for `System` and `Executive` roles to manage and curate procurements.
+* **User Audit Enrichment**: Added detailed mutation tracking capturing the identity and modification rationale of editing officers.
+* **Tender Service Hardening**: Secured bid opening controllers against premature decryption and validated input range boundaries.
+* **Bid Opening Ceremony UI**: Added real-time event status timelines and digital ceremony tracking.
+* **Linting & Monorepo Optimization**: Fixed unused variables, optimized dependency builds, and validated Turborepo tasks.
+* **Environment Sanitization**: Fully scrubbed all sensitive sample tokens and hardened repository hygiene.
+
+### 🟡 v1.1.0
+* **Explainable AI (XAI)**: Integrated transparent reasoning logs for automated bid grading models.
+* **Predictive Pricing Alerts**: Deployed Random Forest classification algorithms for market volatility warnings.
+* **Automated Document Parsing**: Integrated `pdf-parse` for automated extraction of technical specifications.
+
+### 🔴 v1.0.0
+* **Initial Release**: Multi-tenant database foundation, core requisition lifecycle, and baseline RBAC engine.
+
+---
+
+## 📄 License
+
+This project is open-source software licensed under the **[ISC License](LICENSE)**.
+
+```
+ISC License
+
+Copyright (c) 2026 UWU Procurement Division
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+```
+
+---
+
+<div align="center">
+  <sub>Developed & Maintained by the <b>UWU Procurement Division</b> in collaboration with the Systems Engineering Team.</sub>
+</div>
