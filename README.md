@@ -128,13 +128,6 @@ npm run db:feed
 
 ---
 
-## 📑 Documentation
-
-- **[Detailed Software Documentation](file:///c:/Users/Isura%20Udith/OneDrive/Desktop/smart-procurement-system/documentation.html)**: Comprehensive specification of schema collections, system design decisions, and API reference routes.
-- **[System User Manual](file:///c:/Users/Isura%20Udith/OneDrive/Desktop/smart-procurement-system/user-manual.html)**: Guide on how to navigate the platform, manage users, bids, and contracts.
-
----
-
 ## 🔄 Release Log & Changelog
 
 ### 🟢 Version 1.2.0 (Current Release)
