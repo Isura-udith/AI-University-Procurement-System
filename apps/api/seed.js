@@ -379,10 +379,8 @@ const seed = async () => {
     await connectDB();
 
     // ── 1. Seed Roles ─────────────────────────────────────────────
-    console.log('\n╔══════════════════════════════════════════════════╗');
-    console.log('║        UWU Smart Procurement System              ║');
-    console.log('║        Database Seed Script                      ║');
-    console.log('╚══════════════════════════════════════════════════╝\n');
+    console.log('UWU Smart Procurement System');
+    console.log('Database Seed Script');
 
     console.log('─── Phase 1: Seeding Roles ───────────────────────');
     await Role.deleteMany({});
