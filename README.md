@@ -72,7 +72,7 @@ The repository is structured as a Turborepo monorepo:
 
 ### 🔧 Environment Setup
 
-Create a `.env` file in the root directory (based on [.env.example](file:///c:/Users/Isura%20Udith/OneDrive/Desktop/smart-procurement-system/.env.example)):
+Create a `.env` file in the root directory (based on [.env.example](.env.example)):
 
 ```bash
 # Server Configuration
@@ -120,11 +120,11 @@ To run individual packages separately:
 To seed the database with initial configurations, mock users, and mock procurements:
 
 ```bash
-npm run db:feed
+npm run db:seed
 ```
 
 > [!NOTE]
-> Ensure your MongoDB server is running before executing `npm run db:feed` or starting the dev server.
+> Ensure your MongoDB server is running before executing `npm run db:seed` or starting the dev server.
 
 ---
 
