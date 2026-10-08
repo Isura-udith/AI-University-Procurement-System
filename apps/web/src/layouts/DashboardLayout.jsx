@@ -245,10 +245,11 @@ export default function DashboardLayout() {
     script.async = true;
     
     script.onload = () => {
-      if (window.Chatbot) {
+      const chatflowId = import.meta.env.VITE_FLOWISE_CHATFLOW_ID;
+      if (window.Chatbot && chatflowId && chatflowId !== 'your_flowise_chatflow_id_here') {
         const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
         window.Chatbot.init({
-          chatflowid: import.meta.env.VITE_FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+          chatflowid: chatflowId,
           apiHost: apiBase,
           headers: import.meta.env.VITE_FLOWISE_API_KEY ? {
             'Authorization': `Bearer ${import.meta.env.VITE_FLOWISE_API_KEY}`

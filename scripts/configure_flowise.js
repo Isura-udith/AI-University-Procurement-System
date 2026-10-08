@@ -1,7 +1,7 @@
 /**
  * Advanced Flowise Multi-Tool System Configuration Script
  * Provisions custom tools in Flowise database and builds the multi-agent workflow
- * in chatflow canvas e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb.
+ * in configured chatflow canvas.
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,14 +14,15 @@ if (fs.existsSync(envPath)) {
 }
 
 const FLOWISE_API_URL = process.env.FLOWISE_API_URL || 'http://localhost:3000/api/v1';
-const FLOWISE_CHATFLOW_ID = process.env.FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb';
+const FLOWISE_CHATFLOW_ID = process.env.FLOWISE_CHATFLOW_ID || '';
 const FLOWISE_API_KEY = process.env.FLOWISE_API_KEY;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
 const MEMORY_WINDOW_SIZE = parseInt(process.env.FLOWISE_MEMORY_WINDOW_SIZE, 10) || 10;
 const userHome = process.env.USERPROFILE || process.env.HOME || '';
 const DB_PATH = process.env.FLOWISE_DB_PATH || (userHome ? path.join(userHome, '.flowise', 'database.sqlite') : '');
 
-if (!FLOWISE_API_KEY) {
-  console.error('Error: FLOWISE_API_KEY is not configured in .env file.');
+if (!FLOWISE_API_KEY || !FLOWISE_CHATFLOW_ID) {
+  console.error('Error: FLOWISE_API_KEY and FLOWISE_CHATFLOW_ID must be configured in .env file.');
   process.exit(1);
 }
 
@@ -72,7 +73,7 @@ function seedCustomToolsInSQLite() {
 const url = 'http://localhost:5000/api/v1/ai/internal-query';
 const headers = {
     'Content-Type': 'application/json',
-    'X-Internal-Key': 'uwu-flowise-secret-key-2026-gosl-compliant'
+    'X-Internal-Key': '${INTERNAL_API_KEY}'
 };
 const body = {
     model: typeof $model !== 'undefined' ? $model : '',
@@ -101,7 +102,7 @@ try {
 const url = 'http://localhost:5000/api/v1/ai/internal-query';
 const headers = {
     'Content-Type': 'application/json',
-    'X-Internal-Key': 'uwu-flowise-secret-key-2026-gosl-compliant'
+    'X-Internal-Key': '${INTERNAL_API_KEY}'
 };
 const body = {
     model: 'gosl_compliance',
@@ -132,7 +133,7 @@ try {
 const url = 'http://localhost:5000/api/v1/ai/internal-query';
 const headers = {
     'Content-Type': 'application/json',
-    'X-Internal-Key': 'uwu-flowise-secret-key-2026-gosl-compliant'
+    'X-Internal-Key': '${INTERNAL_API_KEY}'
 };
 const body = {
     model: 'risk_analysis',

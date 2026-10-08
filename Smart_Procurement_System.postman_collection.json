@@ -30,6 +30,11 @@
 			"key": "procurementId",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "internalKey",
+			"value": "your_internal_api_key_here",
+			"type": "string"
 		}
 	],
 	"item": [
@@ -450,7 +455,7 @@
 						"header": [
 							{
 								"key": "X-Internal-Key",
-								"value": "uwu-flowise-secret-key-2026-gosl-compliant"
+								"value": "{{internalKey}}"
 							},
 							{
 								"key": "Content-Type",

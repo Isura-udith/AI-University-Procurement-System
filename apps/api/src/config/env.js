@@ -63,10 +63,10 @@ const env = {
 
   // Flowise Connection
   FLOWISE_API_URL: process.env.FLOWISE_API_URL || 'http://localhost:3000/api/v1',
-  FLOWISE_CHATFLOW_ID: process.env.FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+  FLOWISE_CHATFLOW_ID: process.env.FLOWISE_CHATFLOW_ID || '',
   FLOWISE_API_KEY: process.env.FLOWISE_API_KEY || '',
   FLOWISE_DOCUMENT_STORE_ID: process.env.FLOWISE_DOCUMENT_STORE_ID || '',
-  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || 'uwu-flowise-secret-key-2026-gosl-compliant',
+  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || '',
 
   // Flowise Advanced Configuration
   FLOWISE_MEMORY_WINDOW_SIZE: parseInt(process.env.FLOWISE_MEMORY_WINDOW_SIZE, 10) || 10,
