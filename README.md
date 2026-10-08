@@ -179,6 +179,4 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 - **Initial SaaS MERN Stack MVP**: Multi-tenant database separation, Core Requisitions engine, and basic RBAC.
 
----
-
-💼 *Managed by the UWU Procurement Division.*
+--
