@@ -248,11 +248,11 @@ export default function DashboardLayout() {
       if (window.Chatbot) {
         const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
         window.Chatbot.init({
-          chatflowid: 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
+          chatflowid: import.meta.env.VITE_FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb',
           apiHost: apiBase,
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_FLOWISE_API_KEY || '9tM11ngn205y3n03y20t5m'}`
-          },
+          headers: import.meta.env.VITE_FLOWISE_API_KEY ? {
+            'Authorization': `Bearer ${import.meta.env.VITE_FLOWISE_API_KEY}`
+          } : {},
           chatTriggerBtnFrame: {
             style: {
               bottom: '25px',

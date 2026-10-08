@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "seed": "node seed.js",
+    "db:feed": "node feed_all_data.js",
     "test": "jest --passWithNoTests"
   },
   "keywords": [

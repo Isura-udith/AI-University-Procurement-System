@@ -3,10 +3,8 @@ node_modules/
 
 # Local env files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 *.env
 
 # Build outputs
@@ -20,6 +18,7 @@ out/
 .turbo/
 
 # Testing & Cache
+coverage/
 .jest-cache/
 .npm/
 .eslintcache
@@ -28,8 +27,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 logs/
+
+# Uploads & Runtime Artifacts
+uploads/*
+!uploads/**/
+!uploads/**/.gitkeep
+!uploads/.gitkeep
+apps/api/uploads/*
+!apps/api/uploads/**/
+!apps/api/uploads/**/.gitkeep
+!apps/api/uploads/.gitkeep
 
 # Editor & System files
 .vscode/
@@ -42,3 +50,5 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+~$*
+.agents/

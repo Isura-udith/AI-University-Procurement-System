@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import {
   FaSignInAlt, FaShieldAlt, FaLock, FaEnvelope, FaEye, FaEyeSlash,
-  FaKey, FaUniversity, FaUsersCog, FaChevronDown, FaChevronUp
+  FaKey, FaUsersCog, FaChevronDown, FaChevronUp
 } from 'react-icons/fa';
 import uwuLogo from '../../../assets/logos/Logo_uwu.jpg';
 import { setCredentials } from '../../../app/store';
@@ -134,7 +134,7 @@ export default function LoginPage() {
     if (email) {
       try {
         await authService.resetLock(email);
-      } catch (err) {
+      } catch {
         // silent catch
       }
     }

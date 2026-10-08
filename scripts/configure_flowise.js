@@ -17,7 +17,8 @@ const FLOWISE_API_URL = process.env.FLOWISE_API_URL || 'http://localhost:3000/ap
 const FLOWISE_CHATFLOW_ID = process.env.FLOWISE_CHATFLOW_ID || 'e09a9b3b-0e76-4bb6-ba2a-4f1878d7eacb';
 const FLOWISE_API_KEY = process.env.FLOWISE_API_KEY;
 const MEMORY_WINDOW_SIZE = parseInt(process.env.FLOWISE_MEMORY_WINDOW_SIZE, 10) || 10;
-const DB_PATH = process.env.FLOWISE_DB_PATH || 'C:\\Users\\Isura Udith\\.flowise\\database.sqlite';
+const userHome = process.env.USERPROFILE || process.env.HOME || '';
+const DB_PATH = process.env.FLOWISE_DB_PATH || (userHome ? path.join(userHome, '.flowise', 'database.sqlite') : '');
 
 if (!FLOWISE_API_KEY) {
   console.error('Error: FLOWISE_API_KEY is not configured in .env file.');
@@ -31,21 +32,24 @@ const headers = {
 
 // ─── Step 0: Register Custom Tools in Flowise SQLite DB ─────────
 function seedCustomToolsInSQLite() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let sqlite3;
     try {
-      sqlite3 = require('C:\\Users\\Isura Udith\\AppData\\Roaming\\npm\\node_modules\\flowise\\node_modules\\sqlite3');
+      sqlite3 = require('sqlite3');
     } catch {
       try {
-        sqlite3 = require('sqlite3');
+        const globalFlowiseSqlite = process.env.APPDATA ? path.join(process.env.APPDATA, 'npm', 'node_modules', 'flowise', 'node_modules', 'sqlite3') : null;
+        if (globalFlowiseSqlite && fs.existsSync(globalFlowiseSqlite)) {
+          sqlite3 = require(globalFlowiseSqlite);
+        }
       } catch (e) {
         console.warn('⚠️  Could not load sqlite3 module directly. Skipping DB direct seed; using API tools if available.', e.message);
         return resolve();
       }
     }
 
-    if (!fs.existsSync(DB_PATH)) {
-      console.warn(`⚠️  Flowise SQLite database not found at ${DB_PATH}. Skipping direct seed.`);
+    if (!sqlite3 || !DB_PATH || !fs.existsSync(DB_PATH)) {
+      console.warn(`⚠️  Flowise SQLite database not found at ${DB_PATH || 'unspecified'}. Skipping direct seed.`);
       return resolve();
     }
 

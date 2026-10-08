@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Uploads & Runtime files (keep directory structure, ignore uploaded files)
+uploads/*
+!uploads/**/
+!uploads/**/.gitkeep
+!uploads/.gitkeep
+
+# Testing & Coverage
+coverage/
+.jest-cache/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
