@@ -1,4 +1,4 @@
-# 🛒 AI-Based Smart Procurement System for University
+# AI-Based Smart Procurement System for University
 
 <div align="center">
 
@@ -44,10 +44,10 @@ It bridges institutional operational gaps through **automated multi-level approv
 ## 🎓 Project Ownership & Academic Context
 
 * **Project Title**: AI-Based Smart Procurement System for University
-* **Principal Investigator & Lead Developer**: **Isura Udith**
+* **Principal Investigator & Lead Developer**: **Isura Udith Gunawardhana**
 * **Project Nature**: Undergraduate Final Year Honours Research Project
 * **Institution**: **Uva Wellassa University of Sri Lanka (UWU)**
-* **License & Intellectual Property**: Full license, project ownership, architecture, and copyright belong to **Isura Udith**.
+* **License & Intellectual Property**: Full license, project ownership, architecture, and copyright belong to **Isura Udith Gunawardhana**.
 
 ---
 

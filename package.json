@@ -15,7 +15,7 @@
     "db:seed": "cd apps/api && npm run seed"
   },
   "keywords": ["procurement", "uwu", "gosl", "saas"],
-  "author": "Isura Udith",
+  "author": "Isura Udith Gunawardhana",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
