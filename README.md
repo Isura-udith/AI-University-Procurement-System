@@ -454,22 +454,7 @@ This software application, system architecture, source code, and associated docu
 > *Submitted in partial fulfillment of the requirements for the degree of **Bachelor of Information and Communication Technology (Honours), specializing in Software Technology**.*  
 > **Department of Information and Communication Technology • Faculty of Technological Studies • Uva Wellassa University of Sri Lanka**
 
-The software is released and distributed under the **[ISC License](LICENSE)** (an OSI-approved, permissive open-source license). Full copyright and primary ownership are held exclusively by the author.
-
----
-
-### ⚖️ License Summary
-
-| Permissions | Conditions | Limitations |
-| :--- | :--- | :--- |
-| ✔️ **Commercial use** | ℹ️ **License and copyright notice** | ❌ **Liability** |
-| ✔️ **Modification** | (Must include author attribution in all copies) | ❌ **Warranty** |
-| ✔️ **Distribution** | | |
-| ✔️ **Private use** | | |
-
----
-
-### 📜 Official ISC License Text
+The software is released and distributed under the **[ISC License](LICENSE)** (an OSI-approved, permissive open-source license). Full copyright and primary ownership are held exclusively by the author:
 
 ```text
 ISC License
