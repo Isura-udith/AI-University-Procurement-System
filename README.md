@@ -1,27 +1,31 @@
-# 🛒 UWU AI-Based Smart Procurement System
+# 🛒 AI-Based Smart Procurement System for University
 
 <div align="center">
 
 ![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg?style=for-the-badge)
+![Author](https://img.shields.io/badge/Author-Isura%20Udith-orange.svg?style=for-the-badge&logo=github)
+![Academic Project](https://img.shields.io/badge/Project-Final%20Year%20Research-purple.svg?style=for-the-badge)
+![Institution](https://img.shields.io/badge/University-Uva%20Wellassa%20University-blueviolet.svg?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.2.0-emerald.svg?style=for-the-badge)
 ![Node Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![Turborepo](https://img.shields.io/badge/Monorepo-Turborepo-EF4444.svg?style=for-the-badge&logo=turborepo&logoColor=white)
 ![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)
 ![Express](https://img.shields.io/badge/Backend-Express%205-000000.svg?style=for-the-badge&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/Database-MongoDB%20v7-47A248.svg?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Docker](https://img.shields.io/badge/Containers-Docker%20Ready-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 <p align="center">
-  <b>A Next-Generation, Multi-Tenant SaaS Procurement Governance Platform Powered by Machine Learning, Explainable AI, and Real-Time Bid Ceremony Automation.</b>
+  <b>An AI-Powered, Multi-Tenant SaaS Procurement Governance Platform Engineered with Machine Learning, Explainable AI, and Real-Time Bid Opening Automation.</b><br/>
+  <i>University Final Year Undergraduate Research Project — Uva Wellassa University of Sri Lanka</i>
 </p>
 
+[Project Overview](#-executive-summary) •
+[Academic Context](#-project-ownership--academic-context) •
 [Key Features](#-key-features) •
 [System Architecture](#-system-architecture) •
 [Procurement Lifecycle](#-procurement-lifecycle--workflow) •
 [Tech Stack](#-technology-stack) •
 [RBAC Engine](#-role-based-access-control-rbac) •
 [Getting Started](#-getting-started) •
-[Docker Deployment](#-docker-deployment) •
 [API Reference](#-rest-api-reference) •
 [License](#-license)
 
@@ -31,9 +35,19 @@
 
 ## 🌟 Executive Summary
 
-The **UWU AI-Based Smart Procurement System** is an enterprise-grade Software as a Service (SaaS) procurement management platform engineered in accordance with university governance standards and public procurement guidelines (GOSL). Built inside a high-performance **Turborepo monorepo**, the system unifies the complete **45-step procurement lifecycle** into an integrated, transparent, and auditable digital environment.
+The **AI-Based Smart Procurement System for University** is an enterprise-grade Software as a Service (SaaS) procurement management platform engineered in accordance with university governance standards and public procurement guidelines (GOSL). Built inside a high-performance **Turborepo monorepo**, the system unifies the complete **45-step university procurement lifecycle** into an integrated, transparent, and auditable digital environment.
 
-It bridges legacy operational gaps through **automated multi-level approvals**, **electronic tendering**, **live-streamed bid opening ceremonies**, **digital contract signing**, and **milestone payment disbursements**. Powered by Natural Language Processing (NLP) and Machine Learning models, the system proactively detects supply chain and price volatility, automates vendor grading, and provides explainable audit rationales for every automated decision.
+It bridges institutional operational gaps through **automated multi-level approvals**, **electronic tendering**, **live-streamed bid opening ceremonies**, **digital contract signing**, and **milestone payment disbursements**. Powered by Natural Language Processing (NLP) and Machine Learning models, the system proactively detects supply chain and price volatility, automates vendor grading, and provides explainable audit rationales for every automated decision.
+
+---
+
+## 🎓 Project Ownership & Academic Context
+
+* **Project Title**: AI-Based Smart Procurement System for University
+* **Principal Investigator & Lead Developer**: **Isura Udith**
+* **Project Nature**: Undergraduate Final Year Honours Research Project
+* **Institution**: **Uva Wellassa University of Sri Lanka (UWU)**
+* **License & Intellectual Property**: Full license, project ownership, architecture, and copyright belong to **Isura Udith**.
 
 ---
 
@@ -428,14 +442,20 @@ All API routes are prefixed with `/api/v1`:
 
 ---
 
-## 📄 License
+## 📄 License & Ownership
 
-This project is open-source software licensed under the **[ISC License](LICENSE)**.
+This software application, system design, source code, and associated documentation are the intellectual property of **Isura Udith**, developed as a **University Final Year Research Project** at **Uva Wellassa University of Sri Lanka**.
+
+Licensed under the **[ISC License](LICENSE)**. Full license and ownership reside with the author:
 
 ```
 ISC License
 
-Copyright (c) 2026 UWU Procurement Division
+Copyright (c) 2026 Isura Udith
+
+Project: AI-Based Smart Procurement System for University
+Author & Principal Investigator: Isura Udith
+Affiliation: Uva Wellassa University of Sri Lanka (Final Year Research Project)
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -453,5 +473,5 @@ PERFORMANCE OF THIS SOFTWARE.
 ---
 
 <div align="center">
-  <sub>Developed & Maintained by the <b>UWU Procurement Division</b> in collaboration with the Systems Engineering Team.</sub>
+  <sub>Developed, Designed & Maintained by <b>Isura Udith</b> • University Final Year Research Project • <b>Uva Wellassa University of Sri Lanka</b></sub>
 </div>

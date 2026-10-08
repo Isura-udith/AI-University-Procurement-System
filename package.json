@@ -1,7 +1,7 @@
 {
   "name": "smart-procurement-system",
   "version": "1.2.0",
-  "description": "UWU AI-Based Smart Procurement System - SaaS Multi-Tenant MERN Stack",
+  "description": "AI-Based Smart Procurement System - SaaS Multi-Tenant MERN Stack",
   "private": true,
   "packageManager": "npm@11.9.0",
   "workspaces": ["apps/*", "packages/*"],
@@ -15,7 +15,7 @@
     "db:seed": "cd apps/api && npm run seed"
   },
   "keywords": ["procurement", "uwu", "gosl", "saas"],
-  "author": "UWU Procurement Division",
+  "author": "Isura Udith",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {

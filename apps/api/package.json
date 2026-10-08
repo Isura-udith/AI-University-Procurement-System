@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "1.2.0",
-  "description": "UWU Smart Procurement System - Backend API",
+  "description": "AI-Based Smart Procurement System - Backend API",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
@@ -14,7 +14,7 @@
     "uwu",
     "gosl"
   ],
-  "author": "UWU Procurement Division",
+  "author": "Isura Udith",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
