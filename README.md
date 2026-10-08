@@ -446,23 +446,42 @@ All API routes are prefixed with `/api/v1`:
 
 ---
 
-## 📄 License & Ownership
+## 📄 License & Intellectual Property
 
-This software application, system architecture, source code, and associated documentation are the intellectual property of **Isura Udith Gunawardhana**, developed as a **University Final Year Honours Research Project** titled **"AI-Driven Smart Procurement System for a Transparent and Predictive University"**, in partial fulfillment of the requirements for the degree of **Bachelor of Information and Communication Technology (Honours), specializing in Software Technology** at the **Department of Information and Communication Technology, Faculty of Technological Studies, Uva Wellassa University of Sri Lanka**.
+This software application, system architecture, source code, and associated documentation are the intellectual property of **Isura Udith Gunawardhana**, developed as an **Undergraduate Final Year Honours Research Project** titled:
 
-Licensed under the **[ISC License](LICENSE)**. Full license and ownership reside exclusively with the author:
+> **"AI-Driven Smart Procurement System for a Transparent and Predictive University"**  
+> *Submitted in partial fulfillment of the requirements for the degree of **Bachelor of Information and Communication Technology (Honours), specializing in Software Technology**.*  
+> **Department of Information and Communication Technology • Faculty of Technological Studies • Uva Wellassa University of Sri Lanka**
 
-```
+The software is released and distributed under the **[ISC License](LICENSE)** (an OSI-approved, permissive open-source license). Full copyright and primary ownership are held exclusively by the author.
+
+---
+
+### ⚖️ License Summary
+
+| Permissions | Conditions | Limitations |
+| :--- | :--- | :--- |
+| ✔️ **Commercial use** | ℹ️ **License and copyright notice** | ❌ **Liability** |
+| ✔️ **Modification** | (Must include author attribution in all copies) | ❌ **Warranty** |
+| ✔️ **Distribution** | | |
+| ✔️ **Private use** | | |
+
+---
+
+### 📜 Official ISC License Text
+
+```text
 ISC License
 
 Copyright (c) 2026 Isura Udith Gunawardhana
 
 Project: AI-Driven Smart Procurement System for a Transparent and Predictive University
-Author & Principal Investigator: Isura Udith Gunawardhana (isuraudith@gmail.com)
-Degree Programme: Bachelor of Information and Communication Technology (Honours), specializing in Software Technology
+Author & Principal Investigator: Isura Udith Gunawardhana <isuraudith@gmail.com>
+Academic Program: Bachelor of Information and Communication Technology (Honours), specializing in Software Technology
 Department: Department of Information and Communication Technology
 Faculty: Faculty of Technological Studies
-Affiliation: Uva Wellassa University of Sri Lanka (Final Year Honours Research Project)
+Institution: Uva Wellassa University of Sri Lanka (Final Year Honours Research Project)
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -475,6 +494,25 @@ INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
 LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
+```
+
+---
+
+### 📚 Academic Citation
+
+If you utilize this system, architecture, or research findings in academic research, reports, or publications, please cite this project as follows:
+
+```bibtex
+@misc{gunawardhana2026procurement,
+  author       = {Isura Udith Gunawardhana},
+  title        = {AI-Driven Smart Procurement System for a Transparent and Predictive University},
+  year         = {2026},
+  howpublished = {Final Year Undergraduate Honours Research Project, Uva Wellassa University of Sri Lanka},
+  department   = {Department of Information and Communication Technology},
+  faculty      = {Faculty of Technological Studies},
+  institution  = {Uva Wellassa University of Sri Lanka},
+  note         = {Specialization in Software Technology, Degree of BICT (Hons)}
+}
 ```
 
 ---
