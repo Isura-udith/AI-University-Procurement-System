@@ -12,8 +12,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "db:seed": "cd apps/api && npm run seed",
-    "db:feed": "cd apps/api && npm run db:feed"
+    "db:seed": "cd apps/api && npm run seed"
   },
   "keywords": ["procurement", "uwu", "gosl", "saas"],
   "author": "UWU Procurement Division",

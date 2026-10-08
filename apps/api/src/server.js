@@ -33,7 +33,15 @@ const startServer = async () => {
       } catch (watcherErr) {
         logger.warn(`Failed to start document watcher: ${watcherErr.message}`);
       }
-    }); 
+
+      // Initialize real-time WebSocket layer
+      try {
+        const { initializeSocket } = require('./config/socket');
+        initializeSocket(server);
+      } catch (socketErr) {
+        logger.warn(`Failed to initialize WebSocket: ${socketErr.message}`);
+      }
+    });
 
     // Graceful shutdown
     const shutdown = (signal) => {
